@@ -1,27 +1,16 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 /**
- * API base URL — set EXPO_PUBLIC_API_URL in .env to your own backend (e.g. https://your-api.com).
- * Endpoints (paths) are in api-endpoints.ts — same GET/POST paths and shapes for your backend.
+ * API base URL — set EXPO_PUBLIC_API_URL in .env to your backend (e.g. http://localhost:8080).
+ * Endpoints in api-endpoints.ts.
  */
 export function getApiUrl(): string {
-  // 1) Direct API URL — use this to point at your backend (local or deployed)
-  const directUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (directUrl) {
-    const url = new URL(directUrl);
-    return url.href.replace(/\/$/, "");
+  const url = process.env.EXPO_PUBLIC_API_URL;
+  if (!url) {
+    throw new Error("Set EXPO_PUBLIC_API_URL in .env to your backend base URL");
   }
-
-  // 2) Replit-style: host only → https://${host}
-  const host = process.env.EXPO_PUBLIC_DOMAIN;
-  if (host) {
-    const url = new URL(`https://${host}`);
-    return url.href.replace(/\/$/, "");
-  }
-
-  throw new Error(
-    "Set EXPO_PUBLIC_API_URL (e.g. http://localhost:5000) or EXPO_PUBLIC_DOMAIN in .env or when running the app"
-  );
+  const parsed = new URL(url);
+  return parsed.href.replace(/\/$/, "");
 }
 
 async function throwIfResNotOk(res: Response) {

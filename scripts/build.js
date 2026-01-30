@@ -39,21 +39,14 @@ function stripProtocol(domain) {
 }
 
 function getDeploymentDomain() {
-  // Check Replit deployment environment variables first
-  if (process.env.REPLIT_INTERNAL_APP_DOMAIN) {
-    return stripProtocol(process.env.REPLIT_INTERNAL_APP_DOMAIN);
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return stripProtocol(process.env.EXPO_PUBLIC_API_URL);
   }
-
-  if (process.env.REPLIT_DEV_DOMAIN) {
-    return stripProtocol(process.env.REPLIT_DEV_DOMAIN);
-  }
-
   if (process.env.EXPO_PUBLIC_DOMAIN) {
     return stripProtocol(process.env.EXPO_PUBLIC_DOMAIN);
   }
-
   console.error(
-    "ERROR: No deployment domain found. Set REPLIT_INTERNAL_APP_DOMAIN, REPLIT_DEV_DOMAIN, or EXPO_PUBLIC_DOMAIN",
+    "ERROR: Set EXPO_PUBLIC_API_URL or EXPO_PUBLIC_DOMAIN for build",
   );
   process.exit(1);
 }
