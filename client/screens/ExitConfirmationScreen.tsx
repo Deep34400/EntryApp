@@ -8,6 +8,8 @@ import Animated, { ZoomIn, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
+import { apiRequest } from "@/lib/query-client";
+import { closeTicketPath } from "@/lib/api-endpoints";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -22,8 +24,13 @@ export default function ExitConfirmationScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
 
+  // POST — close ticket (your backend: same path, no body)
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    apiRequest("POST", closeTicketPath(token)).catch(() => {
+      // Ignore if your backend is not ready or returns different shape
+    });
 
     const timer = setTimeout(() => {
       navigation.dispatch(
@@ -35,7 +42,7 @@ export default function ExitConfirmationScreen() {
     }, 2500);
 
     return () => clearTimeout(timer);
-  }, [navigation]);
+  }, [navigation, token]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>

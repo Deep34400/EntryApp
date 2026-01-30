@@ -1,19 +1,27 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 /**
- * Gets the base URL for the Express API server (e.g., "http://localhost:3000")
- * @returns {string} The API base URL
+ * API base URL — set EXPO_PUBLIC_API_URL in .env to your own backend (e.g. https://your-api.com).
+ * Endpoints (paths) are in api-endpoints.ts — same GET/POST paths and shapes for your backend.
  */
 export function getApiUrl(): string {
-  let host = process.env.EXPO_PUBLIC_DOMAIN;
-
-  if (!host) {
-    throw new Error("EXPO_PUBLIC_DOMAIN is not set");
+  // 1) Direct API URL — use this to point at your backend (local or deployed)
+  const directUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (directUrl) {
+    const url = new URL(directUrl);
+    return url.href.replace(/\/$/, "");
   }
 
-  let url = new URL(`https://${host}`);
+  // 2) Replit-style: host only → https://${host}
+  const host = process.env.EXPO_PUBLIC_DOMAIN;
+  if (host) {
+    const url = new URL(`https://${host}`);
+    return url.href.replace(/\/$/, "");
+  }
 
-  return url.href;
+  throw new Error(
+    "Set EXPO_PUBLIC_API_URL (e.g. http://localhost:5000) or EXPO_PUBLIC_DOMAIN in .env or when running the app"
+  );
 }
 
 async function throwIfResNotOk(res: Response) {
@@ -35,7 +43,7 @@ export async function apiRequest(
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+    credentials: "omit", // avoid CORS preflight issues; use "include" only if backend sends cookies
   });
 
   await throwIfResNotOk(res);
@@ -52,7 +60,7 @@ export const getQueryFn: <T>(options: {
     const url = new URL(queryKey.join("/") as string, baseUrl);
 
     const res = await fetch(url, {
-      credentials: "include",
+      credentials: "omit",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

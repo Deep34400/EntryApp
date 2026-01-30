@@ -19,6 +19,7 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequest } from "@/lib/query-client";
+import { ENTRY_PASS_PATH, VISITOR_PURPOSE } from "@/lib/api-endpoints";
 import { RootStackParamList, VisitorType } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "EntryForm">;
@@ -34,6 +35,7 @@ interface FormField {
 const formFields: Record<VisitorType, FormField[]> = {
   sourcing: [
     { key: "name", label: "Name", placeholder: "Enter your name", keyboardType: "default" },
+    { key: "email", label: "Email", placeholder: "visitor@example.com", keyboardType: "default" },
     { key: "phone", label: "Phone Number", placeholder: "Enter phone number", keyboardType: "phone-pad" },
   ],
   maintenance: [
@@ -70,20 +72,30 @@ export default function EntryFormScreen() {
     return fields.every((field) => formData[field.key].trim().length > 0);
   }, [formData, fields]);
 
+  // POST — entry pass: purpose, name, email, phone (your backend /api/v1/testRoutes/entry_pass)
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/tickets", {
-        visitorType,
-        ...formData,
-      });
+      const purpose = VISITOR_PURPOSE[visitorType] ?? visitorType;
+      const body = {
+        purpose,
+        name: formData.name ?? "",
+        email: formData.email ?? "",
+        phone: formData.phone ?? "",
+      };
+      const response = await apiRequest("POST", ENTRY_PASS_PATH, body);
       return response.json();
     },
     onSuccess: (data) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // API returns { status, message, results: { token_no, agent_name, desk_location, ... } }
+      const results = data.results ?? data;
+      const token = results.token_no ?? results.token ?? results.id ?? "";
+      const agentName = results.agent_name ?? results.agentName ?? results.agent ?? "—";
+      const gate = results.desk_location ?? results.gate ?? results.gate_name ?? "—";
       navigation.navigate("TokenDisplay", {
-        token: data.token,
-        agentName: data.agentName,
-        gate: data.gate,
+        token: String(token),
+        agentName: String(agentName),
+        gate: String(gate),
       });
     },
     onError: () => {
