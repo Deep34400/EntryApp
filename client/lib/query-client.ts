@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { TICKET_STATS_PATH } from "./api-endpoints";
 
 /**
  * API base URL — set EXPO_PUBLIC_API_URL in .env to your backend (e.g. http://localhost:8080).
@@ -15,8 +16,29 @@ export function getApiUrl(): string {
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let message = res.statusText;
+    const text = await res.text().catch(() => "");
+    if (text) {
+      try {
+        const data = JSON.parse(text) as Record<string, unknown>;
+        const apiMessage = data.message as string | undefined;
+        const apiError = data.error as string | undefined;
+        const stack = data.stack as string | undefined;
+        if (typeof stack === "string" && stack.trim()) {
+          const firstLine = stack.split("\n")[0]?.trim().replace(/^Error:\s*/, "");
+          if (firstLine) message = firstLine;
+        } else if (typeof apiMessage === "string" && apiMessage.trim()) {
+          message = apiMessage;
+        } else if (typeof apiError === "string" && apiError.trim()) {
+          message = apiError;
+        } else if (text.length < 300) {
+          message = text;
+        }
+      } catch {
+        if (text.length < 300) message = text;
+      }
+    }
+    throw new Error(message);
   }
 }
 
@@ -37,6 +59,26 @@ export async function apiRequest(
 
   await throwIfResNotOk(res);
   return res;
+}
+
+/** Fetch open/closed counts. Your API: GET /api/v1/testRoutes/tickets/stats. */
+export async function fetchTicketCountsSafe(): Promise<{
+  open: number;
+  closed: number;
+}> {
+  try {
+    const baseUrl = getApiUrl();
+    const url = new URL(TICKET_STATS_PATH, baseUrl);
+    const res = await fetch(url, { credentials: "omit" });
+    if (!res.ok) return { open: 0, closed: 0 };
+    const data = (await res.json()) as Record<string, unknown>;
+    const results = data.results as Record<string, unknown> | undefined;
+    const open = Number(results?.open ?? results?.openCount ?? 0) || 0;
+    const closed = Number(results?.closed ?? results?.closedCount ?? 0) || 0;
+    return { open, closed };
+  } catch {
+    return { open: 0, closed: 0 };
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

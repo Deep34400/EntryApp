@@ -19,7 +19,7 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequest } from "@/lib/query-client";
-import { ENTRY_PASS_PATH, VISITOR_PURPOSE } from "@/lib/api-endpoints";
+import { ENTRY_PASS_PATH, VISITOR_PURPOSE, VISITOR_REASON } from "@/lib/api-endpoints";
 import { RootStackParamList, VisitorType } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "EntryForm">;
@@ -30,22 +30,29 @@ interface FormField {
   label: string;
   placeholder: string;
   keyboardType: "default" | "phone-pad" | "numeric";
+  /** If true, field is optional (e.g. vehicle for collection). */
+  optional?: boolean;
 }
 
+// All three: include driver_small_id. Collection: vehicle_reg_number optional.
 const formFields: Record<VisitorType, FormField[]> = {
   sourcing: [
     { key: "name", label: "Name", placeholder: "Enter your name", keyboardType: "default" },
     { key: "email", label: "Email", placeholder: "visitor@example.com", keyboardType: "default" },
     { key: "phone", label: "Phone Number", placeholder: "Enter phone number", keyboardType: "phone-pad" },
+    { key: "driver_small_id", label: "Driver Small ID", placeholder: "Enter driver small ID", keyboardType: "default" },
   ],
   maintenance: [
+    { key: "vehicle_reg_number", label: "Vehicle Registration Number", placeholder: "Enter vehicle number", keyboardType: "default" },
     { key: "name", label: "Name", placeholder: "Enter your name", keyboardType: "default" },
     { key: "phone", label: "Phone Number", placeholder: "Enter phone number", keyboardType: "phone-pad" },
-    { key: "vehicleNumber", label: "Vehicle Number", placeholder: "Enter vehicle number", keyboardType: "default" },
+    { key: "driver_small_id", label: "Driver Small ID", placeholder: "Enter driver small ID", keyboardType: "default" },
   ],
   collection: [
+    { key: "name", label: "Name", placeholder: "Enter your name", keyboardType: "default" },
     { key: "phone", label: "Phone Number", placeholder: "Enter phone number", keyboardType: "phone-pad" },
-    { key: "driverId", label: "Driver ID", placeholder: "Enter driver ID", keyboardType: "default" },
+    { key: "driver_small_id", label: "Driver Small ID", placeholder: "Enter driver small ID", keyboardType: "default" },
+    { key: "vehicle_reg_number", label: "Vehicle Registration (optional)", placeholder: "Enter vehicle number", keyboardType: "default", optional: true },
   ],
 };
 
@@ -67,27 +74,40 @@ export default function EntryFormScreen() {
   }, [fields]);
 
   const [formData, setFormData] = useState(initialFormData);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const isFormValid = useMemo(() => {
-    return fields.every((field) => formData[field.key].trim().length > 0);
+    return fields.every((field) => field.optional || (formData[field.key]?.trim().length ?? 0) > 0);
   }, [formData, fields]);
 
-  // POST — entry pass: purpose, name, email, phone (your backend /api/v1/testRoutes/entry_pass)
+  // POST — entry pass: purpose, reason, name, phone, driver_small_id, vehicle_reg_number? (your backend)
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const purpose = VISITOR_PURPOSE[visitorType] ?? visitorType;
-      const body = {
+      setSubmitError(null);
+      const purpose = VISITOR_PURPOSE[visitorType] ?? "driver_manager";
+      const reason = VISITOR_REASON[visitorType] ?? visitorType;
+      const body: Record<string, string> = {
         purpose,
+        reason,
         name: formData.name ?? "",
         email: formData.email ?? "",
         phone: formData.phone ?? "",
+        driver_small_id: formData.driver_small_id ?? "",
       };
+      if (visitorType === "collection") {
+        if ((formData.vehicle_reg_number ?? "").trim()) {
+          body.vehicle_reg_number = formData.vehicle_reg_number!.trim();
+        }
+      }
+      if (visitorType === "maintenance") {
+        body.vehicle_reg_number = formData.vehicle_reg_number ?? "";
+      }
       const response = await apiRequest("POST", ENTRY_PASS_PATH, body);
       return response.json();
     },
     onSuccess: (data) => {
+      setSubmitError(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // API returns { status, message, results: { token_no, agent_name, desk_location, ... } }
       const results = data.results ?? data;
       const token = results.token_no ?? results.token ?? results.id ?? "";
       const agentName = results.agent_name ?? results.agentName ?? results.agent ?? "—";
@@ -98,7 +118,8 @@ export default function EntryFormScreen() {
         gate: String(gate),
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
+      setSubmitError(error.message || "Something went wrong. Please try again.");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     },
   });
@@ -110,6 +131,7 @@ export default function EntryFormScreen() {
   };
 
   const updateField = (key: string, value: string) => {
+    setSubmitError(null);
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -170,6 +192,15 @@ export default function EntryFormScreen() {
           },
         ]}
       >
+        {submitError != null && (
+          <ThemedText
+            type="small"
+            style={[styles.errorText, { color: theme.error }]}
+            numberOfLines={3}
+          >
+            {submitError}
+          </ThemedText>
+        )}
         <Button
           onPress={handleSubmit}
           disabled={!isFormValid || submitMutation.isPending}
@@ -223,6 +254,10 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
+  },
+  errorText: {
+    marginBottom: Spacing.sm,
+    textAlign: "center",
   },
   submitButton: {
     borderRadius: BorderRadius.sm,

@@ -1,9 +1,10 @@
 import React from "react";
-import { View, StyleSheet, Pressable } from "react-native";
+import { View, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import Animated, {
   useAnimatedStyle,
@@ -16,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
+import { fetchTicketCountsSafe } from "@/lib/query-client";
 import { RootStackParamList, VisitorType } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
@@ -100,8 +102,26 @@ export default function VisitorTypeScreen() {
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
 
+  const { data: counts, isFetching } = useQuery({
+    queryKey: ["ticket-counts"],
+    queryFn: fetchTicketCountsSafe,
+    staleTime: 30_000,
+  });
+  const openCount = counts?.open ?? 0;
+  const closedCount = counts?.closed ?? 0;
+
   const handleSelectType = (type: VisitorType) => {
     navigation.navigate("EntryForm", { visitorType: type });
+  };
+
+  const handleOpenTickets = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate("TicketList", { filter: "open" as const });
+  };
+
+  const handleClosedTickets = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate("TicketList", { filter: "closed" as const });
   };
 
   const visitorTypes = [
@@ -133,12 +153,69 @@ export default function VisitorTypeScreen() {
         style={[
           styles.content,
           {
-            paddingTop: headerHeight + Spacing["3xl"],
+            paddingTop: headerHeight + Spacing.lg,
             paddingBottom: insets.bottom + Spacing.xl,
           },
         ]}
       >
-        <Animated.View entering={FadeInDown.delay(0).springify()}>
+        {/* Top bar: Open / Closed ticket counts — tap to see list */}
+        <Animated.View
+          entering={FadeInDown.delay(0).springify()}
+          style={styles.countsBar}
+        >
+          <Pressable
+            onPress={handleOpenTickets}
+            style={[
+              styles.countChip,
+              { backgroundColor: theme.backgroundDefault },
+            ]}
+            accessibilityLabel={`Open tickets: ${openCount}`}
+          >
+            {isFetching ? (
+              <ActivityIndicator size="small" color={theme.primary} />
+            ) : (
+              <>
+                <Feather name="log-in" size={20} color={theme.primary} />
+                <ThemedText type="h4" style={styles.countNumber}>
+                  {openCount}
+                </ThemedText>
+                <ThemedText
+                  type="small"
+                  style={[styles.countLabel, { color: theme.textSecondary }]}
+                >
+                  Open
+                </ThemedText>
+              </>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={handleClosedTickets}
+            style={[
+              styles.countChip,
+              { backgroundColor: theme.backgroundDefault },
+            ]}
+            accessibilityLabel={`Closed tickets: ${closedCount}`}
+          >
+            {isFetching ? (
+              <ActivityIndicator size="small" color={theme.primary} />
+            ) : (
+              <>
+                <Feather name="log-out" size={20} color={theme.textSecondary} />
+                <ThemedText type="h4" style={styles.countNumber}>
+                  {closedCount}
+                </ThemedText>
+                <ThemedText
+                  type="small"
+                  style={[styles.countLabel, { color: theme.textSecondary }]}
+                >
+                  Closed
+                </ThemedText>
+              </>
+            )}
+          </Pressable>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(50).springify()}>
           <ThemedText type="h3" style={styles.subtitle}>
             Select Entry Purpose
           </ThemedText>
@@ -170,6 +247,25 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.lg,
   },
+  countsBar: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    marginBottom: Spacing["2xl"],
+  },
+  countChip: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  countNumber: {
+    marginRight: Spacing.xs,
+  },
+  countLabel: {},
   subtitle: {
     marginBottom: Spacing["3xl"],
   },
