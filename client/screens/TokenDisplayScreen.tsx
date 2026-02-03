@@ -1,33 +1,41 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Share, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useRoute, RouteProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import Animated, { FadeInDown, FadeInUp, ZoomIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
-import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Typography } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, "TokenDisplay">;
 type TokenDisplayRouteProp = RouteProp<RootStackParamList, "TokenDisplay">;
 
 export default function TokenDisplayScreen() {
-  const navigation = useNavigation<NavigationProp>();
   const route = useRoute<TokenDisplayRouteProp>();
   const { token, agentName, gate } = route.params;
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
 
-  const handleExit = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    navigation.navigate("ExitConfirmation", { token });
+  const handlePrintShare = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const message = [
+      `Token: ${token}`,
+      `Proceed to: ${agentName}`,
+      `Gate: ${gate}`,
+    ].join("\n");
+    try {
+      await Share.share({
+        message,
+        title: "Entry Token",
+      });
+    } catch {
+      // User cancelled or share not available
+    }
   };
 
   return (
@@ -88,18 +96,18 @@ export default function TokenDisplayScreen() {
           entering={FadeInDown.delay(600).springify()}
           style={styles.buttonSection}
         >
-          <Button
-            onPress={handleExit}
-            style={[styles.exitButton, { backgroundColor: theme.primary }]}
+          <Pressable
+            onPress={handlePrintShare}
+            style={({ pressed }) => [
+              styles.printButton,
+              { borderColor: theme.primary, opacity: pressed ? 0.8 : 1 },
+            ]}
           >
-            Exit Gate
-          </Button>
-          <ThemedText
-            type="small"
-            style={[styles.exitHint, { color: theme.textSecondary }]}
-          >
-            Tap when leaving the premises
-          </ThemedText>
+            <Feather name="printer" size={20} color={theme.primary} />
+            <ThemedText type="body" style={{ color: theme.primary, marginLeft: Spacing.sm, fontWeight: "600" }}>
+              Print / Share token
+            </ThemedText>
+          </Pressable>
         </Animated.View>
       </View>
     </View>
@@ -161,12 +169,15 @@ const styles = StyleSheet.create({
   },
   buttonSection: {
     alignItems: "center",
+    gap: Spacing.lg,
   },
-  exitButton: {
+  printButton: {
     width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: BorderRadius.sm,
-  },
-  exitHint: {
-    marginTop: Spacing.md,
+    borderWidth: 2,
+    paddingVertical: Spacing.md,
   },
 });
