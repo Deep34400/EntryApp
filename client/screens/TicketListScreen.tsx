@@ -33,6 +33,7 @@ export interface TicketListItem {
   token_no: string;
   name?: string;
   purpose?: string;
+  reason?: string;
   entry_time?: string;
   agent_name?: string;
   desk_location?: string;
@@ -47,6 +48,7 @@ function normalizeTicket(item: Record<string, unknown>): TicketListItem {
     token_no: String(item.token_no ?? item.token ?? item.id ?? ""),
     name: item.name != null ? String(item.name) : undefined,
     purpose: item.purpose != null ? String(item.purpose) : undefined,
+    reason: item.reason != null ? String(item.reason) : undefined,
     entry_time:
       item.entry_time != null ? String(item.entry_time) : undefined,
     agent_name:
@@ -70,15 +72,28 @@ function formatEntryTime(iso?: string): string {
   }
 }
 
+/** Category line: "Reason • Purpose" or just purpose (e.g. "Accident • Maintenance", "Sourcing • Sourcing") */
+function getCategoryLabel(item: TicketListItem): string {
+  const reason = (item.reason ?? "").trim();
+  const purpose = (item.purpose ?? "").trim();
+  if (reason && purpose && reason !== purpose) return `${reason} • ${purpose}`;
+  if (reason) return reason;
+  if (purpose) return purpose;
+  return "—";
+}
+
 function TicketRow({
   item,
   theme,
+  primary,
   onPress,
 }: {
   item: TicketListItem;
   theme: { text: string; textSecondary: string; backgroundDefault: string };
+  primary: string;
   onPress: () => void;
 }) {
+  const category = getCategoryLabel(item);
   return (
     <Pressable
       onPress={() => {
@@ -86,46 +101,51 @@ function TicketRow({
         onPress();
       }}
       style={({ pressed }) => [
-        styles.row,
+        styles.card,
         {
           backgroundColor: theme.backgroundDefault,
-          borderColor: theme.textSecondary + "20",
-          opacity: pressed ? 0.85 : 1,
+          borderLeftColor: primary,
+          opacity: pressed ? 0.9 : 1,
         },
       ]}
     >
-      <View style={styles.rowLeft}>
-        <ThemedText type="h4" style={styles.token}>
-          #{item.token_no}
-        </ThemedText>
+      <View style={styles.cardMain}>
+        <View style={styles.cardTop}>
+          <ThemedText type="h4" style={[styles.tokenNo, { color: primary }]}>
+            #{item.token_no}
+          </ThemedText>
+          <View style={styles.timeWrap}>
+            <Feather name="clock" size={14} color={theme.textSecondary} />
+            <ThemedText type="small" style={[styles.time, { color: theme.textSecondary }]}>
+              {formatEntryTime(item.entry_time)}
+            </ThemedText>
+          </View>
+        </View>
         {item.name != null && item.name !== "" && (
-          <ThemedText type="body" style={{ color: theme.text }}>
-            {item.name}
-          </ThemedText>
+          <View style={styles.infoRow}>
+            <Feather name="user" size={14} color={theme.textSecondary} />
+            <ThemedText type="body" style={[styles.infoText, { color: theme.text }]}>
+              {item.name}
+            </ThemedText>
+          </View>
         )}
-        {item.purpose != null && item.purpose !== "" && (
-          <ThemedText
-            type="small"
-            style={[styles.meta, { color: theme.textSecondary }]}
-          >
-            {item.purpose}
-          </ThemedText>
+        {(item.purpose != null || item.reason != null) && category !== "—" && (
+          <View style={styles.infoRow}>
+            <Feather name="file-text" size={14} color={theme.textSecondary} />
+            <ThemedText type="small" style={[styles.infoText, { color: theme.textSecondary }]}>
+              {category}
+            </ThemedText>
+          </View>
         )}
         {item.desk_location != null && item.desk_location !== "" && (
-          <ThemedText
-            type="small"
-            style={[styles.meta, { color: theme.textSecondary }]}
-          >
-            {item.desk_location}
-          </ThemedText>
+          <View style={styles.infoRow}>
+            <Feather name="map-pin" size={14} color={theme.textSecondary} />
+            <ThemedText type="small" style={[styles.infoText, { color: theme.textSecondary }]}>
+              {item.desk_location}
+            </ThemedText>
+          </View>
         )}
       </View>
-      <ThemedText
-        type="small"
-        style={[styles.time, { color: theme.textSecondary }]}
-      >
-        {formatEntryTime(item.entry_time)}
-      </ThemedText>
     </Pressable>
   );
 }
@@ -234,6 +254,7 @@ export default function TicketListScreen() {
             <TicketRow
               item={item}
               theme={theme}
+              primary={theme.primary}
               onPress={() =>
                 navigation.navigate("TicketDetail", { ticketId: item.id })
               }
@@ -241,7 +262,7 @@ export default function TicketListScreen() {
           )}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => (
-            <View style={{ height: Spacing.sm }} />
+            <View style={{ height: Spacing.md }} />
           )}
           refreshControl={
             <RefreshControl
@@ -252,11 +273,10 @@ export default function TicketListScreen() {
           }
           ListHeaderComponent={
             <ThemedText
-              type="small"
-              style={[styles.listHeader, { color: theme.textSecondary }]}
+              type="body"
+              style={[styles.activeEntries, { color: theme.textSecondary }]}
             >
-              {list.length} {isOpen ? "open" : "closed"} ticket
-              {list.length !== 1 ? "s" : ""}
+              {list.length} {isOpen ? "active" : "closed"} entr{list.length === 1 ? "y" : "ies"}
             </ThemedText>
           }
         />
@@ -294,28 +314,39 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: Spacing.xl,
   },
-  listHeader: {
-    marginBottom: Spacing.md,
+  activeEntries: {
+    marginBottom: Spacing.lg,
   },
-  row: {
+  card: {
+    flexDirection: "row",
+    borderRadius: BorderRadius.md,
+    borderLeftWidth: 4,
+    padding: Spacing.lg,
+  },
+  cardMain: {
+    flex: 1,
+    gap: Spacing.sm,
+  },
+  cardTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
   },
-  rowLeft: {
-    flex: 1,
+  tokenNo: {
+    fontWeight: "700",
+  },
+  timeWrap: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.xs,
   },
-  token: {
-    marginBottom: Spacing.xs,
+  time: {},
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
   },
-  meta: {
-    marginTop: 2,
-  },
-  time: {
-    marginLeft: Spacing.md,
+  infoText: {
+    flex: 1,
   },
 });

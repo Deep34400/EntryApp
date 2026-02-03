@@ -14,6 +14,9 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type TokenDisplayRouteProp = RouteProp<RootStackParamList, "TokenDisplay">;
 
+// Token card: orange (no QR — token pass only)
+const TOKEN_CARD_TOP = "#D97706";
+
 export default function TokenDisplayScreen() {
   const route = useRoute<TokenDisplayRouteProp>();
   const { token, agentName, gate } = route.params;
@@ -50,50 +53,64 @@ export default function TokenDisplayScreen() {
         ]}
       >
         <View style={styles.tokenSection}>
+          {/* Main token card — no QR */}
           <Animated.View
             entering={ZoomIn.delay(200).springify()}
-            style={[styles.tokenCard, { backgroundColor: theme.primary }]}
+            style={[styles.tokenCard, { backgroundColor: TOKEN_CARD_TOP }]}
           >
-            <ThemedText style={styles.tokenLabel}>TOKEN</ThemedText>
-            <ThemedText style={[styles.tokenNumber, Typography.token]}>
-              {token}
-            </ThemedText>
+            <View style={styles.tokenCardGradient}>
+              <ThemedText style={styles.tokenLabel}>TOKEN NUMBER</ThemedText>
+              <ThemedText style={[styles.tokenNumber, Typography.token]}>
+                {token}
+              </ThemedText>
+              <ThemedText style={styles.validityText}>
+                Valid for 24 hours at all gates
+              </ThemedText>
+            </View>
           </Animated.View>
 
+          {/* Proceed To & Gate Location — two separate cards */}
           <Animated.View
-            entering={FadeInUp.delay(400).springify()}
-            style={styles.agentSection}
+            entering={FadeInUp.delay(350).springify()}
+            style={styles.detailCards}
           >
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
-
-            <View style={styles.infoRow}>
-              <View style={[styles.iconBadge, { backgroundColor: theme.backgroundDefault }]}>
-                <Feather name="user" size={20} color={theme.primary} />
-              </View>
-              <View style={styles.infoContent}>
-                <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                  Proceed to
+            <View
+              style={[
+                styles.detailCard,
+                { backgroundColor: theme.backgroundDefault },
+              ]}
+            >
+              <Feather name="user" size={22} color={theme.primary} style={styles.detailCardIcon} />
+              <View style={styles.detailCardContent}>
+                <ThemedText type="small" style={[styles.detailCardLabel, { color: theme.textSecondary }]}>
+                  PROCEED TO
                 </ThemedText>
-                <ThemedText type="h3">{agentName}</ThemedText>
+                <ThemedText type="h3" style={{ color: theme.text }}>
+                  {agentName}
+                </ThemedText>
               </View>
             </View>
-
-            <View style={styles.infoRow}>
-              <View style={[styles.iconBadge, { backgroundColor: theme.backgroundDefault }]}>
-                <Feather name="map-pin" size={20} color={theme.primary} />
-              </View>
-              <View style={styles.infoContent}>
-                <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                  Gate Location
+            <View
+              style={[
+                styles.detailCard,
+                { backgroundColor: theme.backgroundDefault },
+              ]}
+            >
+              <Feather name="map-pin" size={22} color={theme.primary} style={styles.detailCardIcon} />
+              <View style={styles.detailCardContent}>
+                <ThemedText type="small" style={[styles.detailCardLabel, { color: theme.textSecondary }]}>
+                  GATE LOCATION
                 </ThemedText>
-                <ThemedText type="h4">{gate}</ThemedText>
+                <ThemedText type="h3" style={{ color: theme.text }}>
+                  {gate}
+                </ThemedText>
               </View>
             </View>
           </Animated.View>
         </View>
 
         <Animated.View
-          entering={FadeInDown.delay(600).springify()}
+          entering={FadeInDown.delay(500).springify()}
           style={styles.buttonSection}
         >
           <Pressable
@@ -128,44 +145,52 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   tokenCard: {
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.xl,
+    overflow: "hidden",
+  },
+  tokenCardGradient: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: Spacing["5xl"],
+    paddingVertical: Spacing["4xl"],
     paddingHorizontal: Spacing["3xl"],
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing["3xl"],
+    backgroundColor: TOKEN_CARD_TOP,
   },
   tokenLabel: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 14,
-    fontWeight: "600",
-    letterSpacing: 2,
+    color: "rgba(0,0,0,0.6)",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.5,
     marginBottom: Spacing.sm,
   },
   tokenNumber: {
-    color: "#FFFFFF",
+    color: "#1a1a1a",
+    fontWeight: "800",
   },
-  agentSection: {
-    gap: Spacing.xl,
+  validityText: {
+    marginTop: Spacing.xl,
+    fontSize: 13,
+    color: "rgba(0,0,0,0.65)",
+    fontWeight: "600",
   },
-  divider: {
-    height: 1,
-    marginVertical: Spacing.lg,
+  detailCards: {
+    gap: Spacing.lg,
   },
-  infoRow: {
+  detailCard: {
     flexDirection: "row",
     alignItems: "center",
+    padding: Spacing.xl,
+    borderRadius: BorderRadius.md,
   },
-  iconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.xs,
-    alignItems: "center",
-    justifyContent: "center",
+  detailCardIcon: {
     marginRight: Spacing.lg,
   },
-  infoContent: {
+  detailCardContent: {
     flex: 1,
+  },
+  detailCardLabel: {
+    letterSpacing: 1,
+    marginBottom: Spacing.xs,
   },
   buttonSection: {
     alignItems: "center",

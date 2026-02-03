@@ -15,6 +15,7 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
+import { ThemeToggleHeaderButton } from "@/components/ThemeToggleHeaderButton";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { fetchTicketCountsSafe } from "@/lib/query-client";
@@ -142,12 +143,20 @@ export default function VisitorTypeScreen() {
         <Pressable onPress={handleChangeHub} style={styles.changeHubButton} hitSlop={Spacing.lg}>
           <Feather name="map-pin" size={18} color={theme.primary} />
           <ThemedText type="small" style={{ color: theme.primary, marginLeft: Spacing.xs }} numberOfLines={1}>
-            {hub ? toTitleCase(hub.hub_name) : "Hub"}
+            {hub ? toTitleCase(hub.hub_name) + " Hub" : "Hub"}
           </ThemedText>
         </Pressable>
       ),
+      headerRight: () => (
+        <View style={styles.headerRight}>
+          <ThemedText type="small" style={[styles.gateLabel, { color: theme.textSecondary }]}>
+     
+          </ThemedText>
+          <ThemeToggleHeaderButton />
+        </View>
+      ),
     });
-  }, [navigation, hub?.hub_name, theme.primary]);
+  }, [navigation, hub?.hub_name, theme.primary, theme.textSecondary]);
 
   const visitorTypes = [
     {
@@ -183,65 +192,80 @@ export default function VisitorTypeScreen() {
           },
         ]}
       >
-        {/* Top bar: Open / Closed ticket counts — tap to see list */}
+        {/* Subtitle only — "Gate Entry" is in the header */}
+        {/* <Animated.View entering={FadeInDown.delay(0).springify()} style={styles.titleBlock}>
+          <ThemedText type="body" style={[styles.mainSubtitle, { color: theme.textSecondary }]}>
+            Select an action to proceed
+          </ThemedText>
+        </Animated.View> */}
+
+        {/* ACTIVE / HISTORY count cards */}
         <Animated.View
-          entering={FadeInDown.delay(0).springify()}
+          entering={FadeInDown.delay(80).springify()}
           style={styles.countsBar}
         >
           <Pressable
             onPress={handleOpenTickets}
             style={[
-              styles.countChip,
-              { backgroundColor: theme.backgroundDefault },
+              styles.countCard,
+              styles.countCardActive,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderLeftColor: theme.primary,
+              },
             ]}
-            accessibilityLabel={`Open tickets: ${openCount}`}
+            accessibilityLabel={`Active: ${openCount} open`}
           >
-            {isFetching ? (
-              <ActivityIndicator size="small" color={theme.primary} />
-            ) : (
-              <>
-                <Feather name="log-in" size={20} color={theme.primary} />
-                <ThemedText type="h4" style={styles.countNumber}>
+            <View style={styles.countCardContent}>
+              <ThemedText type="small" style={[styles.countCardLabel, { color: theme.textSecondary }]}>
+                ACTIVE
+              </ThemedText>
+              {isFetching ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <ThemedText type="h1" style={[styles.countCardNumber, { color: theme.text }]}>
                   {openCount}
                 </ThemedText>
-                <ThemedText
-                  type="small"
-                  style={[styles.countLabel, { color: theme.textSecondary }]}
-                >
-                  Open
-                </ThemedText>
-              </>
-            )}
+              )}
+              <ThemedText type="small" style={[styles.countCardSub, { color: theme.textSecondary }]}>
+                Open
+              </ThemedText>
+            </View>
+            <Feather name="chevron-right" size={22} color={theme.primary} />
           </Pressable>
           <Pressable
             onPress={handleClosedTickets}
             style={[
-              styles.countChip,
-              { backgroundColor: theme.backgroundDefault },
+              styles.countCard,
+              {
+                backgroundColor: theme.backgroundSecondary ?? theme.backgroundDefault,
+              },
             ]}
-            accessibilityLabel={`Closed tickets: ${closedCount}`}
+            accessibilityLabel={`History: ${closedCount} closed`}
           >
-            {isFetching ? (
-              <ActivityIndicator size="small" color={theme.primary} />
-            ) : (
-              <>
-                <Feather name="log-out" size={20} color={theme.textSecondary} />
-                <ThemedText type="h4" style={styles.countNumber}>
+            <View style={styles.countCardContent}>
+              <ThemedText type="small" style={[styles.countCardLabel, { color: theme.textSecondary }]}>
+                HISTORY
+              </ThemedText>
+              {isFetching ? (
+                <ActivityIndicator size="small" color={theme.textSecondary} />
+              ) : (
+                <ThemedText type="h1" style={[styles.countCardNumber, { color: theme.text }]}>
                   {closedCount}
                 </ThemedText>
-                <ThemedText
-                  type="small"
-                  style={[styles.countLabel, { color: theme.textSecondary }]}
-                >
-                  Closed
-                </ThemedText>
-              </>
-            )}
+              )}
+              <ThemedText type="small" style={[styles.countCardSub, { color: theme.textSecondary }]}>
+                Closed
+              </ThemedText>
+            </View>
+            <Feather name="chevron-right" size={22} color={theme.textSecondary} />
           </Pressable>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(50).springify()}>
-          <ThemedText type="h3" style={styles.subtitle}>
+        {/* Select Entry Purpose section */}
+        <Animated.View entering={FadeInDown.delay(120).springify()} style={styles.sectionHeader}>
+          <Feather name="shield" size={20} color={theme.primary} />
+          <ThemedText type="h3" style={[styles.sectionTitle, { color: theme.text }]}>
             Select Entry Purpose
           </ThemedText>
         </Animated.View>
@@ -272,25 +296,48 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.lg,
   },
+  titleBlock: {
+    alignItems: "center",
+    marginBottom: Spacing["2xl"],
+  },
+  mainSubtitle: {
+    textAlign: "center",
+  },
   countsBar: {
     flexDirection: "row",
     gap: Spacing.md,
     marginBottom: Spacing["2xl"],
   },
-  countChip: {
+  countCard: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.sm,
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.md,
+    justifyContent: "space-between",
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
   },
-  countNumber: {
-    marginRight: Spacing.xs,
+  countCardActive: {
+    borderLeftWidth: 4,
   },
-  countLabel: {},
+  countCardContent: {
+    flex: 1,
+  },
+  countCardLabel: {
+    letterSpacing: 0.5,
+    marginBottom: Spacing.xs,
+  },
+  countCardNumber: {
+    marginBottom: Spacing.xs,
+  },
+  countCardSub: {},
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  sectionTitle: {},
   changeHubButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -298,9 +345,12 @@ const styles = StyleSheet.create({
     paddingRight: Spacing.md,
     maxWidth: 140,
   },
-  subtitle: {
-    marginBottom: Spacing["3xl"],
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
   },
+  gateLabel: {},
   cardsContainer: {
     gap: Spacing.lg,
   },

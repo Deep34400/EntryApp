@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useLayoutEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -10,6 +10,7 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation } from "@tanstack/react-query";
+import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
@@ -31,28 +32,28 @@ interface FormField {
   label: string;
   placeholder: string;
   keyboardType: "default" | "phone-pad" | "numeric";
-  /** If true, field is optional (e.g. vehicle for collection). */
   optional?: boolean;
+  icon: keyof typeof Feather.glyphMap;
 }
 
-// Sourcing: phone, driver name, email only. Collection/Maintenance: full fields.
+// Sourcing: phone, driver name, email. Collection/Maintenance: full fields. Each field has an icon.
 const formFields: Record<VisitorType, FormField[]> = {
   sourcing: [
-    { key: "phone", label: "Phone Number", placeholder: "Enter phone number", keyboardType: "phone-pad" },
-    { key: "name", label: "Driver Name", placeholder: "Enter driver name", keyboardType: "default" },
-    { key: "email", label: "Email", placeholder: "Enter email", keyboardType: "default" },
+    { key: "phone", label: "Phone Number", placeholder: "+91 99999 99999", keyboardType: "phone-pad", icon: "phone" },
+    { key: "name", label: "Driver/Visitor Name", placeholder: "Enter full name", keyboardType: "default", icon: "user" },
+    { key: "email", label: "Email", placeholder: "visitor@example.com", keyboardType: "default", icon: "mail" },
   ],
   maintenance: [
-    { key: "vehicle_reg_number", label: "Vehicle Registration Number", placeholder: "Enter vehicle number", keyboardType: "default" },
-    { key: "name", label: "Name", placeholder: "Enter your name", keyboardType: "default" },
-    { key: "phone", label: "Phone Number", placeholder: "Enter phone number", keyboardType: "phone-pad" },
-    { key: "driver_small_id", label: "Driver Small ID", placeholder: "Enter driver small ID", keyboardType: "default" },
+    { key: "vehicle_reg_number", label: "Vehicle Registration Number", placeholder: "MH 01 AB 1234", keyboardType: "default", icon: "truck" },
+    { key: "name", label: "Driver/Visitor Name", placeholder: "Enter full name", keyboardType: "default", icon: "user" },
+    { key: "phone", label: "Phone Number", placeholder: "+91 99999 99999", keyboardType: "phone-pad", icon: "phone" },
+    { key: "driver_small_id", label: "Driver Small ID", placeholder: "Enter driver small ID", keyboardType: "default", icon: "hash" },
   ],
   collection: [
-    { key: "name", label: "Name", placeholder: "Enter your name", keyboardType: "default" },
-    { key: "phone", label: "Phone Number", placeholder: "Enter phone number", keyboardType: "phone-pad" },
-    { key: "driver_small_id", label: "Driver Small ID", placeholder: "Enter driver small ID", keyboardType: "default" },
-    { key: "vehicle_reg_number", label: "Vehicle Registration (optional)", placeholder: "Enter vehicle number", keyboardType: "default", optional: true },
+    { key: "name", label: "Driver/Visitor Name", placeholder: "Enter full name", keyboardType: "default", icon: "user" },
+    { key: "phone", label: "Phone Number", placeholder: "+91 99999 99999", keyboardType: "phone-pad", icon: "phone" },
+    { key: "driver_small_id", label: "Driver Small ID", placeholder: "Enter driver small ID", keyboardType: "default", icon: "hash" },
+    { key: "vehicle_reg_number", label: "Vehicle Number (Optional)", placeholder: "MH 01 AB 1234", keyboardType: "default", optional: true, icon: "truck" },
   ],
 };
 
@@ -143,6 +144,29 @@ export default function EntryFormScreen() {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
+  const headerTitle =
+    visitorType === "maintenance" && maintenanceReason
+      ? `Maintenance - ${maintenanceReason}`
+      : visitorType.charAt(0).toUpperCase() + visitorType.slice(1);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTitle: () => (
+        <View>
+          <ThemedText type="h3" style={{ fontWeight: "700" }}>
+            {headerTitle}
+          </ThemedText>
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: theme.primary, marginRight: Spacing.xs }} />
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              New Entry
+            </ThemedText>
+          </View>
+        </View>
+      ),
+    });
+  }, [navigation, headerTitle, theme.primary, theme.textSecondary]);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <KeyboardAwareScrollViewCompat
@@ -150,45 +174,67 @@ export default function EntryFormScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: headerHeight + Spacing["2xl"],
+            paddingTop: headerHeight + Spacing.lg,
             paddingBottom: insets.bottom + Spacing.buttonHeight + Spacing["4xl"],
           },
         ]}
       >
-        <Animated.View entering={FadeInDown.delay(0).springify()}>
-          <ThemedText type="body" style={[styles.instruction, { color: theme.textSecondary }]}>
-            Please fill in your details to proceed
+        {/* Visitor Details card with orange top border */}
+        <Animated.View
+          entering={FadeInDown.delay(0).springify()}
+          style={[
+            styles.visitorCard,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.primary,
+            },
+          ]}
+        >
+          <ThemedText type="h4" style={styles.visitorCardTitle}>
+            Visitor Details
           </ThemedText>
-        </Animated.View>
+          <ThemedText type="body" style={[styles.visitorCardDesc, { color: theme.textSecondary }]}>
+            Please fill in the information below to generate a gate pass.
+          </ThemedText>
 
-        {fields.map((field, index) => (
-          <Animated.View
-            key={field.key}
-            entering={FadeInDown.delay(100 + index * 100).springify()}
-            style={styles.fieldContainer}
-          >
-            <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-              {field.label}
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  color: theme.text,
-                  borderColor: theme.border,
-                },
-              ]}
-              placeholder={field.placeholder}
-              placeholderTextColor={theme.textSecondary}
-              value={formData[field.key]}
-              onChangeText={(value) => updateField(field.key, value)}
-              keyboardType={field.keyboardType}
-              autoCapitalize={field.key === "name" ? "words" : "none"}
-              testID={`input-${field.key}`}
-            />
-          </Animated.View>
-        ))}
+          {fields.map((field, index) => (
+            <Animated.View
+              key={field.key}
+              entering={FadeInDown.delay(80 + index * 80).springify()}
+              style={styles.fieldContainer}
+            >
+              <ThemedText type="small" style={[styles.label, { color: theme.text }]}>
+                {field.label}
+              </ThemedText>
+              <View
+                style={[
+                  styles.inputRow,
+                  {
+                    backgroundColor: theme.backgroundSecondary ?? theme.backgroundRoot,
+                    borderColor: theme.border,
+                  },
+                ]}
+              >
+                <Feather name={field.icon} size={20} color={theme.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: theme.text,
+                    },
+                  ]}
+                  placeholder={field.placeholder}
+                  placeholderTextColor={theme.textSecondary}
+                  value={formData[field.key]}
+                  onChangeText={(value) => updateField(field.key, value)}
+                  keyboardType={field.keyboardType}
+                  autoCapitalize={field.key === "name" ? "words" : "none"}
+                  testID={`input-${field.key}`}
+                />
+              </View>
+            </Animated.View>
+          ))}
+        </Animated.View>
       </KeyboardAwareScrollViewCompat>
 
       <View
@@ -220,7 +266,7 @@ export default function EntryFormScreen() {
           {submitMutation.isPending ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            "Submit"
+            "Generate Gate Pass"
           )}
         </Button>
       </View>
@@ -238,7 +284,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.lg,
   },
-  instruction: {
+  visitorCard: {
+    borderRadius: BorderRadius.md,
+    borderTopWidth: 4,
+    padding: Spacing.xl,
+    marginBottom: Spacing.xl,
+  },
+  visitorCardTitle: {
+    marginBottom: Spacing.sm,
+  },
+  visitorCardDesc: {
     marginBottom: Spacing["2xl"],
   },
   fieldContainer: {
@@ -246,13 +301,23 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: Spacing.sm,
-    fontWeight: "500",
+    fontWeight: "600",
   },
-  input: {
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
     height: Spacing.inputHeight,
     borderRadius: BorderRadius.xs,
     borderWidth: 1,
-    paddingHorizontal: Spacing.lg,
+    paddingLeft: Spacing.md,
+  },
+  inputIcon: {
+    marginRight: Spacing.sm,
+  },
+  input: {
+    flex: 1,
+    height: "100%",
+    paddingHorizontal: Spacing.sm,
     fontSize: 16,
   },
   buttonContainer: {
