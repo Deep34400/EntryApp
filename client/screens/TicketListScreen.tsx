@@ -21,7 +21,8 @@ import { RefreshHeaderButton } from "@/components/RefreshHeaderButton";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl } from "@/lib/query-client";
-import { getTicketListPath } from "@/lib/api-endpoints";
+import { getTicketListPath, appendHubIdToPath } from "@/lib/api-endpoints";
+import { useHub } from "@/contexts/HubContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "TicketList">;
@@ -131,10 +132,11 @@ function TicketRow({
 
 async function fetchTicketList(
   filter: "open" | "closed",
+  hubId?: string,
 ): Promise<TicketListItem[]> {
   try {
     const baseUrl = getApiUrl();
-    const path = getTicketListPath(filter);
+    const path = appendHubIdToPath(getTicketListPath(filter), hubId);
     const url = new URL(path, baseUrl);
     const res = await fetch(url, { credentials: "omit" });
     if (!res.ok) return [];
@@ -155,6 +157,7 @@ export default function TicketListScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
+  const { hub } = useHub();
 
   const {
     data: list = [],
@@ -162,8 +165,8 @@ export default function TicketListScreen() {
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["ticket-list", filter],
-    queryFn: () => fetchTicketList(filter),
+    queryKey: ["ticket-list", filter, hub?.id],
+    queryFn: () => fetchTicketList(filter, hub?.id),
     staleTime: 15_000,
   });
 

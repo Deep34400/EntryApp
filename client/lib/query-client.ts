@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { TICKET_STATS_PATH } from "./api-endpoints";
+import { TICKET_STATS_PATH, getHubListPath } from "./api-endpoints";
 
 /**
  * API base URL — set EXPO_PUBLIC_API_URL in .env to your backend (e.g. http://localhost:8080).
@@ -61,15 +61,33 @@ export async function apiRequest(
   return res;
 }
 
+/** Append hub_id to a URL's search params if provided. */
+export function withHubId(url: URL, hubId: string | undefined): URL {
+  const out = new URL(url.toString());
+  if (hubId) out.searchParams.set("hub_id", hubId);
+  return out;
+}
+
+/** Fetch hub list. GET /api/v1/hub/?page=1&limit=100 */
+export async function fetchHubList(): Promise<{ id: string; hub_name: string; city: string }[]> {
+  const baseUrl = getApiUrl();
+  const url = new URL(getHubListPath(1, 100), baseUrl);
+  const res = await fetch(url, { credentials: "omit" });
+  await throwIfResNotOk(res);
+  const data = (await res.json()) as { results?: { id: string; hub_name: string; city: string }[] };
+  const results = data.results ?? [];
+  return Array.isArray(results) ? results : [];
+}
+
 /** Fetch open/closed counts. Your API: GET /api/v1/testRoutes/tickets/stats. */
-export async function fetchTicketCountsSafe(): Promise<{
+export async function fetchTicketCountsSafe(hubId?: string): Promise<{
   open: number;
   closed: number;
 }> {
   try {
     const baseUrl = getApiUrl();
-    const url = new URL(TICKET_STATS_PATH, baseUrl);
-    const res = await fetch(url, { credentials: "omit" });
+    const url = withHubId(new URL(TICKET_STATS_PATH, baseUrl), hubId);
+    const res = await fetch(url.toString(), { credentials: "omit" });
     if (!res.ok) return { open: 0, closed: 0 };
     const data = (await res.json()) as Record<string, unknown>;
     const results = data.results as Record<string, unknown> | undefined;

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useLayoutEffect } from "react";
 import { View, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -18,6 +18,8 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { fetchTicketCountsSafe } from "@/lib/query-client";
+import { toTitleCase } from "@/lib/format";
+import { useHub } from "@/contexts/HubContext";
 import { RootStackParamList, VisitorType } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
@@ -101,17 +103,22 @@ export default function VisitorTypeScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
+  const { hub } = useHub();
 
   const { data: counts, isFetching } = useQuery({
-    queryKey: ["ticket-counts"],
-    queryFn: fetchTicketCountsSafe,
+    queryKey: ["ticket-counts", hub?.id],
+    queryFn: () => fetchTicketCountsSafe(hub?.id),
     staleTime: 30_000,
   });
   const openCount = counts?.open ?? 0;
   const closedCount = counts?.closed ?? 0;
 
   const handleSelectType = (type: VisitorType) => {
-    navigation.navigate("EntryForm", { visitorType: type });
+    if (type === "maintenance") {
+      navigation.navigate("MaintenanceReason");
+    } else {
+      navigation.navigate("EntryForm", { visitorType: type });
+    }
   };
 
   const handleOpenTickets = () => {
@@ -123,6 +130,24 @@ export default function VisitorTypeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     navigation.navigate("TicketList", { filter: "closed" as const });
   };
+
+  const handleChangeHub = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate("HubSelect");
+  };
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <Pressable onPress={handleChangeHub} style={styles.changeHubButton} hitSlop={Spacing.lg}>
+          <Feather name="map-pin" size={18} color={theme.primary} />
+          <ThemedText type="small" style={{ color: theme.primary, marginLeft: Spacing.xs }} numberOfLines={1}>
+            {hub ? toTitleCase(hub.hub_name) : "Hub"}
+          </ThemedText>
+        </Pressable>
+      ),
+    });
+  }, [navigation, hub?.hub_name, theme.primary]);
 
   const visitorTypes = [
     {
@@ -266,6 +291,13 @@ const styles = StyleSheet.create({
     marginRight: Spacing.xs,
   },
   countLabel: {},
+  changeHubButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: Spacing.sm,
+    paddingRight: Spacing.md,
+    maxWidth: 140,
+  },
   subtitle: {
     marginBottom: Spacing["3xl"],
   },

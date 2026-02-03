@@ -20,6 +20,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequest } from "@/lib/query-client";
 import { ENTRY_PASS_PATH, VISITOR_PURPOSE, VISITOR_REASON } from "@/lib/api-endpoints";
+import { useHub } from "@/contexts/HubContext";
 import { RootStackParamList, VisitorType } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "EntryForm">;
@@ -34,13 +35,12 @@ interface FormField {
   optional?: boolean;
 }
 
-// All three: include driver_small_id. Collection: vehicle_reg_number optional.
+// Sourcing: phone, driver name, email only. Collection/Maintenance: full fields.
 const formFields: Record<VisitorType, FormField[]> = {
   sourcing: [
-    { key: "name", label: "Name", placeholder: "Enter your name", keyboardType: "default" },
-    { key: "email", label: "Email", placeholder: "visitor@example.com", keyboardType: "default" },
     { key: "phone", label: "Phone Number", placeholder: "Enter phone number", keyboardType: "phone-pad" },
-    { key: "driver_small_id", label: "Driver Small ID", placeholder: "Enter driver small ID", keyboardType: "default" },
+    { key: "name", label: "Driver Name", placeholder: "Enter driver name", keyboardType: "default" },
+    { key: "email", label: "Email", placeholder: "Enter email", keyboardType: "default" },
   ],
   maintenance: [
     { key: "vehicle_reg_number", label: "Vehicle Registration Number", placeholder: "Enter vehicle number", keyboardType: "default" },
@@ -59,10 +59,11 @@ const formFields: Record<VisitorType, FormField[]> = {
 export default function EntryFormScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<EntryFormRouteProp>();
-  const { visitorType } = route.params;
+  const { visitorType, maintenanceReason } = route.params;
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
+  const { hub } = useHub();
 
   const fields = formFields[visitorType];
   const initialFormData = useMemo(() => {
@@ -85,15 +86,22 @@ export default function EntryFormScreen() {
     mutationFn: async () => {
       setSubmitError(null);
       const purpose = VISITOR_PURPOSE[visitorType] ?? "driver_manager";
-      const reason = VISITOR_REASON[visitorType] ?? visitorType;
+      // For maintenance, use selected sub-reason (Accident, PMS, Running Repair, Vehicle Breakdown)
+      const reason =
+        visitorType === "maintenance" && maintenanceReason
+          ? maintenanceReason
+          : VISITOR_REASON[visitorType] ?? visitorType;
       const body: Record<string, string> = {
         purpose,
         reason,
         name: formData.name ?? "",
         email: formData.email ?? "",
         phone: formData.phone ?? "",
-        driver_small_id: formData.driver_small_id ?? "",
+        driver_small_id: visitorType === "sourcing" ? "" : (formData.driver_small_id ?? ""),
       };
+      if (hub?.id) {
+        body.hub_id = hub.id;
+      }
       if (visitorType === "collection") {
         if ((formData.vehicle_reg_number ?? "").trim()) {
           body.vehicle_reg_number = formData.vehicle_reg_number!.trim();

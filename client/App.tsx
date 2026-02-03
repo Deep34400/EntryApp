@@ -10,6 +10,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
 
 import { ThemeProvider, useThemeContext } from "@/contexts/ThemeContext";
+import { HubProvider } from "@/contexts/HubContext";
 import RootStackNavigator from "@/navigation/RootStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -24,6 +25,7 @@ export default function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
+          <HubProvider>
           <SafeAreaProvider>
             <GestureHandlerRootView style={styles.root}>
               <KeyboardProvider>
@@ -34,6 +36,7 @@ export default function App() {
               </KeyboardProvider>
             </GestureHandlerRootView>
           </SafeAreaProvider>
+          </HubProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>

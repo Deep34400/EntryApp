@@ -6,6 +6,21 @@
  * Same pattern for GET (details) and POST (create/close): use apiRequest(method, path, body?).
  */
 
+// ----- GET: Hub list (choose location) -----
+// Path: GET /api/v1/hub/?page=1&limit=100
+// Response: { status, message, results: [{ id, hub_name, driver_processing_fee, city }] }
+export const HUB_LIST_PATH = "/api/v1/hub/";
+export function getHubListPath(page = 1, limit = 100): string {
+  return `${HUB_LIST_PATH}?page=${page}&limit=${limit}`;
+}
+
+/** Append hub_id query param to a path for APIs that filter by hub. */
+export function appendHubIdToPath(path: string, hubId: string | undefined): string {
+  if (!hubId) return path;
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}hub_id=${encodeURIComponent(hubId)}`;
+}
+
 // ----- POST: Entry pass (your backend) -----
 // Path: POST /api/v1/testRoutes/entry_pass
 // Body: { purpose, reason, name?, email?, phone?, driver_small_id?, vehicle_reg_number? }

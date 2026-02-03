@@ -18,7 +18,8 @@ import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl, apiRequest } from "@/lib/query-client";
-import { getTicketDetailPath, getTicketUpdatePath } from "@/lib/api-endpoints";
+import { getTicketDetailPath, getTicketUpdatePath, appendHubIdToPath } from "@/lib/api-endpoints";
+import { useHub } from "@/contexts/HubContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type TicketDetailRouteProp = RouteProp<RootStackParamList, "TicketDetail">;
@@ -75,10 +76,10 @@ function DetailRow({
   );
 }
 
-async function fetchTicketDetail(ticketId: string): Promise<TicketDetailResult | null> {
+async function fetchTicketDetail(ticketId: string, hubId?: string): Promise<TicketDetailResult | null> {
   try {
     const baseUrl = getApiUrl();
-    const path = getTicketDetailPath(ticketId);
+    const path = appendHubIdToPath(getTicketDetailPath(ticketId), hubId);
     const url = new URL(path, baseUrl);
     const res = await fetch(url, { credentials: "omit" });
     if (!res.ok) return null;
@@ -116,6 +117,7 @@ export default function TicketDetailScreen() {
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
   const queryClient = useQueryClient();
+  const { hub } = useHub();
 
   const {
     data: ticket,
@@ -123,16 +125,16 @@ export default function TicketDetailScreen() {
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["ticket-detail", ticketId],
-    queryFn: () => fetchTicketDetail(ticketId),
+    queryKey: ["ticket-detail", ticketId, hub?.id],
+    queryFn: () => fetchTicketDetail(ticketId, hub?.id),
     staleTime: 30_000,
   });
 
   const closeMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("PUT", getTicketUpdatePath(ticketId), {
-        status: "CLOSED",
-      });
+      const body: Record<string, string> = { status: "CLOSED" };
+      if (hub?.id) body.hub_id = hub.id;
+      await apiRequest("PUT", getTicketUpdatePath(ticketId), body);
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
