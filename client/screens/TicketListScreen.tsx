@@ -1,4 +1,4 @@
-import React, { useLayoutEffect } from "react";
+import React, { useLayoutEffect, useMemo, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Pressable,
+  TextInput,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -38,6 +39,7 @@ export interface TicketListItem {
   agent_name?: string;
   desk_location?: string;
   status?: string;
+  vehicle_reg_number?: string;
 }
 
 function normalizeTicket(item: Record<string, unknown>): TicketListItem {
@@ -56,6 +58,12 @@ function normalizeTicket(item: Record<string, unknown>): TicketListItem {
     desk_location:
       item.desk_location != null ? String(item.desk_location) : undefined,
     status: item.status != null ? String(item.status) : undefined,
+    vehicle_reg_number:
+      item.vehicle_reg_number != null
+        ? String(item.vehicle_reg_number)
+        : item.vehicle != null
+          ? String(item.vehicle)
+          : undefined,
   };
 }
 
@@ -82,18 +90,38 @@ function getCategoryLabel(item: TicketListItem): string {
   return "—";
 }
 
+const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+
+function isEntryOlderThan2Hours(entryTime?: string): boolean {
+  if (!entryTime) return false;
+  try {
+    const entry = new Date(entryTime).getTime();
+    return Date.now() - entry > TWO_HOURS_MS;
+  } catch {
+    return false;
+  }
+}
+
 function TicketRow({
   item,
   theme,
   primary,
   onPress,
+  errorColor,
+  isOpenList,
 }: {
   item: TicketListItem;
   theme: { text: string; textSecondary: string; backgroundDefault: string };
   primary: string;
   onPress: () => void;
+  errorColor: string;
+  isOpenList: boolean;
 }) {
   const category = getCategoryLabel(item);
+  const isOver2Hours = isOpenList && isEntryOlderThan2Hours(item.entry_time);
+  const borderColor = isOver2Hours ? errorColor : primary;
+  const timeColor = isOver2Hours ? errorColor : theme.textSecondary;
+
   return (
     <Pressable
       onPress={() => {
@@ -104,8 +132,13 @@ function TicketRow({
         styles.card,
         {
           backgroundColor: theme.backgroundDefault,
-          borderLeftColor: primary,
-          opacity: pressed ? 0.9 : 1,
+          borderLeftColor: borderColor,
+          opacity: pressed ? 0.92 : 1,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 3,
         },
       ]}
     >
@@ -115,9 +148,10 @@ function TicketRow({
             #{item.token_no}
           </ThemedText>
           <View style={styles.timeWrap}>
-            <Feather name="clock" size={14} color={theme.textSecondary} />
-            <ThemedText type="small" style={[styles.time, { color: theme.textSecondary }]}>
+            <Feather name="clock" size={14} color={timeColor} />
+            <ThemedText type="small" style={[styles.time, { color: timeColor }]}>
               {formatEntryTime(item.entry_time)}
+              {isOver2Hours ? " (2h+)" : ""}
             </ThemedText>
           </View>
         </View>
@@ -126,6 +160,14 @@ function TicketRow({
             <Feather name="user" size={14} color={theme.textSecondary} />
             <ThemedText type="body" style={[styles.infoText, { color: theme.text }]}>
               {item.name}
+            </ThemedText>
+          </View>
+        )}
+        {item.vehicle_reg_number != null && item.vehicle_reg_number !== "" && (
+          <View style={styles.infoRow}>
+            <Feather name="truck" size={14} color={theme.textSecondary} />
+            <ThemedText type="small" style={[styles.infoText, { color: theme.textSecondary }]}>
+              Reg: {item.vehicle_reg_number}
             </ThemedText>
           </View>
         )}
@@ -191,6 +233,29 @@ export default function TicketListScreen() {
   });
 
   const isOpen = filter === "open";
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredList = useMemo(() => {
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.trim().toLowerCase();
+    return list.filter(
+      (t) =>
+        (t.token_no ?? "").toLowerCase().includes(q) ||
+        (t.name ?? "").toLowerCase().includes(q) ||
+        (t.reason ?? "").toLowerCase().includes(q) ||
+        (t.purpose ?? "").toLowerCase().includes(q) ||
+        (t.desk_location ?? "").toLowerCase().includes(q) ||
+        (t.vehicle_reg_number ?? "").toLowerCase().includes(q)
+    );
+  }, [list, searchQuery]);
+
+  const over2HoursCount = useMemo(
+    () =>
+      isOpen
+        ? filteredList.filter((t) => isEntryOlderThan2Hours(t.entry_time)).length
+        : 0,
+    [filteredList, isOpen]
+  );
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -248,13 +313,15 @@ export default function TicketListScreen() {
         </View>
       ) : (
         <FlatList
-          data={list}
+          data={filteredList}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <TicketRow
               item={item}
               theme={theme}
               primary={theme.primary}
+              errorColor={theme.error}
+              isOpenList={isOpen}
               onPress={() =>
                 navigation.navigate("TicketDetail", { ticketId: item.id })
               }
@@ -272,12 +339,49 @@ export default function TicketListScreen() {
             />
           }
           ListHeaderComponent={
-            <ThemedText
-              type="body"
-              style={[styles.activeEntries, { color: theme.textSecondary }]}
-            >
-              {list.length} {isOpen ? "active" : "closed"} entr{list.length === 1 ? "y" : "ies"}
-            </ThemedText>
+            <View style={styles.listHeader}>
+              {isOpen && over2HoursCount > 0 ? (
+                <View style={[styles.alertBanner, { backgroundColor: theme.error }]}>
+                  <Feather name="alert-triangle" size={22} color="#FFFFFF" style={styles.alertIcon} />
+                  <ThemedText type="body" style={styles.alertText}>
+                    {over2HoursCount} ticket{over2HoursCount === 1 ? "" : "s"} over 2 hours — please attend
+                  </ThemedText>
+                </View>
+              ) : null}
+              <View style={[styles.searchBarWrap, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
+                <Feather name="search" size={20} color={theme.textSecondary} style={styles.searchIcon} />
+                <TextInput
+                  style={[styles.searchInput, { color: theme.text }]}
+                  placeholder="Search by token, name, reason..."
+                  placeholderTextColor={theme.textSecondary}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                />
+                {searchQuery.length > 0 ? (
+                  <Pressable onPress={() => setSearchQuery("")} hitSlop={Spacing.md} style={styles.searchClear}>
+                    <Feather name="x-circle" size={20} color={theme.textSecondary} />
+                  </Pressable>
+                ) : null}
+              </View>
+              <View style={styles.countRow}>
+                <View style={[styles.countBadge, { backgroundColor: theme.primary }]}>
+                  <ThemedText type="body" style={[styles.countNumber, { color: theme.buttonText }]}>
+                    {filteredList.length}
+                  </ThemedText>
+                </View>
+                <ThemedText type="body" style={[styles.countLabel, { color: theme.textSecondary }]}>
+                  {filteredList.length === 1 ? "ticket" : "tickets"} ({isOpen ? "open" : "closed"})
+                </ThemedText>
+              </View>
+            </View>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptySearch}>
+              <ThemedText type="body" style={{ color: theme.textSecondary }}>
+                No tickets match your search.
+              </ThemedText>
+            </View>
           }
         />
       )}
@@ -314,12 +418,70 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: Spacing.xl,
   },
-  activeEntries: {
+  listHeader: {
     marginBottom: Spacing.lg,
+  },
+  alertBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.lg,
+  },
+  alertIcon: {
+    marginRight: Spacing.md,
+  },
+  alertText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    flex: 1,
+  },
+  searchBarWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 48,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  searchIcon: {
+    marginRight: Spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    height: "100%",
+    paddingVertical: 0,
+    fontSize: 16,
+  },
+  searchClear: {
+    padding: Spacing.xs,
+  },
+  countRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  countBadge: {
+    minWidth: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.sm,
+  },
+  countNumber: {
+    fontWeight: "700",
+  },
+  countLabel: {},
+  emptySearch: {
+    paddingVertical: Spacing["2xl"],
+    alignItems: "center",
   },
   card: {
     flexDirection: "row",
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     borderLeftWidth: 4,
     padding: Spacing.lg,
   },
