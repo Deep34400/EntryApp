@@ -234,6 +234,7 @@ export default function TicketListScreen() {
 
   const isOpen = filter === "open";
   const [searchQuery, setSearchQuery] = useState("");
+  const [showOver2HoursOnly, setShowOver2HoursOnly] = useState(false);
 
   const filteredList = useMemo(() => {
     if (!searchQuery.trim()) return list;
@@ -249,13 +250,19 @@ export default function TicketListScreen() {
     );
   }, [list, searchQuery]);
 
-  const over2HoursCount = useMemo(
+  const over2HoursList = useMemo(
     () =>
       isOpen
-        ? filteredList.filter((t) => isEntryOlderThan2Hours(t.entry_time)).length
-        : 0,
+        ? filteredList.filter((t) => isEntryOlderThan2Hours(t.entry_time))
+        : [],
     [filteredList, isOpen]
   );
+  const over2HoursCount = over2HoursList.length;
+
+  const displayList = useMemo(() => {
+    if (isOpen && showOver2HoursOnly) return over2HoursList;
+    return filteredList;
+  }, [isOpen, showOver2HoursOnly, filteredList, over2HoursList]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -313,7 +320,7 @@ export default function TicketListScreen() {
         </View>
       ) : (
         <FlatList
-          data={filteredList}
+          data={displayList}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <TicketRow
@@ -341,12 +348,36 @@ export default function TicketListScreen() {
           ListHeaderComponent={
             <View style={styles.listHeader}>
               {isOpen && over2HoursCount > 0 ? (
-                <View style={[styles.alertBanner, { backgroundColor: theme.error }]}>
-                  <Feather name="alert-triangle" size={22} color="#FFFFFF" style={styles.alertIcon} />
-                  <ThemedText type="body" style={styles.alertText}>
-                    {over2HoursCount} ticket{over2HoursCount === 1 ? "" : "s"} over 2 hours — please attend
-                  </ThemedText>
-                </View>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowOver2HoursOnly((prev) => !prev);
+                  }}
+                  style={({ pressed }) => [
+                    styles.alertBanner,
+                    { backgroundColor: theme.error, opacity: pressed ? 0.9 : 1 },
+                  ]}
+                >
+                  <View style={styles.alertBannerContent}>
+                    <View style={styles.alertBannerRow}>
+                      <Feather name="alert-triangle" size={20} color="#FFFFFF" style={styles.alertIcon} />
+                      <ThemedText type="body" style={styles.alertTitle}>
+                        {over2HoursCount} ticket{over2HoursCount === 1 ? "" : "s"} waiting over 2 hours
+                      </ThemedText>
+                    </View>
+                    <View style={styles.alertBannerAction}>
+                      <ThemedText type="body" style={styles.alertActionText}>
+                        {showOver2HoursOnly ? "Show all tickets" : "Show only these"}
+                      </ThemedText>
+                      <Feather
+                        name={showOver2HoursOnly ? "list" : "filter"}
+                        size={18}
+                        color="#FFFFFF"
+                        style={styles.alertActionIcon}
+                      />
+                    </View>
+                  </View>
+                </Pressable>
               ) : null}
               <View style={[styles.searchBarWrap, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
                 <Feather name="search" size={20} color={theme.textSecondary} style={styles.searchIcon} />
@@ -367,11 +398,12 @@ export default function TicketListScreen() {
               <View style={styles.countRow}>
                 <View style={[styles.countBadge, { backgroundColor: theme.primary }]}>
                   <ThemedText type="body" style={[styles.countNumber, { color: theme.buttonText }]}>
-                    {filteredList.length}
+                    {displayList.length}
                   </ThemedText>
                 </View>
                 <ThemedText type="body" style={[styles.countLabel, { color: theme.textSecondary }]}>
-                  {filteredList.length === 1 ? "ticket" : "tickets"} ({isOpen ? "open" : "closed"})
+                  {displayList.length === 1 ? "ticket" : "tickets"}
+                  {showOver2HoursOnly ? " (overdue 2h+)" : ` (${isOpen ? "open" : "closed"})`}
                 </ThemedText>
               </View>
             </View>
@@ -379,7 +411,9 @@ export default function TicketListScreen() {
           ListEmptyComponent={
             <View style={styles.emptySearch}>
               <ThemedText type="body" style={{ color: theme.textSecondary }}>
-                No tickets match your search.
+                {showOver2HoursOnly
+                  ? "No overdue tickets (2h+)."
+                  : "No tickets match your search."}
               </ThemedText>
             </View>
           }
@@ -422,20 +456,43 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   alertBanner: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.lg,
   },
-  alertIcon: {
-    marginRight: Spacing.md,
+  alertBannerContent: {
+    gap: Spacing.sm,
   },
-  alertText: {
+  alertBannerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  alertIcon: {
+    marginRight: Spacing.sm,
+  },
+  alertTitle: {
     color: "#FFFFFF",
     fontWeight: "600",
     flex: 1,
+  },
+  alertBannerAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.25)",
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    gap: Spacing.xs,
+  },
+  alertActionText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  alertActionIcon: {
+    opacity: 0.95,
   },
   searchBarWrap: {
     flexDirection: "row",
