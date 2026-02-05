@@ -85,19 +85,19 @@ export default function EntryFormScreen() {
     navigation.setOptions({
       headerTitle: () => (
         <View>
-          <ThemedText type="h3" style={{ fontWeight: "700" }}>
+          {/* <ThemedText type="h3" style={{ fontWeight: "700", color: theme.text }}>
             {headerTitle}
-          </ThemedText>
-          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
-            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: theme.primary, marginRight: Spacing.xs }} />
-            <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Visitor details
+          </ThemedText> */}
+          {/* <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+            <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: theme.primary, marginRight: Spacing.xs }} />
+            <ThemedText type="small" style={{ color: theme.textSecondary, letterSpacing: 0.5 }}>
+              VISITOR DETAILS
             </ThemedText>
-          </View>
+          </View> */}
         </View>
       ),
     });
-  }, [navigation, headerTitle, theme.primary, theme.textSecondary]);
+  }, [navigation, headerTitle, theme.primary, theme.textSecondary, theme.text]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
@@ -107,26 +107,36 @@ export default function EntryFormScreen() {
           styles.scrollContent,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: insets.bottom + Spacing.buttonHeight + Spacing["4xl"],
+            paddingBottom: insets.bottom + Spacing.buttonHeight + Spacing.lg,
           },
         ]}
       >
-        {/* Visitor Details card with orange top border */}
+        {/* Visitor Details card — reference style: rounded, shield icon */}
         <Animated.View
           entering={FadeInDown.delay(0).springify()}
           style={[
             styles.visitorCard,
             {
               backgroundColor: theme.backgroundDefault,
-              borderColor: theme.primary,
+              borderColor: theme.border,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 12,
+              elevation: 4,
             },
           ]}
         >
-          <ThemedText type="h4" style={styles.visitorCardTitle}>
-            Visitor Details
-          </ThemedText>
+          <View style={styles.visitorCardHeader}>
+            <View style={[styles.shieldIconWrap, { backgroundColor: theme.primary }]}>
+              <Feather name="shield" size={24} color="#FFFFFF" />
+            </View>
+            <ThemedText type="h4" style={[styles.visitorCardTitle, { color: theme.text }]}>
+              Visitor Details
+            </ThemedText>
+          </View>
           <ThemedText type="body" style={[styles.visitorCardDesc, { color: theme.textSecondary }]}>
-            Please fill in the information below to generate a gate pass.
+            Please fill in the information below to generate a secure gate pass.
           </ThemedText>
 
           {fields.map((field, index) => (
@@ -147,14 +157,9 @@ export default function EntryFormScreen() {
                   },
                 ]}
               >
-                <Feather name={field.icon} size={20} color={theme.textSecondary} style={styles.inputIcon} />
+                <Feather name={field.icon} size={20} color={theme.primary} style={styles.inputIcon} />
                 <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      color: theme.text,
-                    },
-                  ]}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder={field.placeholder}
                   placeholderTextColor={theme.textSecondary}
                   value={formData[field.key] ?? ""}
@@ -167,13 +172,18 @@ export default function EntryFormScreen() {
             </Animated.View>
           ))}
         </Animated.View>
+
+        <ThemedText type="small" style={[styles.footerText, { color: theme.textSecondary }]}>
+          Secure check-in powered by Carrum™
+        </ThemedText>
       </KeyboardAwareScrollViewCompat>
 
       <View
         style={[
           styles.buttonContainer,
           {
-            paddingBottom: insets.bottom + Spacing.lg,
+            paddingBottom: Math.max(insets.bottom, Spacing.sm) + Spacing.sm,
+            paddingTop: Spacing.md,
             backgroundColor: theme.backgroundRoot,
           },
         ]}
@@ -201,19 +211,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    flexGrow: 1,
   },
   visitorCard: {
-    borderRadius: BorderRadius.md,
-    borderTopWidth: 4,
-    padding: Spacing.xl,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    padding: Spacing["2xl"],
     marginBottom: Spacing.xl,
   },
-  visitorCardTitle: {
+  visitorCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: Spacing.sm,
+    gap: Spacing.md,
+  },
+  shieldIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  visitorCardTitle: {
+    fontWeight: "700",
   },
   visitorCardDesc: {
     marginBottom: Spacing["2xl"],
+    lineHeight: 22,
   },
   fieldContainer: {
     marginBottom: Spacing.xl,
@@ -221,30 +246,36 @@ const styles = StyleSheet.create({
   label: {
     marginBottom: Spacing.sm,
     fontWeight: "600",
+    letterSpacing: 0.2,
   },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    height: Spacing.inputHeight,
-    borderRadius: BorderRadius.xs,
+    height: 52,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
-    paddingLeft: Spacing.md,
+    paddingLeft: Spacing.lg,
   },
   inputIcon: {
-    marginRight: Spacing.sm,
+    marginRight: Spacing.md,
   },
   input: {
     flex: 1,
     height: "100%",
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     fontSize: 16,
+  },
+  footerText: {
+    textAlign: "center",
+    marginBottom: Spacing.md,
+    letterSpacing: 0.3,
   },
   buttonContainer: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.lg,
   },
   errorText: {
@@ -252,6 +283,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   submitButton: {
-    borderRadius: BorderRadius.sm,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.lg,
+    minHeight: 56,
   },
 });

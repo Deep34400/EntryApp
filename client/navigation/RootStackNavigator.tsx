@@ -47,11 +47,7 @@ export default function RootStackNavigator() {
         name="WhoAreYou"
         component={WhoAreYouScreen}
         options={{
-          headerTitle: "Gate Entry",
-          headerTitleStyle: {
-            fontSize: 24,
-            fontWeight: "700",
-          },
+          headerShown: false,
           headerBackVisible: false,
           gestureEnabled: false,
         }}
@@ -60,11 +56,7 @@ export default function RootStackNavigator() {
         name="HubSelect"
         component={HubSelectScreen}
         options={{
-          headerTitle: "Choose Hub",
-          headerTitleStyle: {
-            fontSize: 24,
-            fontWeight: "700",
-          },
+          headerTitle: "",
           headerBackVisible: false,
           gestureEnabled: false,
         }}
@@ -73,7 +65,7 @@ export default function RootStackNavigator() {
         name="VisitorType"
         component={VisitorTypeScreen}
         options={{
-          headerTitle: "Gate Entry",
+          headerTitle: "Gate ",
           headerTitleStyle: {
             fontSize: 24,
             fontWeight: "700",

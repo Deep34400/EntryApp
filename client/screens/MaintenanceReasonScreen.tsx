@@ -27,7 +27,7 @@ export const MAINTENANCE_REASONS = [
 
 export type MaintenanceReasonType = (typeof MAINTENANCE_REASONS)[number];
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, "MaintenanceReason">;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorPurpose">;
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -70,8 +70,7 @@ function ReasonCard({
         </View>
         <View style={styles.cardContent}>
           <ThemedText type="h4">{title}</ThemedText>
-        </View>
-        <Feather name="chevron-right" size={22} color={theme.textSecondary} />
+        </View> 
       </AnimatedPressable>
     </Animated.View>
   );
@@ -93,8 +92,7 @@ export default function MaintenanceReasonScreen() {
   const handleSelect = (reason: MaintenanceReasonType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     navigation.navigate("EntryForm", {
-      visitorType: "maintenance",
-      maintenanceReason: reason,
+      entryType: "old_dp",
     });
   };
 

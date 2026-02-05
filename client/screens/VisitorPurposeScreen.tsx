@@ -5,6 +5,7 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -56,19 +57,46 @@ export const DP_SETTLEMENT = {
 
 export const DP_MAINTENANCE = {
   title: "Maintenance",
-  items: [
-    "Accident",
-    "PMS",
-    "Running Repair - Part missing, Mechanical / electrical fault, Car bodyshop, Repair Parking",
-    "Washing",
-  ],
+  items: ["Accident", "PMS", "Running Repair", "Washing"],
 } as const;
+
+/** Sub-options when user taps "Running Repair" — shown in a modal */
+export const RUNNING_REPAIR_SUB_ITEMS = [
+  "Part missing",
+  "Mechanical Electrical fault",
+  "Car bodyshop",
+  "Repair Parking",
+] as const;
 
 /** Categories to show for New DP only (Onboarding). */
 export const NEW_DP_CATEGORIES = [DP_ONBOARDING] as const;
 
 /** Categories to show for Old DP only (Settlement + Maintenance). */
 export const OLD_DP_CATEGORIES = [DP_SETTLEMENT, DP_MAINTENANCE] as const;
+
+/** Icons for purpose grid cards (Feather names) */
+const PURPOSE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
+  "DM collection": "credit-card",
+  Settlement: "file-text",
+  "Car Drop": "truck",
+  "Car Exchange": "repeat",
+  "Scheme Change": "sliders",
+  Rejoining: "user-plus",
+  Accident: "alert-triangle",
+  PMS: "settings",
+  "Running Repair": "tool",
+  Washing: "droplet",
+  Enquiry: "help-circle",
+  "New Registration": "user-plus",
+  Training: "book-open",
+  Documentation: "file-text",
+  "Self Recovery (QC)": "shield",
+  Abscond: "alert-circle",
+  Testing: "activity",
+  "Police Station": "map-pin",
+  "Test Drive": "truck",
+  "Hub-Personal use": "home",
+};
 
 // ----- Non DP purposes: flat list -----
 export const NON_DP_PURPOSES = [
@@ -87,11 +115,13 @@ function PurposeItem({
   delay,
   onPress,
   theme,
+  showArrow = false,
 }: {
   title: string;
   delay: number;
   onPress: () => void;
   theme: ReturnType<typeof useTheme>["theme"];
+  showArrow?: boolean;
 }) {
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({
@@ -110,15 +140,87 @@ function PurposeItem({
         }}
         style={[
           styles.itemCard,
-          { backgroundColor: theme.backgroundDefault },
+          {
+            backgroundColor: theme.backgroundDefault,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 4,
+          },
           animatedStyle,
         ]}
       >
         <ThemedText type="body" style={styles.itemTitle} numberOfLines={3}>
           {title}
         </ThemedText>
-        <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+        {showArrow ? (
+          <Feather name="chevron-right" size={22} color={theme.textSecondary} style={styles.itemCardArrow} />
+        ) : null}
       </AnimatedPressable>
+    </Animated.View>
+  );
+}
+
+function PurposeGridCard({
+  title,
+  icon,
+  onPress,
+  theme,
+  showArrow = false,
+  delay,
+}: {
+  title: string;
+  icon: keyof typeof Feather.glyphMap;
+  onPress: () => void;
+  theme: ReturnType<typeof useTheme>["theme"];
+  showArrow?: boolean;
+  delay: number;
+}) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.gridCardWrap, animatedStyle]} entering={FadeInDown.delay(delay).springify()}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={() => {
+          scale.value = withSpring(0.96, { damping: 15, stiffness: 150 });
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, { damping: 15, stiffness: 150 });
+        }}
+        style={({ pressed }) => [
+          styles.gridCard,
+          {
+            backgroundColor: theme.backgroundDefault,
+            opacity: pressed ? 0.92 : 1,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 4,
+          },
+        ]}
+      >
+        <View style={[styles.gridCardIconWrap, { backgroundColor: theme.primary }]}>
+          <Feather name={icon} size={28} color="#FFFFFF" />
+        </View>
+        {showArrow ? (
+          <View style={styles.gridCardLabelRow}>
+            <ThemedText type="small" style={[styles.gridCardLabel, { color: theme.text }]} numberOfLines={2}>
+              {title}
+            </ThemedText>
+            <Feather name="chevron-right" size={18} color={theme.textSecondary} />
+          </View>
+        ) : (
+          <ThemedText type="small" style={[styles.gridCardLabel, { color: theme.text }]} numberOfLines={2}>
+            {title}
+          </ThemedText>
+        )}
+      </Pressable>
     </Animated.View>
   );
 }
@@ -133,8 +235,15 @@ export default function VisitorPurposeScreen() {
   const { hub } = useHub();
   const { user } = useUser();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showRunningRepairModal, setShowRunningRepairModal] = useState(false);
+  const [selectedCategoryTab, setSelectedCategoryTab] = useState<"Settlement" | "Maintenance">("Settlement");
 
   const isDp = entryType === "new_dp" || entryType === "old_dp";
+
+  const getPurposeIcon = (item: string): keyof typeof Feather.glyphMap => {
+    const key = item in PURPOSE_ICONS ? item : (item as string);
+    return PURPOSE_ICONS[key] ?? "circle";
+  };
 
   /** purpose: Settlement/Onboarding → driver_manager, Maintenance → fleet_manager, Non DP → empty */
   const getPurpose = (categoryTitle: string | null): string => {
@@ -207,26 +316,58 @@ export default function VisitorPurposeScreen() {
     submitMutation.mutate({ categoryTitle, item });
   };
 
-  let delay = 0;
+  const handleRunningRepairPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowRunningRepairModal(true);
+  };
+
+  const handleRunningRepairSubSelect = (subItem: string) => {
+    setShowRunningRepairModal(false);
+    handleSelectPurpose("Maintenance", `Running Repair - ${subItem}`);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
+          styles.scrollContentFullScreen,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: insets.bottom + Spacing["4xl"],
+            paddingBottom: Math.max(insets.bottom, Spacing.sm) + Spacing.lg,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeInDown.delay(0).springify()} style={styles.header}>
-          <ThemedText type="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
-            {isDp
-              ? "Select visitor's purpose (categorization)"
-              : "Select purpose for Non DP entry"}
-          </ThemedText>
+        <Animated.View
+          entering={FadeInDown.delay(0).springify()}
+          style={[
+            styles.headerCard,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 10,
+              elevation: 4,
+            },
+          ]}
+        >
+          <View style={[styles.headerCardIconWrap, { backgroundColor: theme.primary }]}>
+            <Feather name="shield" size={22} color="#FFFFFF" />
+          </View>
+          <View style={styles.headerCardText}>
+            <ThemedText type="h4" style={[styles.headerCardTitle, { color: theme.text }]}>
+              Select Purpose
+            </ThemedText>
+            <ThemedText type="body" style={[styles.headerCardDesc, { color: theme.textSecondary }]}>
+              {isDp
+                ? "Choose the visitor's purpose to generate a secure gate pass."
+                : "Select purpose for Non DP entry."}
+            </ThemedText>
+          </View>
         </Animated.View>
 
         {submitError != null && (
@@ -240,38 +381,110 @@ export default function VisitorPurposeScreen() {
         )}
 
         {isDp ? (
-          (entryType === "new_dp" ? NEW_DP_CATEGORIES : OLD_DP_CATEGORIES).map((category) => (
-            <View key={category.title} style={styles.categoryBlock}>
-              <ThemedText
-                type="small"
-                style={[styles.categoryTitle, { color: theme.primary }]}
-              >
-                {category.title}
-              </ThemedText>
-              <View style={styles.itemsRow}>
-                {category.items.map((item) => {
-                  const d = delay;
-                  delay += 60;
-                  return (
-                    <PurposeItem
-                      key={item}
-                      title={item}
-                      delay={d}
-                      onPress={() => handleSelectPurpose(category.title, item)}
-                      theme={theme}
-                    />
-                  );
-                })}
+          entryType === "old_dp" ? (
+            <>
+              <View style={styles.tabBar}>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedCategoryTab("Settlement");
+                  }}
+                  style={[
+                    styles.tabButton,
+                    selectedCategoryTab === "Settlement" && {
+                      backgroundColor: theme.primary,
+                    },
+                    selectedCategoryTab !== "Settlement" && {
+                      backgroundColor: theme.backgroundDefault,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    type="body"
+                    style={[
+                      styles.tabButtonText,
+                      { color: selectedCategoryTab === "Settlement" ? theme.buttonText : theme.text },
+                    ]}
+                  >
+                    Settlement
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedCategoryTab("Maintenance");
+                  }}
+                  style={[
+                    styles.tabButton,
+                    selectedCategoryTab === "Maintenance" && {
+                      backgroundColor: theme.primary,
+                    },
+                    selectedCategoryTab !== "Maintenance" && {
+                      backgroundColor: theme.backgroundDefault,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    type="body"
+                    style={[
+                      styles.tabButtonText,
+                      { color: selectedCategoryTab === "Maintenance" ? theme.buttonText : theme.text },
+                    ]}
+                  >
+                    Maintenance
+                  </ThemedText>
+                </Pressable>
               </View>
+              <View style={styles.grid}>
+                {(selectedCategoryTab === "Settlement" ? DP_SETTLEMENT.items : DP_MAINTENANCE.items).map(
+                  (item, index) => {
+                    const categoryTitle = selectedCategoryTab;
+                    const isRunningRepair = categoryTitle === "Maintenance" && item === "Running Repair";
+                    return (
+                      <PurposeGridCard
+                        key={item}
+                        title={item}
+                        icon={getPurposeIcon(item)}
+                        delay={80 + index * 50}
+                        onPress={
+                          isRunningRepair
+                            ? handleRunningRepairPress
+                            : () => handleSelectPurpose(categoryTitle, item)
+                        }
+                        theme={theme}
+                        showArrow={isRunningRepair}
+                      />
+                    );
+                  }
+                )}
+              </View>
+            </>
+          ) : (
+            <View style={styles.grid}>
+              {DP_ONBOARDING.items.map((item, index) => (
+                <PurposeGridCard
+                  key={item}
+                  title={item}
+                  icon={getPurposeIcon(item)}
+                  delay={80 + index * 50}
+                  onPress={() => handleSelectPurpose("Onboarding", item)}
+                  theme={theme}
+                />
+              ))}
             </View>
-          ))
+          )
         ) : (
-          <View style={styles.itemsRow}>
+          <View style={styles.grid}>
             {NON_DP_PURPOSES.map((item, index) => (
-              <PurposeItem
+              <PurposeGridCard
                 key={item}
                 title={item}
-                delay={80 + index * 60}
+                icon={getPurposeIcon(item)}
+                delay={80 + index * 50}
                 onPress={() => handleSelectPurpose(null, item)}
                 theme={theme}
               />
@@ -288,6 +501,58 @@ export default function VisitorPurposeScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Running Repair sub-options modal */}
+      <Modal
+        visible={showRunningRepairModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRunningRepairModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowRunningRepairModal(false)}
+          />
+          <View style={[styles.runningRepairModalContent, { backgroundColor: theme.backgroundDefault }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText type="h4" style={{ color: theme.text }}>
+                Running Repair
+              </ThemedText>
+              <Pressable
+                onPress={() => setShowRunningRepairModal(false)}
+                hitSlop={Spacing.lg}
+                style={styles.modalCloseBtn}
+              >
+                <Feather name="x" size={24} color={theme.textSecondary} />
+              </Pressable>
+            </View>
+            <ThemedText type="small" style={[styles.modalSubtitle, { color: theme.textSecondary }]}>
+              Select the type of running repair
+            </ThemedText>
+            <View style={styles.modalItems}>
+              {RUNNING_REPAIR_SUB_ITEMS.map((subItem) => (
+                <Pressable
+                  key={subItem}
+                  onPress={() => handleRunningRepairSubSelect(subItem)}
+                  style={({ pressed }) => [
+                    styles.modalItemCard,
+                    {
+                      backgroundColor: theme.backgroundRoot ?? theme.backgroundSecondary,
+                      opacity: pressed ? 0.9 : 1,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                >
+                  <ThemedText type="body" style={{ color: theme.text }}>
+                    {subItem}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -300,15 +565,89 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
   },
-  header: {
+  scrollContentFullScreen: {
+    flexGrow: 1,
+  },
+  headerCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginBottom: Spacing.xl,
+    padding: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
   },
-  subtitle: {},
+  headerCardIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.lg,
+  },
+  headerCardText: {
+    flex: 1,
+  },
+  headerCardTitle: {
+    fontWeight: "700",
+    marginBottom: Spacing.xs,
+  },
+  headerCardDesc: {
+    lineHeight: 22,
+  },
   errorText: {
     marginBottom: Spacing.md,
     textAlign: "center",
+  },
+  tabBar: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabButtonText: {
+    fontWeight: "700",
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  gridCardWrap: {
+    width: "48%",
+    marginBottom: Spacing.lg,
+  },
+  gridCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    minHeight: 120,
+  },
+  gridCardIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.md,
+  },
+  gridCardLabel: {
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  gridCardLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
   },
   categoryBlock: {
     marginBottom: Spacing["2xl"],
@@ -319,21 +658,58 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   itemsRow: {
-    gap: Spacing.md,
+    gap: Spacing.lg,
   },
   itemCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.lg,
   },
   itemTitle: {
     flex: 1,
     marginRight: Spacing.md,
+    fontWeight: "500",
+  },
+  itemCardArrow: {
+    marginLeft: Spacing.xs,
   },
   loadingWrap: {
     alignItems: "center",
     paddingVertical: Spacing["2xl"],
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.xl,
+  },
+  runningRepairModalContent: {
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.sm,
+  },
+  modalCloseBtn: {
+    padding: Spacing.xs,
+  },
+  modalSubtitle: {
+    marginBottom: Spacing.lg,
+  },
+  modalItems: {
+    gap: Spacing.md,
+  },
+  modalItemCard: {
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
   },
 });

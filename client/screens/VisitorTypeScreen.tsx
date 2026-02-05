@@ -1,5 +1,5 @@
 import React, { useLayoutEffect } from "react";
-import { View, StyleSheet, Pressable, ActivityIndicator } from "react-native";
+import { View, StyleSheet, Pressable, ActivityIndicator, ScrollView, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -73,7 +73,14 @@ function VisitorTypeCard({
         onPressOut={handlePressOut}
         style={[
           styles.card,
-          { backgroundColor: theme.backgroundDefault },
+          {
+            backgroundColor: theme.backgroundDefault,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 4,
+          },
           animatedStyle,
         ]}
         testID={`card-${type}`}
@@ -81,7 +88,7 @@ function VisitorTypeCard({
         <View
           style={[styles.iconContainer, { backgroundColor: theme.primary }]}
         >
-          <Feather name={icon} size={28} color="#FFFFFF" />
+          <Feather name={icon} size={30} color="#FFFFFF" />
         </View>
         <View style={styles.cardContent}>
           <ThemedText type="h4" style={styles.cardTitle}>
@@ -94,7 +101,6 @@ function VisitorTypeCard({
             {description}
           </ThemedText>
         </View>
-        <Feather name="chevron-right" size={24} color={theme.textSecondary} />
       </AnimatedPressable>
     </Animated.View>
   );
@@ -137,20 +143,25 @@ export default function VisitorTypeScreen() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerTitle: "",
       headerLeft: () => (
-        <Pressable onPress={handleChangeHub} style={styles.changeHubButton} hitSlop={Spacing.lg}>
-          <Feather name="map-pin" size={18} color={theme.primary} style={styles.headerPinIcon} />
-          <View style={styles.headerLeftTextBlock}>
-            <ThemedText type="small" style={[styles.headerHubText, { color: theme.primary }]} numberOfLines={1}>
-              {hub ? toTitleCase(hub.hub_name) + " Hub" : "Hub"}
-            </ThemedText>
-            {user?.name ? (
-              <ThemedText type="small" style={[styles.headerNameText, { color: theme.textSecondary }]} numberOfLines={1}>
-                {user.name}
-              </ThemedText>
-            ) : null}
+        <View style={styles.headerLeftWrap}>
+          <View style={[styles.headerLogoWrap, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
+            <Image
+              source={require("../../assets/images/logo.png")}
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
           </View>
-        </Pressable>
+          <View style={styles.headerWelcomeBlock}>
+            <ThemedText type="small" style={[styles.welcomeBack, { color: theme.textSecondary }]} numberOfLines={1}>
+              Welcome back,
+            </ThemedText>
+            <ThemedText type="h4" style={[styles.headerUserName, { color: theme.text }]} numberOfLines={1}>
+              {user?.name?.trim() || "User"}
+            </ThemedText>
+          </View>
+        </View>
       ),
       headerRight: () => (
         <View style={styles.headerRight}>
@@ -158,7 +169,7 @@ export default function VisitorTypeScreen() {
         </View>
       ),
     });
-  }, [navigation, hub?.hub_name, user?.name, theme.primary, theme.textSecondary]);
+  }, [navigation, user?.name, theme.text, theme.textSecondary, theme.backgroundDefault, theme.border]);
 
   const visitorTypes = [
     {
@@ -185,79 +196,107 @@ export default function VisitorTypeScreen() {
     <View
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
     >
-      <View
-        style={[
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
           styles.content,
+          styles.contentFullScreen,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: insets.bottom + Spacing.xl,
+            paddingBottom: Math.max(insets.bottom, Spacing.lg) + Spacing.lg,
           },
         ]}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Subtitle only — "Gate Entry" is in the header */}
-        {/* <Animated.View entering={FadeInDown.delay(0).springify()} style={styles.titleBlock}>
-          <ThemedText type="body" style={[styles.mainSubtitle, { color: theme.textSecondary }]}>
-            Select an action to proceed
-          </ThemedText>
-        </Animated.View> */}
+        {/* Location block — tap to change hub */}
+        <Animated.View entering={FadeInDown.delay(0).springify()}>
+          <Pressable
+            onPress={handleChangeHub}
+            style={({ pressed }) => [
+              styles.locationBlock,
+              {
+                backgroundColor: theme.backgroundDefault,
+                opacity: pressed ? 0.92 : 1,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 6,
+                elevation: 3,
+              },
+            ]}
+          >
+            <Feather name="map-pin" size={24} color={theme.primary} style={styles.locationBlockIcon} />
+            <ThemedText type="h4" style={[styles.locationBlockText, { color: theme.text }]} numberOfLines={1}>
+              {hub ? `${toTitleCase(hub.hub_name)} Hub` : "Select Hub"}
+            </ThemedText>
+          </Pressable>
+        </Animated.View>
 
-        {/* OPEN / CLOSED — same button style */}
-        <Animated.View
-          entering={FadeInDown.delay(80).springify()}
-          style={styles.countsBar}
-        >
-          <Pressable
-            onPress={handleOpenTickets}
-            style={({ pressed }) => [
-              styles.countCard,
-              styles.countCardButton,
-              {
-                backgroundColor: theme.primary,
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
-            accessibilityLabel={`OPEN: ${openCount}`}
-          >
-            <View style={styles.countCardContent}>
-              <ThemedText type="small" style={[styles.countCardLabel, { color: theme.buttonText }]}>
-                OPEN
-              </ThemedText>
-              {isFetching ? (
-                <ActivityIndicator size="small" color={theme.buttonText} />
-              ) : (
-                <ThemedText type="h1" style={[styles.countCardNumber, { color: theme.buttonText }]}>
-                  {openCount}
+        {/* Gate Entry section */}
+        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.gateEntrySection}>
+          <ThemedText type="h3" style={[styles.gateEntryTitle, { color: theme.text }]}>
+            Gate Entry
+          </ThemedText>
+          <View style={styles.countsBar}>
+            <Pressable
+              onPress={handleOpenTickets}
+              style={({ pressed }) => [
+                styles.countCard,
+                {
+                  backgroundColor: theme.primary,
+                  opacity: pressed ? 0.92 : 1,
+                  shadowColor: theme.primary,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 6,
+                  elevation: 4,
+                },
+              ]}
+              accessibilityLabel={`OPEN: ${openCount}`}
+            >
+              <View style={styles.countCardContent}>
+                <ThemedText type="small" style={[styles.countCardLabel, { color: theme.buttonText }]}>
+                  OPEN
                 </ThemedText>
-              )}
-            </View>
-            <Feather name="chevron-right" size={22} color={theme.buttonText} />
-          </Pressable>
-          <Pressable
-            onPress={handleClosedTickets}
-            style={({ pressed }) => [
-              styles.countCard,
-              styles.countCardButton,
-              {
-                backgroundColor: theme.primary,
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
-            accessibilityLabel={`CLOSED: ${closedCount}`}
-          >
-            <View style={styles.countCardContent}>
-              <ThemedText type="small" style={[styles.countCardLabel, { color: theme.buttonText }]}>
-                CLOSED
-              </ThemedText>
-              {isFetching ? (
-                <ActivityIndicator size="small" color={theme.buttonText} />
-              ) : (
-                <ThemedText type="h1" style={[styles.countCardNumber, { color: theme.buttonText }]}>
-                  {closedCount}
+                {isFetching ? (
+                  <ActivityIndicator size="small" color={theme.buttonText} />
+                ) : (
+                  <ThemedText type="h1" style={[styles.countCardNumber, { color: theme.buttonText }]}>
+                    {openCount}
+                  </ThemedText>
+                )}
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={handleClosedTickets}
+              style={({ pressed }) => [
+                styles.countCard,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  opacity: pressed ? 0.92 : 1,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.06,
+                  shadowRadius: 6,
+                  elevation: 3,
+                },
+              ]}
+              accessibilityLabel={`CLOSED: ${closedCount}`}
+            >
+              <View style={styles.countCardContent}>
+                <ThemedText type="small" style={[styles.countCardLabel, { color: theme.textSecondary }]}>
+                  CLOSED
                 </ThemedText>
-              )}
-            </View>
-            <Feather name="chevron-right" size={22} color={theme.buttonText} />
-          </Pressable>
+                {isFetching ? (
+                  <ActivityIndicator size="small" color={theme.textSecondary} />
+                ) : (
+                  <ThemedText type="h1" style={[styles.countCardNumber, { color: theme.text }]}>
+                    {closedCount}
+                  </ThemedText>
+                )}
+              </View>
+            </Pressable>
+          </View>
         </Animated.View>
 
         {/* Select Entry Purpose section */}
@@ -276,12 +315,12 @@ export default function VisitorTypeScreen() {
               title={item.title}
               description={item.description}
               icon={item.icon}
-              delay={100 + index * 100}
+              delay={140 + index * 80}
               onPress={handleSelectType}
             />
           ))}
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -290,79 +329,100 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
   },
-  titleBlock: {
-    alignItems: "center",
-    marginBottom: Spacing["2xl"],
+  contentFullScreen: {
+    flexGrow: 1,
   },
-  mainSubtitle: {
-    textAlign: "center",
-  },
-  countsBar: {
+  headerLeftWrap: {
     flexDirection: "row",
+    alignItems: "center",
+    minWidth: 0,
     gap: Spacing.md,
-    marginBottom: Spacing["2xl"],
   },
-  countCard: {
-    flex: 1,
-    flexDirection: "row",
+  headerLogoWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
+    justifyContent: "center",
+    borderWidth: 1,
   },
-  countCardButton: {
-    borderRadius: BorderRadius.md,
+  headerLogo: {
+    width: 48,
+    height: 48,
   },
-  countCardContent: {
-    flex: 1,
-  },
-  countCardLabel: {
-    letterSpacing: 0.5,
-    marginBottom: Spacing.xs,
-  },
-  countCardNumber: {
-    marginBottom: Spacing.xs,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-    marginBottom: Spacing.xl,
-  },
-  sectionTitle: {},
-  changeHubButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: Spacing.sm,
-    paddingRight: Spacing.md,
-    maxWidth: 200,
-  },
-  headerPinIcon: {
-    marginRight: Spacing.xs,
-  },
-  headerLeftTextBlock: {
-    flex: 1,
+  headerWelcomeBlock: {
     justifyContent: "center",
     minWidth: 0,
   },
-  headerHubText: {
-    fontWeight: "600",
+  welcomeBack: {
+    marginBottom: 2,
   },
-  headerNameText: {
-    marginTop: 1,
-    fontSize: 12,
-    opacity: 0.95,
+  headerUserName: {
+    fontWeight: "700",
   },
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
   },
-  gateLabel: {},
+  locationBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing["2xl"],
+  },
+  locationBlockIcon: {
+    marginRight: Spacing.md,
+  },
+  locationBlockText: {
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  gateEntrySection: {
+    marginBottom: Spacing["2xl"],
+  },
+  gateEntryTitle: {
+    marginBottom: Spacing.lg,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  countsBar: {
+    flexDirection: "row",
+    gap: Spacing.md,
+  },
+  countCard: {
+    flex: 1,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+  },
+  countCardContent: {
+    justifyContent: "center",
+  },
+  countCardLabel: {
+    letterSpacing: 0.5,
+    marginBottom: Spacing.xs,
+  },
+  countCardNumber: {},
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  sectionTitle: {
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
   cardsContainer: {
     gap: Spacing.lg,
   },
@@ -370,12 +430,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: Spacing.xl,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
   },
   iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.sm,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.lg,
