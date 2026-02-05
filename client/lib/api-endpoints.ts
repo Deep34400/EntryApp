@@ -21,11 +21,12 @@ export function appendHubIdToPath(path: string, hubId: string | undefined): stri
   return `${path}${sep}hub_id=${encodeURIComponent(hubId)}`;
 }
 
-// ----- POST: Entry pass (your backend) -----
+// ----- POST: Entry pass (create entry) -----
 // Path: POST /api/v1/testRoutes/entry_pass
-// Body: { purpose, reason, name?, email?, phone?, driver_small_id?, vehicle_reg_number? }
-// purpose: "onboarding" | "driver_manager" | "fleet_manager"
-// reason: "sourcing" | "maintenance" | "collection"
+// Body: { type, phone, name, purpose, reason, hub_id?, vehicle_reg_number?, vehicle?, staff_name?, staff_phone? }
+// type: "new_dp" | "old_dp" | "non_dp"
+// purpose: "driver_manager" (Onboarding/Settlement) | "fleet_manager" (Maintenance) | "" (non_dp)
+// reason: "Maintenance - Accident" | "Settlement - DM collection" | "Onboarding - Enquiry" | "Self Recovery (QC)" etc.
 export const ENTRY_PASS_PATH = "/api/v1/testRoutes/entry_pass";
 
 /** Map visitor type to API purpose. */

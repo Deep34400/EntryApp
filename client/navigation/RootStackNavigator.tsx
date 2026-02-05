@@ -4,28 +4,32 @@ import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 import { HomeHeaderButton } from "@/components/HomeHeaderButton";
 import { ThemeToggleHeaderButton } from "@/components/ThemeToggleHeaderButton";
+import WhoAreYouScreen from "@/screens/WhoAreYouScreen";
 import HubSelectScreen from "@/screens/HubSelectScreen";
 import VisitorTypeScreen from "@/screens/VisitorTypeScreen";
-import MaintenanceReasonScreen from "@/screens/MaintenanceReasonScreen";
 import EntryFormScreen from "@/screens/EntryFormScreen";
+import VisitorPurposeScreen from "../screens/VisitorPurposeScreen";
 import TokenDisplayScreen from "@/screens/TokenDisplayScreen";
 import ExitConfirmationScreen from "@/screens/ExitConfirmationScreen";
 import TicketListScreen from "../screens/TicketListScreen";
 import TicketDetailScreen from "../screens/TicketDetailScreen";
 
-export type VisitorType = "sourcing" | "maintenance" | "collection";
+/** Entry type selected on first screen after hub: New DP / Old DP / Non DP */
+export type EntryType = "new_dp" | "old_dp" | "non_dp";
 
-export type MaintenanceReasonType =
-  | "Accident"
-  | "PMS"
-  | "Running Repair"
-  | "Vehicle Breakdown";
+/** Form data collected on second screen (mobile, name, reg no if Old DP) */
+export interface EntryFormData {
+  phone: string;
+  name: string;
+  vehicle_reg_number?: string;
+}
 
 export type RootStackParamList = {
+  WhoAreYou: undefined;
   HubSelect: undefined;
   VisitorType: undefined;
-  MaintenanceReason: undefined;
-  EntryForm: { visitorType: VisitorType; maintenanceReason?: MaintenanceReasonType };
+  EntryForm: { entryType: EntryType };
+  VisitorPurpose: { entryType: EntryType; formData: EntryFormData };
   TokenDisplay: { token: string; agentName: string; gate: string };
   ExitConfirmation: { token: string };
   TicketList: { filter: "open" | "closed" };
@@ -38,12 +42,25 @@ export default function RootStackNavigator() {
   const screenOptions = useScreenOptions();
 
   return (
-    <Stack.Navigator screenOptions={screenOptions} initialRouteName="HubSelect">
+    <Stack.Navigator screenOptions={screenOptions} initialRouteName="WhoAreYou">
+      <Stack.Screen
+        name="WhoAreYou"
+        component={WhoAreYouScreen}
+        options={{
+          headerTitle: "Gate Entry",
+          headerTitleStyle: {
+            fontSize: 24,
+            fontWeight: "700",
+          },
+          headerBackVisible: false,
+          gestureEnabled: false,
+        }}
+      />
       <Stack.Screen
         name="HubSelect"
         component={HubSelectScreen}
         options={{
-          headerTitle: "Gate Entry",
+          headerTitle: "Choose Hub",
           headerTitleStyle: {
             fontSize: 24,
             fontWeight: "700",
@@ -65,24 +82,25 @@ export default function RootStackNavigator() {
         }}
       />
       <Stack.Screen
-        name="MaintenanceReason"
-        component={MaintenanceReasonScreen}
-        options={{
-          headerTitle: "Maintenance",
-          headerRight: () => <HomeHeaderButton />,
-        }}
-      />
-      <Stack.Screen
         name="EntryForm"
         component={EntryFormScreen}
         options={({ route }) => ({
           headerTitle:
-            route.params.visitorType === "maintenance" && route.params.maintenanceReason
-              ? `Maintenance - ${route.params.maintenanceReason}`
-              : route.params.visitorType.charAt(0).toUpperCase() +
-                route.params.visitorType.slice(1),
+            route.params.entryType === "new_dp"
+              ? "New DP Entry"
+              : route.params.entryType === "old_dp"
+                ? "Old DP Entry"
+                : "Non DP Entry",
           headerRight: () => <HomeHeaderButton />,
         })}
+      />
+      <Stack.Screen
+        name="VisitorPurpose"
+        component={VisitorPurposeScreen}
+        options={{
+          headerTitle: "Visitor's Purpose",
+          headerRight: () => <HomeHeaderButton />,
+        }}
       />
       <Stack.Screen
         name="TicketList"

@@ -21,7 +21,8 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { fetchTicketCountsSafe } from "@/lib/query-client";
 import { toTitleCase } from "@/lib/format";
 import { useHub } from "@/contexts/HubContext";
-import { RootStackParamList, VisitorType } from "@/navigation/RootStackNavigator";
+import { useUser } from "@/contexts/UserContext";
+import { RootStackParamList, EntryType } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
 
@@ -29,9 +30,9 @@ interface VisitorTypeCardProps {
   title: string;
   description: string;
   icon: keyof typeof Feather.glyphMap;
-  type: VisitorType;
+  type: EntryType;
   delay: number;
-  onPress: (type: VisitorType) => void;
+  onPress: (type: EntryType) => void;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -105,6 +106,7 @@ export default function VisitorTypeScreen() {
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
   const { hub } = useHub();
+  const { user } = useUser();
 
   const { data: counts, isFetching } = useQuery({
     queryKey: ["ticket-counts", hub?.id],
@@ -114,12 +116,8 @@ export default function VisitorTypeScreen() {
   const openCount = counts?.open ?? 0;
   const closedCount = counts?.closed ?? 0;
 
-  const handleSelectType = (type: VisitorType) => {
-    if (type === "maintenance") {
-      navigation.navigate("MaintenanceReason");
-    } else {
-      navigation.navigate("EntryForm", { visitorType: type });
-    }
+  const handleSelectType = (type: EntryType) => {
+    navigation.navigate("EntryForm", { entryType: type });
   };
 
   const handleOpenTickets = () => {
@@ -141,41 +139,45 @@ export default function VisitorTypeScreen() {
     navigation.setOptions({
       headerLeft: () => (
         <Pressable onPress={handleChangeHub} style={styles.changeHubButton} hitSlop={Spacing.lg}>
-          <Feather name="map-pin" size={18} color={theme.primary} />
-          <ThemedText type="small" style={{ color: theme.primary, marginLeft: Spacing.xs }} numberOfLines={1}>
-            {hub ? toTitleCase(hub.hub_name) + " Hub" : "Hub"}
-          </ThemedText>
+          <Feather name="map-pin" size={18} color={theme.primary} style={styles.headerPinIcon} />
+          <View style={styles.headerLeftTextBlock}>
+            <ThemedText type="small" style={[styles.headerHubText, { color: theme.primary }]} numberOfLines={1}>
+              {hub ? toTitleCase(hub.hub_name) + " Hub" : "Hub"}
+            </ThemedText>
+            {user?.name ? (
+              <ThemedText type="small" style={[styles.headerNameText, { color: theme.textSecondary }]} numberOfLines={1}>
+                {user.name}
+              </ThemedText>
+            ) : null}
+          </View>
         </Pressable>
       ),
       headerRight: () => (
         <View style={styles.headerRight}>
-          <ThemedText type="small" style={[styles.gateLabel, { color: theme.textSecondary }]}>
-     
-          </ThemedText>
           <ThemeToggleHeaderButton />
         </View>
       ),
     });
-  }, [navigation, hub?.hub_name, theme.primary, theme.textSecondary]);
+  }, [navigation, hub?.hub_name, user?.name, theme.primary, theme.textSecondary]);
 
   const visitorTypes = [
     {
-      type: "sourcing" as VisitorType,
-      title: "Sourcing",
-      description: "For procurement and vendor meetings",
-      icon: "file-text" as keyof typeof Feather.glyphMap,
+      type: "new_dp" as EntryType,
+      title: "New DP Entry",
+      description: "New delivery partner onboarding and registration",
+      icon: "user-plus" as keyof typeof Feather.glyphMap,
     },
     {
-      type: "maintenance" as VisitorType,
-      title: "Maintenance",
-      description: "For repair and maintenance work",
-      icon: "tool" as keyof typeof Feather.glyphMap,
+      type: "old_dp" as EntryType,
+      title: "Old DP Entry",
+      description: "Existing delivery partner – settlement, maintenance",
+      icon: "users" as keyof typeof Feather.glyphMap,
     },
     {
-      type: "collection" as VisitorType,
-      title: "Collection",
-      description: "For pickup and delivery",
-      icon: "truck" as keyof typeof Feather.glyphMap,
+      type: "non_dp" as EntryType,
+      title: "Non DP Entry",
+      description: "Self recovery, testing, police, test drive, personal use",
+      icon: "log-in" as keyof typeof Feather.glyphMap,
     },
   ];
 
@@ -199,66 +201,62 @@ export default function VisitorTypeScreen() {
           </ThemedText>
         </Animated.View> */}
 
-        {/* ACTIVE / HISTORY count cards */}
+        {/* OPEN / CLOSED — same button style */}
         <Animated.View
           entering={FadeInDown.delay(80).springify()}
           style={styles.countsBar}
         >
           <Pressable
             onPress={handleOpenTickets}
-            style={[
+            style={({ pressed }) => [
               styles.countCard,
-              styles.countCardActive,
+              styles.countCardButton,
               {
-                backgroundColor: theme.backgroundDefault,
-                borderLeftColor: theme.primary,
+                backgroundColor: theme.primary,
+                opacity: pressed ? 0.9 : 1,
               },
             ]}
-            accessibilityLabel={`Active: ${openCount} open`}
+            accessibilityLabel={`OPEN: ${openCount}`}
           >
             <View style={styles.countCardContent}>
-              <ThemedText type="small" style={[styles.countCardLabel, { color: theme.textSecondary }]}>
-                ACTIVE
+              <ThemedText type="small" style={[styles.countCardLabel, { color: theme.buttonText }]}>
+                OPEN
               </ThemedText>
               {isFetching ? (
-                <ActivityIndicator size="small" color={theme.primary} />
+                <ActivityIndicator size="small" color={theme.buttonText} />
               ) : (
-                <ThemedText type="h1" style={[styles.countCardNumber, { color: theme.text }]}>
+                <ThemedText type="h1" style={[styles.countCardNumber, { color: theme.buttonText }]}>
                   {openCount}
                 </ThemedText>
               )}
-              <ThemedText type="small" style={[styles.countCardSub, { color: theme.textSecondary }]}>
-                Open
-              </ThemedText>
             </View>
-            <Feather name="chevron-right" size={22} color={theme.primary} />
+            <Feather name="chevron-right" size={22} color={theme.buttonText} />
           </Pressable>
           <Pressable
             onPress={handleClosedTickets}
-            style={[
+            style={({ pressed }) => [
               styles.countCard,
+              styles.countCardButton,
               {
-                backgroundColor: theme.backgroundSecondary ?? theme.backgroundDefault,
+                backgroundColor: theme.primary,
+                opacity: pressed ? 0.9 : 1,
               },
             ]}
-            accessibilityLabel={`History: ${closedCount} closed`}
+            accessibilityLabel={`CLOSED: ${closedCount}`}
           >
             <View style={styles.countCardContent}>
-              <ThemedText type="small" style={[styles.countCardLabel, { color: theme.textSecondary }]}>
-                HISTORY
+              <ThemedText type="small" style={[styles.countCardLabel, { color: theme.buttonText }]}>
+                CLOSED
               </ThemedText>
               {isFetching ? (
-                <ActivityIndicator size="small" color={theme.textSecondary} />
+                <ActivityIndicator size="small" color={theme.buttonText} />
               ) : (
-                <ThemedText type="h1" style={[styles.countCardNumber, { color: theme.text }]}>
+                <ThemedText type="h1" style={[styles.countCardNumber, { color: theme.buttonText }]}>
                   {closedCount}
                 </ThemedText>
               )}
-              <ThemedText type="small" style={[styles.countCardSub, { color: theme.textSecondary }]}>
-                Closed
-              </ThemedText>
             </View>
-            <Feather name="chevron-right" size={22} color={theme.textSecondary} />
+            <Feather name="chevron-right" size={22} color={theme.buttonText} />
           </Pressable>
         </Animated.View>
 
@@ -315,10 +313,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.md,
   },
-  countCardActive: {
-    borderLeftWidth: 4,
+  countCardButton: {
+    borderRadius: BorderRadius.md,
   },
   countCardContent: {
     flex: 1,
@@ -330,7 +327,6 @@ const styles = StyleSheet.create({
   countCardNumber: {
     marginBottom: Spacing.xs,
   },
-  countCardSub: {},
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -343,7 +339,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: Spacing.sm,
     paddingRight: Spacing.md,
-    maxWidth: 140,
+    maxWidth: 200,
+  },
+  headerPinIcon: {
+    marginRight: Spacing.xs,
+  },
+  headerLeftTextBlock: {
+    flex: 1,
+    justifyContent: "center",
+    minWidth: 0,
+  },
+  headerHubText: {
+    fontWeight: "600",
+  },
+  headerNameText: {
+    marginTop: 1,
+    fontSize: 12,
+    opacity: 0.95,
   },
   headerRight: {
     flexDirection: "row",
