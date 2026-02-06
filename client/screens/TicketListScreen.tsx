@@ -36,6 +36,7 @@ export interface TicketListItem {
   purpose?: string;
   reason?: string;
   entry_time?: string;
+  exit_time?: string;
   agent_name?: string;
   desk_location?: string;
   status?: string;
@@ -53,6 +54,8 @@ function normalizeTicket(item: Record<string, unknown>): TicketListItem {
     reason: item.reason != null ? String(item.reason) : undefined,
     entry_time:
       item.entry_time != null ? String(item.entry_time) : undefined,
+    exit_time:
+      item.exit_time != null ? String(item.exit_time) : undefined,
     agent_name:
       item.agent_name != null ? String(item.agent_name) : undefined,
     desk_location:
@@ -77,6 +80,39 @@ function formatEntryTime(iso?: string): string {
     });
   } catch {
     return iso;
+  }
+}
+
+/** Right-side label: hours only, e.g. "3h", "48h", or "45m" (waiting since entry for open) */
+function formatWaitingHours(entryTime?: string): string {
+  if (!entryTime) return "—";
+  try {
+    const entry = new Date(entryTime).getTime();
+    const ms = Date.now() - entry;
+    if (ms < 0) return "—";
+    const mins = Math.floor(ms / 60_000);
+    const hours = Math.floor(mins / 60);
+    if (hours >= 1) return `${hours}h`;
+    return mins < 60 ? `${mins}m` : "1h";
+  } catch {
+    return "—";
+  }
+}
+
+/** Duration between entry and exit for closed tickets, e.g. "3h", "48h", "45m" */
+function formatDurationHours(entryTime?: string, exitTime?: string): string {
+  if (!entryTime || !exitTime) return "—";
+  try {
+    const entry = new Date(entryTime).getTime();
+    const exit = new Date(exitTime).getTime();
+    const ms = exit - entry;
+    if (ms < 0) return "—";
+    const mins = Math.floor(ms / 60_000);
+    const hours = Math.floor(mins / 60);
+    if (hours >= 1) return `${hours}h`;
+    return mins < 60 ? `${mins}m` : "1h";
+  } catch {
+    return "—";
   }
 }
 
@@ -147,14 +183,39 @@ function TicketRow({
           <ThemedText type="h4" style={[styles.tokenNo, { color: primary }]}>
             #{item.token_no}
           </ThemedText>
-          <View style={styles.timeWrap}>
-            <Feather name="clock" size={14} color={timeColor} />
-            <ThemedText type="small" style={[styles.time, { color: timeColor }]}>
-              {formatEntryTime(item.entry_time)}
-              {isOver2Hours ? " (2h+)" : ""}
+          {isOpenList ? (
+            <ThemedText type="h4" style={[styles.waitingHours, { color: timeColor }]}>
+              {formatWaitingHours(item.entry_time)}
+            </ThemedText>
+          ) : (
+            <ThemedText type="h4" style={[styles.waitingHours, { color: theme.textSecondary }]}>
+              {formatDurationHours(item.entry_time, item.exit_time)}
+            </ThemedText>
+          )}
+        </View>
+        {isOpenList ? (
+          <View style={styles.infoRow}>
+            <Feather name="log-in" size={14} color={theme.textSecondary} />
+            <ThemedText type="small" style={[styles.infoText, { color: theme.textSecondary }]}>
+              Entered: {formatEntryTime(item.entry_time)}
             </ThemedText>
           </View>
-        </View>
+        ) : (
+          <View style={styles.timeBlock}>
+            <View style={styles.infoRow}>
+              <Feather name="log-in" size={14} color={theme.textSecondary} />
+              <ThemedText type="small" style={[styles.infoText, { color: theme.textSecondary }]}>
+                Entered: {formatEntryTime(item.entry_time)}
+              </ThemedText>
+            </View>
+            <View style={styles.infoRow}>
+              <Feather name="log-out" size={14} color={theme.textSecondary} />
+              <ThemedText type="small" style={[styles.infoText, { color: theme.textSecondary }]}>
+                Exited: {formatEntryTime(item.exit_time)}
+              </ThemedText>
+            </View>
+          </View>
+        )}
         {item.name != null && item.name !== "" && (
           <View style={styles.infoRow}>
             <Feather name="user" size={14} color={theme.textSecondary} />
@@ -554,12 +615,18 @@ const styles = StyleSheet.create({
   tokenNo: {
     fontWeight: "700",
   },
+  waitingHours: {
+    fontWeight: "700",
+  },
   timeWrap: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.xs,
   },
   time: {},
+  timeBlock: {
+    gap: Spacing.xs,
+  },
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
