@@ -1,5 +1,5 @@
 import React, { useLayoutEffect } from "react";
-import { View, StyleSheet, Pressable, ActivityIndicator, ScrollView, Image } from "react-native";
+import { View, StyleSheet, Pressable, ActivityIndicator, ScrollView, Image, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -114,7 +114,7 @@ export default function VisitorTypeScreen() {
   const { hub } = useHub();
   const { user } = useUser();
 
-  const { data: counts, isFetching } = useQuery({
+  const { data: counts, isFetching, isRefetching, refetch } = useQuery({
     queryKey: ["ticket-counts", hub?.id],
     queryFn: () => fetchTicketCountsSafe(hub?.id),
     staleTime: 30_000,
@@ -207,6 +207,13 @@ export default function VisitorTypeScreen() {
           },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => refetch()}
+            tintColor={theme.primary}
+          />
+        }
       >
         {/* Location block — tap to change hub */}
         <Animated.View entering={FadeInDown.delay(0).springify()}>

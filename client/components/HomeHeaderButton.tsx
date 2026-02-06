@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { CommonActions } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
@@ -12,7 +12,10 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, keyof RootStackParamList>;
 
-/** Header button that resets the stack and goes to main (VisitorType) screen. */
+const MIN_TOUCH_SIZE = 48;
+const HIT_SLOP_EXTRA = { top: 16, bottom: 16, left: 16, right: 16 };
+
+/** Header button that resets the stack and goes to main (VisitorType) screen. Large touch target for mobile. */
 export function HomeHeaderButton() {
   const navigation = useNavigation<NavProp>();
   const { theme } = useTheme();
@@ -31,20 +34,30 @@ export function HomeHeaderButton() {
     <Pressable
       onPress={goHome}
       style={({ pressed }) => [
-        styles.button,
+        styles.wrapper,
         { opacity: pressed ? 0.7 : 1 },
       ]}
-      hitSlop={Spacing.lg}
+      hitSlop={HIT_SLOP_EXTRA}
       accessibilityLabel="Back to home"
     >
-      <Feather name="home" size={22} color={theme.text} />
+      <View style={styles.button} collapsable={false}>
+        <Feather name="home" size={22} color={theme.text} />
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    minWidth: MIN_TOUCH_SIZE,
+    minHeight: MIN_TOUCH_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.xs,
+  },
   button: {
     padding: Spacing.sm,
-    marginRight: Spacing.xs,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

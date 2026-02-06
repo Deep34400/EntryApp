@@ -1,12 +1,15 @@
 import React from "react";
-import { Pressable, StyleSheet } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
 
-/** Header button to toggle dark/light mode. */
+const MIN_TOUCH_SIZE = 48;
+const HIT_SLOP_EXTRA = { top: 16, bottom: 16, left: 16, right: 16 };
+
+/** Header button to toggle dark/light mode. Large touch target for mobile. */
 export function ThemeToggleHeaderButton() {
   const { theme, isDark, themeContext } = useTheme();
 
@@ -21,24 +24,34 @@ export function ThemeToggleHeaderButton() {
     <Pressable
       onPress={toggle}
       style={({ pressed }) => [
-        styles.button,
+        styles.wrapper,
         { opacity: pressed ? 0.7 : 1 },
       ]}
-      hitSlop={Spacing.lg}
+      hitSlop={HIT_SLOP_EXTRA}
       accessibilityLabel={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
-      <Feather
-        name={isDark ? "sun" : "moon"}
-        size={22}
-        color={theme.text}
-      />
+      <View style={styles.button} collapsable={false}>
+        <Feather
+          name={isDark ? "sun" : "moon"}
+          size={22}
+          color={theme.text}
+        />
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    minWidth: MIN_TOUCH_SIZE,
+    minHeight: MIN_TOUCH_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.xs,
+  },
   button: {
     padding: Spacing.sm,
-    marginRight: Spacing.xs,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -187,27 +187,32 @@ export default function WhoAreYouScreen() {
               </View>
             </View>
 
-            <Button
-              onPress={handleContinue}
-              disabled={!isFormValid}
-              style={[
-                styles.continueButton,
-                {
-                  backgroundColor: isFormValid ? theme.primary : theme.backgroundSecondary,
-                  ...(isFormValid && Platform.OS === "ios"
-                    ? {
-                        shadowColor: theme.primary,
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.35,
-                        shadowRadius: 8,
-                      }
-                    : {}),
-                  ...(isFormValid && Platform.OS === "android" ? { elevation: 4 } : {}),
-                },
-              ]}
-            >
-              Continue
-            </Button>
+            <View style={styles.continueButtonWrap}>
+              <Button
+                onPress={handleContinue}
+                disabled={!isFormValid}
+                style={[
+                  styles.continueButton,
+                  {
+                    backgroundColor: isFormValid ? theme.primary : theme.backgroundTertiary,
+                    borderWidth: 1,
+                    borderColor: isFormValid ? theme.primary : theme.border,
+                    opacity: isFormValid ? 1 : 0.92,
+                    ...(isFormValid && Platform.OS === "ios"
+                      ? {
+                          shadowColor: theme.primary,
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.35,
+                          shadowRadius: 8,
+                        }
+                      : {}),
+                    ...(isFormValid && Platform.OS === "android" ? { elevation: 4 } : { elevation: 2 }),
+                  },
+                ]}
+              >
+                Continue
+              </Button>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </Animated.View>
@@ -285,6 +290,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: Spacing["3xl"],
+    alignItems: "stretch",
+    flexGrow: 1,
   },
   welcomeTitle: {
     fontWeight: "800",
@@ -321,13 +328,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     fontSize: 16,
   },
+  continueButtonWrap: {
+    marginTop: Spacing["2xl"],
+    marginBottom: Spacing.lg,
+    alignSelf: "stretch",
+  },
   continueButton: {
-    marginTop: Spacing.xl,
     borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.xl,
-    minHeight: 56,
+    paddingVertical: Spacing.lg,
+    minHeight: 52,
+    alignSelf: "stretch",
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
-    width: "100%",
   },
 });

@@ -1,5 +1,7 @@
 import React from "react";
+import { View, Pressable, StyleSheet } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { HeaderBackButton } from "@react-navigation/elements";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 import { HomeHeaderButton } from "@/components/HomeHeaderButton";
@@ -38,11 +40,38 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const BACK_HIT_SLOP = { top: 16, bottom: 16, left: 16, right: 24 };
+const SCREENS_WITH_BACK = ["EntryForm", "VisitorPurpose", "TicketList", "TicketDetail"];
+
 export default function RootStackNavigator() {
   const screenOptions = useScreenOptions();
 
   return (
-    <Stack.Navigator screenOptions={screenOptions} initialRouteName="WhoAreYou">
+    <Stack.Navigator
+      screenOptions={({ route, navigation }) => ({
+        ...screenOptions,
+        ...(SCREENS_WITH_BACK.includes(route.name)
+          ? {
+              headerLeft: (props) =>
+                props.canGoBack ? (
+                  <Pressable
+                    onPress={() => navigation.goBack()}
+                    hitSlop={BACK_HIT_SLOP}
+                    style={backButtonStyles.wrapper}
+                  >
+                    <View style={backButtonStyles.inner}>
+                      <HeaderBackButton
+                        {...props}
+                        onPress={() => navigation.goBack()}
+                      />
+                    </View>
+                  </Pressable>
+                ) : null,
+            }
+          : {}),
+      })}
+      initialRouteName="WhoAreYou"
+    >
       <Stack.Screen
         name="WhoAreYou"
         component={WhoAreYouScreen}
@@ -134,3 +163,17 @@ export default function RootStackNavigator() {
     </Stack.Navigator>
   );
 }
+
+const backButtonStyles = StyleSheet.create({
+  wrapper: {
+    minWidth: 48,
+    minHeight: 48,
+    justifyContent: "center",
+    alignItems: "flex-start",
+    marginLeft: -8,
+  },
+  inner: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});
