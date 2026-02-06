@@ -14,8 +14,7 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type TokenDisplayRouteProp = RouteProp<RootStackParamList, "TokenDisplay">;
 
-// Token card: orange (no QR — token pass only)
-const TOKEN_CARD_TOP = "#D97706";
+// Token card uses theme primary (brand color from logo)
 
 export default function TokenDisplayScreen() {
   const route = useRoute<TokenDisplayRouteProp>();
@@ -56,7 +55,7 @@ export default function TokenDisplayScreen() {
           {/* Main token card — no QR */}
           <Animated.View
             entering={ZoomIn.delay(200).springify()}
-            style={[styles.tokenCard, { backgroundColor: TOKEN_CARD_TOP }]}
+            style={[styles.tokenCard, { backgroundColor: theme.primary }]}
           >
             <View style={styles.tokenCardGradient}>
               <ThemedText style={styles.tokenLabel}>TOKEN NUMBER</ThemedText>
@@ -154,7 +153,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: Spacing["4xl"],
     paddingHorizontal: Spacing["3xl"],
-    backgroundColor: TOKEN_CARD_TOP,
+    backgroundColor: "transparent",
   },
   tokenLabel: {
     color: "rgba(0,0,0,0.6)",

@@ -75,17 +75,26 @@
 
 ---
 
-## 4. Color Palette
+## 4. Color Palette (aligned with company logo)
 
-**Primary**: #D97706 (Amber-600, authoritative orange for industrial)
-**Primary Dark**: #B45309 (pressed state)
-**Background**: #FFFFFF
-**Surface**: #F3F4F6 (Gray-100, for cards)
-**Border**: #E5E7EB (Gray-200)
-**Text Primary**: #111827 (Gray-900)
-**Text Secondary**: #6B7280 (Gray-500)
-**Success**: #059669 (Green-600)
-**Error**: #DC2626 (Red-600)
+Logo: deep crimson/maroon, subdued and rich. Theme uses warm neutrals so the app feels cohesive and premium.
+
+**Primary**: #9B2C2C (rich crimson from logo)
+**Primary Dark**: #7F1D1D (pressed state)
+
+**Light theme**
+- **Background**: #FAFAF9 (warm white)
+- **Surface**: #F5F5F4 / #E7E5E4 (warm grays for cards)
+- **Border**: #E7E5E4
+- **Text**: #1C1917 | **Secondary**: #78716C
+
+**Dark theme**
+- **Background**: #1C1917 (warm charcoal)
+- **Surface**: #292524 / #44403C
+- **Border**: #44403C
+- **Text**: #FAFAF9 | **Secondary**: #A8A29E
+
+**Feedback**: Success #059669 | Error #DC2626
 
 ---
 

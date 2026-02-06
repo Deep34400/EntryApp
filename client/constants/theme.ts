@@ -1,42 +1,46 @@
 import { Platform } from "react-native";
 
-const primaryColor = "#D97706";
-const primaryDark = "#B45309";
+/**
+ * Color theme aligned with company logo:
+ * Deep crimson/maroon (subdued, rich red) + warm neutrals for a cohesive, premium look.
+ */
+const primaryColor = "#9B2C2C";
+const primaryDark = "#7F1D1D";
 const successColor = "#059669";
 const errorColor = "#DC2626";
 
 export const Colors = {
   light: {
-    text: "#111827",
-    textSecondary: "#6B7280",
+    text: "#1C1917",
+    textSecondary: "#78716C",
     buttonText: "#FFFFFF",
-    tabIconDefault: "#6B7280",
+    tabIconDefault: "#78716C",
     tabIconSelected: primaryColor,
     link: primaryColor,
     linkPressed: primaryDark,
-    backgroundRoot: "#FFFFFF",
-    backgroundDefault: "#F3F4F6",
-    backgroundSecondary: "#E5E7EB",
-    backgroundTertiary: "#D1D5DB",
-    border: "#E5E7EB",
+    backgroundRoot: "#FAFAF9",
+    backgroundDefault: "#F5F5F4",
+    backgroundSecondary: "#E7E5E4",
+    backgroundTertiary: "#D6D3D1",
+    border: "#E7E5E4",
     success: successColor,
     error: errorColor,
     primary: primaryColor,
     primaryDark: primaryDark,
   },
   dark: {
-    text: "#F9FAFB",
-    textSecondary: "#9CA3AF",
+    text: "#FAFAF9",
+    textSecondary: "#A8A29E",
     buttonText: "#FFFFFF",
-    tabIconDefault: "#9CA3AF",
+    tabIconDefault: "#A8A29E",
     tabIconSelected: primaryColor,
     link: primaryColor,
     linkPressed: primaryDark,
-    backgroundRoot: "#111827",
-    backgroundDefault: "#1F2937",
-    backgroundSecondary: "#374151",
-    backgroundTertiary: "#4B5563",
-    border: "#374151",
+    backgroundRoot: "#1C1917",
+    backgroundDefault: "#292524",
+    backgroundSecondary: "#44403C",
+    backgroundTertiary: "#57534E",
+    border: "#44403C",
     success: successColor,
     error: errorColor,
     primary: primaryColor,
