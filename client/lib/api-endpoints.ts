@@ -55,6 +55,20 @@ export function getTicketListPath(filter: "open" | "closed"): string {
   return `${TICKET_STATS_PATH}?includeData=${filter}`;
 }
 
+// ----- GET: Driver details by reg_number or phone (auto-fill form) -----
+// Path: GET /api/v1/testRoutes/ticket/driverDetails?reg_number=... OR ?phone=...
+// Response: { status, message, results: { driver_name, phone, vehicles?: [{ reg_number }] } }
+export function getDriverDetailsPath(params: { reg_number?: string; phone?: string }): string {
+  const base = "/api/v1/testRoutes/ticket/driverDetails";
+  if (params.reg_number?.trim()) {
+    return `${base}?reg_number=${encodeURIComponent(params.reg_number.trim())}`;
+  }
+  if (params.phone?.trim()) {
+    return `${base}?phone=${encodeURIComponent(params.phone.trim())}`;
+  }
+  return base;
+}
+
 // ----- GET: Ticket detail by ID (UUID) -----
 // Path: GET /api/v1/testRoutes/tickets/:ticketId
 // Response: { status, message, results: { id, token_no, name, email, phone, purpose, status, entry_time, exit_time, agent_name, desk_location, ... } }

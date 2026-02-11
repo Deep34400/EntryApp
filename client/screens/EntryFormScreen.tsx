@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useLayoutEffect } from "react";
-import { View, StyleSheet, TextInput } from "react-native";
+import React, { useState, useMemo, useLayoutEffect, useCallback } from "react";
+import { View, StyleSheet, TextInput, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -13,7 +13,7 @@ import { Button } from "@/components/Button";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { useHub } from "@/contexts/HubContext";
+import { fetchDriverDetails } from "@/lib/query-client";
 import { RootStackParamList, EntryType, EntryFormData } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "EntryForm">;
@@ -28,7 +28,7 @@ interface FormField {
   icon: keyof typeof Feather.glyphMap;
 }
 
-// Mobile number, Reg No (if Old DP), Visitor's Name. Order: phone, then reg no if old_dp, then name.
+// Mobile number, Reg No (if Old DP or DP with optional vehicle), Visitor's Name.
 function getFormFields(entryType: EntryType): FormField[] {
   const base: FormField[] = [
     { key: "phone", label: "Mobile Number", placeholder: "+91 99999 99999", keyboardType: "phone-pad", icon: "phone" },
@@ -39,6 +39,13 @@ function getFormFields(entryType: EntryType): FormField[] {
       { key: "phone", label: "Mobile Number", placeholder: "+91 99999 99999", keyboardType: "phone-pad", icon: "phone" },
       { key: "vehicle_reg_number", label: "Reg No", placeholder: "MH 01 AB 1234", keyboardType: "default", icon: "truck" },
       { key: "name", label: "Visitor's Name", placeholder: "Enter full name", keyboardType: "default", icon: "user" },
+    ];
+  }
+  if (entryType === "dp") {
+    return [
+      { key: "phone", label: "Mobile Number", placeholder: "+91 99999 99999", keyboardType: "phone-pad", icon: "phone" },
+      { key: "name", label: "Visitor's Name", placeholder: "Enter full name", keyboardType: "default", icon: "user" },
+      { key: "vehicle_reg_number", label: "Vehicle No (optional)", placeholder: "MH 01 AB 1234", keyboardType: "default", icon: "truck", optional: true },
     ];
   }
   return base;
@@ -55,31 +62,88 @@ export default function EntryFormScreen() {
   const fields = useMemo(() => getFormFields(entryType), [entryType]);
   const initialFormData = useMemo((): EntryFormData => {
     const data: EntryFormData = { phone: "", name: "" };
-    if (entryType === "old_dp") {
+    if (entryType === "old_dp" || entryType === "dp") {
       data.vehicle_reg_number = "";
     }
     return data;
   }, [entryType]);
 
   const [formData, setFormData] = useState<EntryFormData>(initialFormData);
+  const [fetchingDriver, setFetchingDriver] = useState(false);
 
   const isFormValid = useMemo(() => {
     return fields.every((field) => field.optional || (formData[field.key]?.trim().length ?? 0) > 0);
   }, [formData, fields]);
 
   const handleNext = () => {
-    if (isFormValid) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      navigation.navigate("VisitorPurpose", { entryType, formData });
-    }
+    if (!isFormValid) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // For unified "dp" form: if vehicle number provided → old_dp flow, else new_dp flow
+    const effectiveType: "new_dp" | "old_dp" | "non_dp" =
+      entryType === "dp"
+        ? (formData.vehicle_reg_number?.trim() ? "old_dp" : "new_dp")
+        : entryType;
+    navigation.navigate("VisitorPurpose", { entryType: effectiveType, formData });
   };
 
   const updateField = (key: keyof EntryFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
+  const fetchDriverByRegNumber = useCallback(async () => {
+    const reg = formData.vehicle_reg_number?.trim() ?? "";
+    if (reg.length < 2) return;
+    setFetchingDriver(true);
+    try {
+      const details = await fetchDriverDetails({ reg_number: reg });
+      if (details?.driver_name && details?.phone) {
+        setFormData((prev) => ({
+          ...prev,
+          name: details.driver_name,
+          phone: details.phone,
+          ...(details.reg_number != null ? { vehicle_reg_number: details.reg_number } : {}),
+        }));
+      }
+    } finally {
+      setFetchingDriver(false);
+    }
+  }, [formData.vehicle_reg_number]);
+
+  const fetchDriverByPhone = useCallback(async () => {
+    const ph = formData.phone?.trim() ?? "";
+    if (ph.length < 5) return;
+    setFetchingDriver(true);
+    try {
+      const details = await fetchDriverDetails({ phone: ph });
+      if (details?.driver_name && details?.phone) {
+        setFormData((prev) => ({
+          ...prev,
+          name: details.driver_name,
+          phone: details.phone,
+          ...(details.reg_number != null ? { vehicle_reg_number: details.reg_number } : {}),
+        }));
+      }
+    } finally {
+      setFetchingDriver(false);
+    }
+  }, [formData.phone]);
+
+  const handleRegNumberBlur = useCallback(() => {
+    if (entryType === "dp" || entryType === "old_dp") fetchDriverByRegNumber();
+  }, [entryType, fetchDriverByRegNumber]);
+
+  const handlePhoneBlur = useCallback(() => {
+    if (entryType === "dp" || entryType === "old_dp") fetchDriverByPhone();
+  }, [entryType, fetchDriverByPhone]);
+
   const headerTitle =
-    entryType === "new_dp" ? "New DP Entry" : entryType === "old_dp" ? "Old DP Entry" : "Non DP Entry";
+    entryType === "dp"
+      ? "DP Entry"
+      : entryType === "new_dp"
+        ? "New DP Entry"
+        : entryType === "old_dp"
+          ? "Old DP Entry"
+          : "Staff Entry";
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -145,9 +209,14 @@ export default function EntryFormScreen() {
               entering={FadeInDown.delay(80 + index * 80).springify()}
               style={styles.fieldContainer}
             >
-              <ThemedText type="small" style={[styles.label, { color: theme.text }]}>
-                {field.label}
-              </ThemedText>
+              <View style={styles.labelRow}>
+                <ThemedText type="small" style={[styles.label, { color: theme.text }]}>
+                  {field.label}
+                </ThemedText>
+                {(field.key === "vehicle_reg_number" || field.key === "phone") && fetchingDriver && (
+                  <ActivityIndicator size="small" color={theme.primary} style={styles.fetchIndicator} />
+                )}
+              </View>
               <View
                 style={[
                   styles.inputRow,
@@ -164,6 +233,13 @@ export default function EntryFormScreen() {
                   placeholderTextColor={theme.textSecondary}
                   value={formData[field.key] ?? ""}
                   onChangeText={(value) => updateField(field.key, value)}
+                  onBlur={
+                    field.key === "vehicle_reg_number"
+                      ? handleRegNumberBlur
+                      : field.key === "phone"
+                        ? handlePhoneBlur
+                        : undefined
+                  }
                   keyboardType={field.keyboardType}
                   autoCapitalize={field.key === "name" ? "words" : "none"}
                   testID={`input-${field.key}`}
@@ -243,10 +319,18 @@ const styles = StyleSheet.create({
   fieldContainer: {
     marginBottom: Spacing.xl,
   },
-  label: {
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  label: {
     fontWeight: "600",
     letterSpacing: 0.2,
+  },
+  fetchIndicator: {
+    marginLeft: Spacing.xs,
   },
   inputRow: {
     flexDirection: "row",

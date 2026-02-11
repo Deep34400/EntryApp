@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { TICKET_STATS_PATH, getHubListPath } from "./api-endpoints";
+import { TICKET_STATS_PATH, getHubListPath, getDriverDetailsPath } from "./api-endpoints";
 
 /**
  * API base URL — set EXPO_PUBLIC_API_URL in .env to your backend (e.g. http://localhost:8080).
@@ -77,6 +77,47 @@ export async function fetchHubList(): Promise<{ id: string; hub_name: string; ci
   const data = (await res.json()) as { results?: { id: string; hub_name: string; city: string }[] };
   const results = data.results ?? [];
   return Array.isArray(results) ? results : [];
+}
+
+/** Driver details from API: results.driver_name, results.phone, results.vehicles[0].reg_number */
+export type DriverDetails = {
+  driver_name: string;
+  phone: string;
+  reg_number?: string;
+};
+
+/** Fetch driver details by reg_number or phone. GET .../ticket/driverDetails?reg_number=... or ?phone=... */
+export async function fetchDriverDetails(params: {
+  reg_number?: string;
+  phone?: string;
+}): Promise<DriverDetails | null> {
+  const path = getDriverDetailsPath(params);
+  if (path === "/api/v1/testRoutes/ticket/driverDetails") return null;
+  try {
+    const res = await apiRequest("GET", path);
+    const data = (await res.json()) as {
+      status?: string;
+      results?: {
+        driver_name?: string;
+        phone?: string;
+        vehicles?: Array<{ reg_number?: string }>;
+      };
+    };
+    const results = data.results;
+    if (!results || typeof results.driver_name !== "string" || typeof results.phone !== "string")
+      return null;
+    const reg_number =
+      results.vehicles?.[0]?.reg_number != null
+        ? String(results.vehicles[0].reg_number).trim()
+        : undefined;
+    return {
+      driver_name: String(results.driver_name).trim(),
+      phone: String(results.phone).trim(),
+      ...(reg_number ? { reg_number } : {}),
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** Fetch open/closed counts. Your API: GET /api/v1/testRoutes/tickets/stats. */

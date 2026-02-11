@@ -1,8 +1,8 @@
 import React, { useLayoutEffect } from "react";
-import { View, StyleSheet, Pressable, ActivityIndicator, ScrollView, Image, RefreshControl } from "react-native";
+import { View, StyleSheet, Pressable, ActivityIndicator, ScrollView, Image, RefreshControl, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, CommonActions } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
@@ -136,9 +136,35 @@ export default function VisitorTypeScreen() {
     navigation.navigate("TicketList", { filter: "closed" as const });
   };
 
+  const { clearUser } = useUser();
+
   const handleChangeHub = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     navigation.navigate("HubSelect");
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Log out",
+      "Are you sure you want to log out? You will need to enter your name and phone again.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Log out",
+          style: "destructive",
+          onPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            clearUser();
+            // Defer reset so WhoAreYou sees cleared user and doesn't redirect to HubSelect
+            setTimeout(() => {
+              navigation.dispatch(
+                CommonActions.reset({ index: 0, routes: [{ name: "WhoAreYou" }] })
+              );
+            }, 0);
+          },
+        },
+      ]
+    );
   };
 
   useLayoutEffect(() => {
@@ -154,39 +180,47 @@ export default function VisitorTypeScreen() {
             />
           </View>
           <View style={styles.headerWelcomeBlock}>
-            <ThemedText type="small" style={[styles.welcomeBack, { color: theme.textSecondary }]} numberOfLines={1}>
-              Welcome back,
-            </ThemedText>
             <ThemedText type="h4" style={[styles.headerUserName, { color: theme.text }]} numberOfLines={1}>
               {user?.name?.trim() || "User"}
             </ThemedText>
+            <Pressable
+              onPress={handleChangeHub}
+              style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <ThemedText type="small" style={[styles.headerHubName, { color: theme.primary }]} numberOfLines={1}>
+                {hub ? `${toTitleCase(hub.hub_name)} Hub` : "Select Hub"}
+              </ThemedText>
+            </Pressable>
           </View>
         </View>
       ),
       headerRight: () => (
         <View style={styles.headerRight}>
           <ThemeToggleHeaderButton />
+          <Pressable
+            onPress={handleLogout}
+            style={({ pressed }) => [styles.headerIconButton, { opacity: pressed ? 0.7 : 1 }]}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+            accessibilityLabel="Log out"
+          >
+            <Feather name="log-out" size={22} color={theme.text} />
+          </Pressable>
         </View>
       ),
     });
-  }, [navigation, user?.name, theme.text, theme.textSecondary, theme.backgroundDefault, theme.border]);
+  }, [navigation, user?.name, hub?.hub_name, theme.text, theme.textSecondary, theme.primary, theme.backgroundDefault, theme.border]);
 
   const visitorTypes = [
     {
-      type: "new_dp" as EntryType,
-      title: "New DP Entry",
-      description: "New delivery partner onboarding and registration",
-      icon: "user-plus" as keyof typeof Feather.glyphMap,
-    },
-    {
-      type: "old_dp" as EntryType,
-      title: "Old DP Entry",
-      description: "Existing delivery partner – settlement, maintenance",
+      type: "dp" as EntryType,
+      title: "DP Entry",
+      description: "Delivery partner – onboarding, settlement, maintenance. Vehicle optional.",
       icon: "users" as keyof typeof Feather.glyphMap,
     },
     {
       type: "non_dp" as EntryType,
-      title: "Non DP Entry",
+      title: "Staff Entry",
       description: "Self recovery, testing, police, test drive, personal use",
       icon: "log-in" as keyof typeof Feather.glyphMap,
     },
@@ -215,33 +249,9 @@ export default function VisitorTypeScreen() {
           />
         }
       >
-        {/* Location block — tap to change hub */}
-        <Animated.View entering={FadeInDown.delay(0).springify()}>
-          <Pressable
-            onPress={handleChangeHub}
-            style={({ pressed }) => [
-              styles.locationBlock,
-              {
-                backgroundColor: theme.backgroundDefault,
-                opacity: pressed ? 0.92 : 1,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.08,
-                shadowRadius: 6,
-                elevation: 3,
-              },
-            ]}
-          >
-            <Feather name="map-pin" size={24} color={theme.primary} style={styles.locationBlockIcon} />
-            <ThemedText type="h4" style={[styles.locationBlockText, { color: theme.text }]} numberOfLines={1}>
-              {hub ? `${toTitleCase(hub.hub_name)} Hub` : "Select Hub"}
-            </ThemedText>
-          </Pressable>
-        </Animated.View>
-
-        {/* Gate Entry section */}
-        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.gateEntrySection}>
-          <ThemedText type="h3" style={[styles.gateEntryTitle, { color: theme.text }]}>
+        {/* Gate Entry — open/closed counts (larger for mobile) */}
+        <Animated.View entering={FadeInDown.delay(0).springify()} style={styles.gateEntrySection}>
+          <ThemedText type="body" style={[styles.gateEntryTitle, { color: theme.textSecondary }]}>
             Gate Entry
           </ThemedText>
           <View style={styles.countsBar}>
@@ -268,7 +278,7 @@ export default function VisitorTypeScreen() {
                 {isFetching ? (
                   <ActivityIndicator size="small" color={theme.buttonText} />
                 ) : (
-                  <ThemedText type="h1" style={[styles.countCardNumber, { color: theme.buttonText }]}>
+                  <ThemedText type="h2" style={[styles.countCardNumber, { color: theme.buttonText }]}>
                     {openCount}
                   </ThemedText>
                 )}
@@ -283,7 +293,7 @@ export default function VisitorTypeScreen() {
                   opacity: pressed ? 0.92 : 1,
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.06,
+                  shadowOpacity: 0.08,
                   shadowRadius: 6,
                   elevation: 3,
                 },
@@ -297,7 +307,7 @@ export default function VisitorTypeScreen() {
                 {isFetching ? (
                   <ActivityIndicator size="small" color={theme.textSecondary} />
                 ) : (
-                  <ThemedText type="h1" style={[styles.countCardNumber, { color: theme.text }]}>
+                  <ThemedText type="h2" style={[styles.countCardNumber, { color: theme.text }]}>
                     {closedCount}
                   </ThemedText>
                 )}
@@ -307,7 +317,7 @@ export default function VisitorTypeScreen() {
         </Animated.View>
 
         {/* Select Entry Purpose section */}
-        <Animated.View entering={FadeInDown.delay(120).springify()} style={styles.sectionHeader}>
+        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.sectionHeader}>
           <Feather name="shield" size={20} color={theme.primary} />
           <ThemedText type="h3" style={[styles.sectionTitle, { color: theme.text }]}>
             Select Entry Purpose
@@ -322,7 +332,7 @@ export default function VisitorTypeScreen() {
               title={item.title}
               description={item.description}
               icon={item.icon}
-              delay={140 + index * 80}
+              delay={80 + index * 80}
               onPress={handleSelectType}
             />
           ))}
@@ -368,38 +378,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minWidth: 0,
   },
-  welcomeBack: {
-    marginBottom: 2,
-  },
   headerUserName: {
     fontWeight: "700",
+  },
+  headerHubName: {
+    marginTop: 2,
+    fontWeight: "600",
   },
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
-  locationBlock: {
-    flexDirection: "row",
+  headerIconButton: {
+    minWidth: 48,
+    minHeight: 48,
+    padding: Spacing.sm,
+    justifyContent: "center",
     alignItems: "center",
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing["2xl"],
-  },
-  locationBlockIcon: {
-    marginRight: Spacing.md,
-  },
-  locationBlockText: {
-    fontWeight: "700",
-    letterSpacing: 0.2,
   },
   gateEntrySection: {
     marginBottom: Spacing["2xl"],
   },
   gateEntryTitle: {
     marginBottom: Spacing.lg,
-    fontWeight: "800",
+    fontWeight: "600",
     letterSpacing: 0.3,
   },
   countsBar: {
@@ -416,7 +419,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   countCardLabel: {
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
     marginBottom: Spacing.xs,
   },
   countCardNumber: {},

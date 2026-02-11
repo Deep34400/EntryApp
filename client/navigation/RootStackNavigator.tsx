@@ -16,8 +16,8 @@ import ExitConfirmationScreen from "@/screens/ExitConfirmationScreen";
 import TicketListScreen from "../screens/TicketListScreen";
 import TicketDetailScreen from "../screens/TicketDetailScreen";
 
-/** Entry type selected on first screen after hub: New DP / Old DP / Non DP */
-export type EntryType = "new_dp" | "old_dp" | "non_dp";
+/** Entry type: dp = unified form (vehicle optional → old_dp if set, else new_dp); new_dp/old_dp/non_dp for downstream */
+export type EntryType = "new_dp" | "old_dp" | "non_dp" | "dp";
 
 /** Form data collected on second screen (mobile, name, reg no if Old DP) */
 export interface EntryFormData {
@@ -107,11 +107,13 @@ export default function RootStackNavigator() {
         component={EntryFormScreen}
         options={({ route }) => ({
           headerTitle:
-            route.params.entryType === "new_dp"
-              ? "New DP Entry"
-              : route.params.entryType === "old_dp"
-                ? "Old DP Entry"
-                : "Non DP Entry",
+            route.params.entryType === "dp"
+              ? "DP Entry"
+              : route.params.entryType === "new_dp"
+                ? "New DP Entry"
+                : route.params.entryType === "old_dp"
+                  ? "Old DP Entry"
+                  : "Staff Entry",
           headerRight: () => <HomeHeaderButton />,
         })}
       />

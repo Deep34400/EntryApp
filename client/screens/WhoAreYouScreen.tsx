@@ -38,9 +38,12 @@ export default function WhoAreYouScreen() {
 
   useEffect(() => {
     if (!isRestored) return;
-    if (user?.name?.trim() && user?.phone?.trim()) {
+    if (!user?.name?.trim() || !user?.phone?.trim()) return;
+    // Defer so state is committed and HubSelect shows reliably on phone
+    const t = setTimeout(() => {
       navigation.replace("HubSelect");
-    }
+    }, 0);
+    return () => clearTimeout(t);
   }, [isRestored, user, navigation]);
 
   const hasUser = isRestored && user?.name?.trim() && user?.phone?.trim();
@@ -49,7 +52,7 @@ export default function WhoAreYouScreen() {
     if (!isFormValid) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setUser({ name: name.trim(), phone: phone.trim() });
-    navigation.replace("HubSelect");
+    // Navigate only from useEffect when user is set — avoids race on phone and ensures HubSelect shows
   };
 
   if (hasUser) {
@@ -65,45 +68,46 @@ export default function WhoAreYouScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.primary }]}>
-      {/* Top branding — logo card with shadow, strong typography */}
-      <View style={[styles.topSection, { paddingTop: insets.top + Spacing["2xl"] }]}>
-        <Animated.View entering={FadeInDown.delay(0).springify()} style={styles.logoCardWrap}>
+      {/* Top: small logo left + title */}
+      <Animated.View
+        entering={FadeInDown.delay(0).springify()}
+        style={[styles.topSection, { paddingTop: insets.top + Spacing.xl }]}
+      >
+        <View style={styles.topRow}>
           <View
             style={[
-              styles.logoCard,
+              styles.logoWrapSmall,
               {
                 backgroundColor: theme.backgroundRoot,
                 borderColor: "rgba(255,255,255,0.4)",
                 shadowColor: "#000",
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.2,
-                shadowRadius: 16,
-                elevation: 8,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.15,
+                shadowRadius: 8,
+                elevation: 6,
               },
             ]}
           >
-            <View style={[styles.logoImageWrap, { backgroundColor: "rgba(255,255,255,0.95)" }]}>
-              <Image
-                source={require("../../assets/images/logo.png")}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
+            <Image
+              source={require("../../assets/images/logo.png")}
+              style={styles.logoSmall}
+              resizeMode="contain"
+            />
           </View>
-        </Animated.View>
-        <Animated.View entering={FadeInDown.delay(80).springify()} style={styles.heroTextWrap}>
-          <ThemedText type="h2" style={styles.heroTitle}>
-            Gate Entry / Exit
-          </ThemedText>
-          <ThemedText type="body" style={styles.heroSubtitle}>
-            Gate Management System
-          </ThemedText>
-        </Animated.View>
-      </View>
+          <View style={styles.heroTextWrap}>
+            <ThemedText type="h3" style={styles.heroTitle}>
+              Gate Entry / Exit
+            </ThemedText>
+            <ThemedText type="small" style={styles.heroSubtitle}>
+              Gate Management System
+            </ThemedText>
+          </View>
+        </View>
+      </Animated.View>
 
-      {/* Bottom card — elevated panel, refined form */}
+      {/* Form card — name & mobile above, phone visible */}
       <Animated.View
-        entering={FadeInDown.delay(120).springify()}
+        entering={FadeInDown.delay(80).springify()}
         style={[
           styles.bottomCard,
           {
@@ -128,10 +132,7 @@ export default function WhoAreYouScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <ThemedText type="h2" style={[styles.welcomeTitle, { color: theme.text }]}>
-              Welcome Back
-            </ThemedText>
-            <ThemedText type="body" style={[styles.welcomeSubtitle, { color: theme.textSecondary }]}>
+            <ThemedText type="body" style={[styles.signInLabel, { color: theme.textSecondary }]}>
               Sign in to continue
             </ThemedText>
 
@@ -168,6 +169,7 @@ export default function WhoAreYouScreen() {
               <View
                 style={[
                   styles.inputRow,
+                  styles.inputRowPhone,
                   {
                     backgroundColor: theme.backgroundSecondary ?? theme.backgroundRoot,
                     borderColor: theme.border,
@@ -176,8 +178,8 @@ export default function WhoAreYouScreen() {
               >
                 <Feather name="phone" size={20} color={theme.primary} style={styles.inputIcon} />
                 <TextInput
-                  style={[styles.input, { color: theme.text }]}
-                  placeholder="Enter 10-digit number"
+                  style={[styles.input, styles.inputPhone, { color: theme.text }]}
+                  placeholder="10-digit mobile number"
                   placeholderTextColor={theme.textSecondary}
                   value={phone}
                   onChangeText={setPhone}
@@ -230,56 +232,48 @@ const styles = StyleSheet.create({
   },
   topSection: {
     paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing["3xl"],
+    paddingBottom: Spacing.lg,
+  },
+  topRow: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: Spacing.lg,
   },
-  logoCardWrap: {
-    marginBottom: Spacing.xl,
-  },
-  logoCard: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: Spacing["2xl"],
-    paddingHorizontal: Spacing["3xl"],
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    minWidth: 180,
-  },
-  logoImageWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  logoWrapSmall: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
   },
-  logoImage: {
-    width: 52,
-    height: 52,
+  logoSmall: {
+    width: 32,
+    height: 32,
   },
   heroTextWrap: {
-    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
   },
   heroTitle: {
     color: "#FFFFFF",
     fontWeight: "800",
-    textAlign: "center",
-    marginBottom: Spacing.sm,
-    letterSpacing: 0.5,
-    fontSize: 26,
+    letterSpacing: 0.4,
+    fontSize: 20,
+    marginBottom: 2,
   },
   heroSubtitle: {
-    color: "rgba(255,255,255,0.92)",
-    textAlign: "center",
-    fontSize: 16,
-    letterSpacing: 0.3,
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 13,
+    letterSpacing: 0.2,
   },
   bottomCard: {
     flex: 1,
     borderTopLeftRadius: BorderRadius["2xl"],
     borderTopRightRadius: BorderRadius["2xl"],
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing["3xl"],
+    paddingTop: Spacing["2xl"],
     overflow: "hidden",
   },
   keyboardView: {
@@ -293,15 +287,10 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
     flexGrow: 1,
   },
-  welcomeTitle: {
-    fontWeight: "800",
-    marginBottom: Spacing.xs,
-    fontSize: 28,
-    letterSpacing: 0.3,
-  },
-  welcomeSubtitle: {
-    marginBottom: Spacing["2xl"],
-    fontSize: 16,
+  signInLabel: {
+    marginBottom: Spacing.xl,
+    fontSize: 15,
+    letterSpacing: 0.2,
   },
   fieldContainer: {
     marginBottom: Spacing.xl,
@@ -319,6 +308,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingLeft: Spacing.lg,
   },
+  inputRowPhone: {
+    minHeight: 52,
+  },
   inputIcon: {
     marginRight: Spacing.md,
   },
@@ -327,6 +319,10 @@ const styles = StyleSheet.create({
     height: "100%",
     paddingHorizontal: Spacing.md,
     fontSize: 16,
+  },
+  inputPhone: {
+    fontSize: 17,
+    letterSpacing: 0.5,
   },
   continueButtonWrap: {
     marginTop: Spacing["2xl"],
