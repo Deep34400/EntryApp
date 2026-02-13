@@ -17,9 +17,9 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { getApiUrl, apiRequest } from "@/lib/query-client";
-import { getTicketDetailPath, getTicketUpdatePath, appendHubIdToPath } from "@/lib/api-endpoints";
-import { useHub } from "@/contexts/HubContext";
+import { fetchWithAuthRetry, apiRequestWithAuthRetry } from "@/lib/query-client";
+import { getEntryAppDetailPath, getEntryAppUpdatePath } from "@/lib/api-endpoints";
+import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type TicketDetailRouteProp = RouteProp<RootStackParamList, "TicketDetail">;
@@ -30,14 +30,14 @@ export interface TicketDetailResult {
   name?: string;
   email?: string;
   phone?: string;
-  purpose?: string;
+  reason?: string;
   agent_id?: string;
   status?: string;
   entry_time?: string;
   exit_time?: string | null;
   created_at?: string;
   updated_at?: string;
-  agent_name?: string;
+  assignee?: string;
   desk_location?: string;
 }
 
@@ -76,31 +76,41 @@ function DetailRow({
   );
 }
 
-async function fetchTicketDetail(ticketId: string, hubId?: string): Promise<TicketDetailResult | null> {
+/** GET /api/v1/entry-app/:id → { success, data: { id, tokenNo, ... } }. On 401 tries refresh then retries. */
+async function fetchTicketDetail(
+  ticketId: string,
+  _hubId?: string,
+  accessToken?: string | null,
+): Promise<TicketDetailResult | null> {
   try {
-    const baseUrl = getApiUrl();
-    const path = appendHubIdToPath(getTicketDetailPath(ticketId), hubId);
-    const url = new URL(path, baseUrl);
-    const res = await fetch(url, { credentials: "omit" });
-    if (!res.ok) return null;
-    const data = (await res.json()) as Record<string, unknown>;
-    const results = data.results as Record<string, unknown> | undefined;
-    if (!results) return null;
+    const path = getEntryAppDetailPath(ticketId);
+    const res = await fetchWithAuthRetry(path, accessToken);
+    const json = (await res.json()) as { success?: boolean; data?: Record<string, unknown> };
+    const d = json.data;
+    if (!d) return null;
+    const tokenNo = d.tokenNo ?? d.token_no ?? d.token;
+    const entryTime = d.entryTime ?? d.entry_time;
+    const exitTime = d.exitTime ?? d.exit_time;
+    const createdAt = d.createdAt ?? d.created_at;
+    const updatedAt = d.updatedAt ?? d.updated_at;
+    const assignee = d.assignee ?? d.assignee_name;
+    const deskLocation = d.deskLocation ?? d.desk_location;
+    const agentId = d.agentId ?? d.agent_id;
     return {
-      id: String(results.id ?? ""),
-      token_no: String(results.token_no ?? results.token ?? ""),
-      name: results.name != null ? String(results.name) : undefined,
-      email: results.email != null ? String(results.email) : undefined,
-      phone: results.phone != null ? String(results.phone) : undefined,
-      purpose: results.purpose != null ? String(results.purpose) : undefined,
-      agent_id: results.agent_id != null ? String(results.agent_id) : undefined,
-      status: results.status != null ? String(results.status) : undefined,
-      entry_time: results.entry_time != null ? String(results.entry_time) : undefined,
-      exit_time: results.exit_time != null ? String(results.exit_time) : undefined,
-      created_at: results.created_at != null ? String(results.created_at) : undefined,
-      updated_at: results.updated_at != null ? String(results.updated_at) : undefined,
-      agent_name: results.agent_name != null ? String(results.agent_name) : undefined,
-      desk_location: results.desk_location != null ? String(results.desk_location) : undefined,
+      id: String(d.id ?? ""),
+      token_no: String(tokenNo ?? ""),
+      name: d.name != null ? String(d.name) : undefined,
+      email: d.email != null ? String(d.email) : undefined,
+      phone: d.phone != null ? String(d.phone) : undefined,
+      reason: d.reason != null ? String(d.reason) : undefined,
+      agent_id: agentId != null ? String(agentId) : undefined,
+      status: d.status != null ? String(d.status) : undefined,
+      entry_time: entryTime != null ? String(entryTime) : undefined,
+      exit_time: exitTime != null ? String(exitTime) : undefined,
+      created_at: createdAt != null ? String(createdAt) : undefined,
+      updated_at: updatedAt != null ? String(updatedAt) : undefined,
+      assignee: assignee != null ? String(assignee) : undefined,
+      desk_location: deskLocation != null ? String(deskLocation) : undefined,
     };
   } catch {
     return null;
@@ -117,7 +127,7 @@ export default function TicketDetailScreen() {
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
   const queryClient = useQueryClient();
-  const { hub } = useHub();
+  const auth = useAuth();
 
   const {
     data: ticket,
@@ -125,16 +135,19 @@ export default function TicketDetailScreen() {
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["ticket-detail", ticketId, hub?.id],
-    queryFn: () => fetchTicketDetail(ticketId, hub?.id),
+    queryKey: ["ticket-detail", ticketId, auth.accessToken],
+    queryFn: () => fetchTicketDetail(ticketId, undefined, auth.accessToken),
     staleTime: 30_000,
   });
 
   const closeMutation = useMutation({
     mutationFn: async () => {
-      const body: Record<string, string> = { status: "CLOSED" };
-      if (hub?.id) body.hub_id = hub.id;
-      await apiRequest("PUT", getTicketUpdatePath(ticketId), body);
+      await apiRequestWithAuthRetry(
+        "PATCH",
+        getEntryAppUpdatePath(ticketId),
+        { status: "CLOSED" },
+        auth.accessToken,
+      );
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -226,16 +239,15 @@ export default function TicketDetailScreen() {
           Visitor
         </ThemedText>
         <DetailRow label="Name" value={ticket.name} theme={theme} />
-        <DetailRow label="Email" value={ticket.email} theme={theme} />
         <DetailRow label="Phone" value={ticket.phone} theme={theme} />
-        <DetailRow label="Purpose" value={ticket.purpose} theme={theme} />
+        <DetailRow label="Purpose" value={ticket.reason} theme={theme} />
       </View>
 
       <View style={[styles.section, { backgroundColor: theme.backgroundDefault }]}>
         <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
           Assignment
         </ThemedText>
-        <DetailRow label="Agent" value={ticket.agent_name} theme={theme} />
+        <DetailRow label="Assignee" value={ticket.assignee} theme={theme} />
         <DetailRow label="Desk / Location" value={ticket.desk_location} theme={theme} />
       </View>
 

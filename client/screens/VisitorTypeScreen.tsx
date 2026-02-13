@@ -19,9 +19,8 @@ import { ThemeToggleHeaderButton } from "@/components/ThemeToggleHeaderButton";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { fetchTicketCountsSafe } from "@/lib/query-client";
-import { toTitleCase } from "@/lib/format";
-import { useHub } from "@/contexts/HubContext";
 import { useUser } from "@/contexts/UserContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList, EntryType } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
@@ -111,12 +110,12 @@ export default function VisitorTypeScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
-  const { hub } = useHub();
   const { user } = useUser();
+  const auth = useAuth();
 
   const { data: counts, isFetching, isRefetching, refetch } = useQuery({
-    queryKey: ["ticket-counts", hub?.id],
-    queryFn: () => fetchTicketCountsSafe(hub?.id),
+    queryKey: ["ticket-counts", auth.accessToken],
+    queryFn: () => fetchTicketCountsSafe(undefined, auth.accessToken),
     staleTime: 30_000,
   });
   const openCount = counts?.open ?? 0;
@@ -137,16 +136,12 @@ export default function VisitorTypeScreen() {
   };
 
   const { clearUser } = useUser();
-
-  const handleChangeHub = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate("HubSelect");
-  };
+  const { clearAuth } = useAuth();
 
   const handleLogout = () => {
     Alert.alert(
       "Log out",
-      "Are you sure you want to log out? You will need to enter your name and phone again.",
+      "Are you sure you want to log out? You will need to sign in again with OTP.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -154,8 +149,8 @@ export default function VisitorTypeScreen() {
           style: "destructive",
           onPress: () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            clearAuth();
             clearUser();
-            // Defer reset so WhoAreYou sees cleared user and doesn't redirect to HubSelect
             setTimeout(() => {
               navigation.dispatch(
                 CommonActions.reset({ index: 0, routes: [{ name: "WhoAreYou" }] })
@@ -180,16 +175,13 @@ export default function VisitorTypeScreen() {
             />
           </View>
           <View style={styles.headerWelcomeBlock}>
-            <ThemedText type="h4" style={[styles.headerUserName, { color: theme.text }]} numberOfLines={1}>
-              {user?.name?.trim() || "User"}
-            </ThemedText>
             <Pressable
-              onPress={handleChangeHub}
+              onPress={() => navigation.navigate("Profile")}
               style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <ThemedText type="small" style={[styles.headerHubName, { color: theme.primary }]} numberOfLines={1}>
-                {hub ? `${toTitleCase(hub.hub_name)} Hub` : "Select Hub"}
+              <ThemedText type="h4" style={[styles.headerUserName, { color: theme.text }]} numberOfLines={1}>
+                {user?.name?.trim() || "User"}
               </ThemedText>
             </Pressable>
           </View>
@@ -209,7 +201,7 @@ export default function VisitorTypeScreen() {
         </View>
       ),
     });
-  }, [navigation, user?.name, hub?.hub_name, theme.text, theme.textSecondary, theme.primary, theme.backgroundDefault, theme.border]);
+  }, [navigation, user?.name, theme.text, theme.textSecondary, theme.primary, theme.backgroundDefault, theme.border]);
 
   const visitorTypes = [
     {
@@ -380,10 +372,6 @@ const styles = StyleSheet.create({
   },
   headerUserName: {
     fontWeight: "700",
-  },
-  headerHubName: {
-    marginTop: 2,
-    fontWeight: "600",
   },
   headerRight: {
     flexDirection: "row",

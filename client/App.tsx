@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -11,9 +11,10 @@ import { queryClient } from "@/lib/query-client";
 
 import { ThemeProvider, useThemeContext } from "@/contexts/ThemeContext";
 import { UserProvider } from "@/contexts/UserContext";
-import { HubProvider } from "@/contexts/HubContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import RootStackNavigator from "@/navigation/RootStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SessionExpiredHandler } from "@/components/SessionExpiredHandler";
 
 function StatusBarStyle() {
   const ctx = useThemeContext();
@@ -22,24 +23,27 @@ function StatusBarStyle() {
 }
 
 export default function App() {
+  const navigationRef = useNavigationContainerRef();
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <UserProvider>
-          <HubProvider>
-          <SafeAreaProvider>
-            <GestureHandlerRootView style={styles.root}>
-              <KeyboardProvider>
-                <NavigationContainer>
-                  <RootStackNavigator />
-                </NavigationContainer>
-                <StatusBarStyle />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
-          </SafeAreaProvider>
-          </HubProvider>
-          </UserProvider>
+          <AuthProvider>
+            <SessionExpiredHandler navigationRef={navigationRef} />
+            <UserProvider>
+              <SafeAreaProvider>
+                <GestureHandlerRootView style={styles.root}>
+                  <KeyboardProvider>
+                    <NavigationContainer ref={navigationRef}>
+                      <RootStackNavigator />
+                    </NavigationContainer>
+                    <StatusBarStyle />
+                  </KeyboardProvider>
+                </GestureHandlerRootView>
+              </SafeAreaProvider>
+            </UserProvider>
+          </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>

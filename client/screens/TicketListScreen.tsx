@@ -21,9 +21,9 @@ import { HomeHeaderButton } from "@/components/HomeHeaderButton";
 import { RefreshHeaderButton } from "@/components/RefreshHeaderButton";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { getApiUrl } from "@/lib/query-client";
-import { getTicketListPath, appendHubIdToPath } from "@/lib/api-endpoints";
-import { useHub } from "@/contexts/HubContext";
+import { fetchWithAuthRetry } from "@/lib/query-client";
+import { getEntryAppListPath } from "@/lib/api-endpoints";
+import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "TicketList">;
@@ -43,30 +43,26 @@ export interface TicketListItem {
   vehicle_reg_number?: string;
 }
 
+/** Normalize API item (camelCase or snake_case) to TicketListItem */
 function normalizeTicket(item: Record<string, unknown>): TicketListItem {
   const id =
     String(item.id ?? item.token_no ?? item.token ?? "") || `row-${Date.now()}`;
+  const tokenNo = item.tokenNo ?? item.token_no ?? item.token ?? item.id;
+  const entryTime = item.entryTime ?? item.entry_time;
+  const exitTime = item.exitTime ?? item.exit_time;
+  const regNumber = item.regNumber ?? item.vehicle_reg_number ?? item.vehicle;
   return {
     id,
-    token_no: String(item.token_no ?? item.token ?? item.id ?? ""),
+    token_no: String(tokenNo ?? ""),
     name: item.name != null ? String(item.name) : undefined,
     purpose: item.purpose != null ? String(item.purpose) : undefined,
     reason: item.reason != null ? String(item.reason) : undefined,
-    entry_time:
-      item.entry_time != null ? String(item.entry_time) : undefined,
-    exit_time:
-      item.exit_time != null ? String(item.exit_time) : undefined,
-    agent_name:
-      item.agent_name != null ? String(item.agent_name) : undefined,
-    desk_location:
-      item.desk_location != null ? String(item.desk_location) : undefined,
+    entry_time: entryTime != null ? String(entryTime) : undefined,
+    exit_time: exitTime != null ? String(exitTime) : undefined,
+    agent_name: item.agentName != null ? String(item.agentName) : item.agent_name != null ? String(item.agent_name) : undefined,
+    desk_location: item.deskLocation != null ? String(item.deskLocation) : item.desk_location != null ? String(item.desk_location) : undefined,
     status: item.status != null ? String(item.status) : undefined,
-    vehicle_reg_number:
-      item.vehicle_reg_number != null
-        ? String(item.vehicle_reg_number)
-        : item.vehicle != null
-          ? String(item.vehicle)
-          : undefined,
+    vehicle_reg_number: regNumber != null ? String(regNumber) : undefined,
   };
 }
 
@@ -253,20 +249,18 @@ function TicketRow({
   );
 }
 
+/** GET /api/v1/entry-app?view=open|closed&limit=50 → { success, data: [...] }. On 401 tries refresh then retries. */
 async function fetchTicketList(
   filter: "open" | "closed",
-  hubId?: string,
+  _hubId?: string,
+  accessToken?: string | null,
 ): Promise<TicketListItem[]> {
   try {
-    const baseUrl = getApiUrl();
-    const path = appendHubIdToPath(getTicketListPath(filter), hubId);
-    const url = new URL(path, baseUrl);
-    const res = await fetch(url, { credentials: "omit" });
+    const path = getEntryAppListPath(filter, 50);
+    const res = await fetchWithAuthRetry(path, accessToken);
     if (!res.ok) return [];
-    const data = (await res.json()) as Record<string, unknown>;
-    const results = data.results as Record<string, unknown> | undefined;
-    const rawList = results?.data;
-    const list = Array.isArray(rawList) ? rawList as Record<string, unknown>[] : [];
+    const json = (await res.json()) as { success?: boolean; data?: unknown[] };
+    const list = Array.isArray(json.data) ? json.data as Record<string, unknown>[] : [];
     return list.map((item) => normalizeTicket(item));
   } catch {
     return [];
@@ -280,7 +274,7 @@ export default function TicketListScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
-  const { hub } = useHub();
+  const auth = useAuth();
 
   const {
     data: list = [],
@@ -288,8 +282,8 @@ export default function TicketListScreen() {
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["ticket-list", filter, hub?.id],
-    queryFn: () => fetchTicketList(filter, hub?.id),
+    queryKey: ["ticket-list", filter, auth.accessToken],
+    queryFn: () => fetchTicketList(filter, undefined, auth.accessToken),
     staleTime: 15_000,
   });
 

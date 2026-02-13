@@ -1,5 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { TICKET_STATS_PATH, getHubListPath, getDriverDetailsPath } from "./api-endpoints";
+import { ENTRY_APP_COUNTS_PATH, getDriverDetailsPath } from "./api-endpoints";
+import { tryRefreshToken } from "./auth-bridge";
 
 /**
  * API base URL — set EXPO_PUBLIC_API_URL in .env to your backend (e.g. http://localhost:8080).
@@ -42,6 +43,8 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+export const UNAUTHORIZED_MSG = "UNAUTHORIZED";
+
 export async function apiRequest(
   method: string,
   route: string,
@@ -61,22 +64,83 @@ export async function apiRequest(
   return res;
 }
 
-/** Append hub_id to a URL's search params if provided. */
-export function withHubId(url: URL, hubId: string | undefined): URL {
-  const out = new URL(url.toString());
-  if (hubId) out.searchParams.set("hub_id", hubId);
-  return out;
+let refreshPromise: Promise<string | null> | null = null;
+
+/** Single-flight refresh. Returns new access token or null (session expired). Never uses guestToken. */
+async function getNewAccessTokenAfter401(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = tryRefreshToken();
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
 }
 
-/** Fetch hub list. GET /api/v1/hub/?page=1&limit=100 */
-export async function fetchHubList(): Promise<{ id: string; hub_name: string; city: string }[]> {
+/** Authenticated request: adds Authorization Bearer token. Throws Error(UNAUTHORIZED_MSG) on 401. */
+export async function apiRequestWithAuth(
+  method: string,
+  route: string,
+  data?: unknown | undefined,
+  accessToken?: string | null,
+): Promise<Response> {
   const baseUrl = getApiUrl();
-  const url = new URL(getHubListPath(1, 100), baseUrl);
-  const res = await fetch(url, { credentials: "omit" });
+  const url = new URL(route, baseUrl);
+
+  const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+  if (accessToken?.trim()) {
+    headers.Authorization = `Bearer ${accessToken.trim()}`;
+  }
+
+  const res = await fetch(url, {
+    method,
+    headers,
+    body: data ? JSON.stringify(data) : undefined,
+    credentials: "omit",
+  });
+
+  if (res.status === 401) {
+    throw new Error(UNAUTHORIZED_MSG);
+  }
+
   await throwIfResNotOk(res);
-  const data = (await res.json()) as { results?: { id: string; hub_name: string; city: string }[] };
-  const results = data.results ?? [];
-  return Array.isArray(results) ? results : [];
+  return res;
+}
+
+/** Authenticated request with retry: use accessToken only. On 401 try refresh once and retry with new accessToken. No fallback to guest. */
+export async function apiRequestWithAuthRetry(
+  method: string,
+  route: string,
+  data?: unknown | undefined,
+  accessToken?: string | null,
+): Promise<Response> {
+  const baseUrl = getApiUrl();
+  const url = new URL(route, baseUrl);
+
+  const doRequest = (token: string | null): Promise<Response> => {
+    const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+    if (token?.trim()) headers.Authorization = `Bearer ${token.trim()}`;
+    return fetch(url, {
+      method,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "omit",
+    });
+  };
+
+  let res = await doRequest(accessToken ?? null);
+  if (res.status === 401) {
+    const newToken = await getNewAccessTokenAfter401();
+    if (newToken) {
+      res = await doRequest(newToken);
+    }
+    if (res.status === 401) {
+      throw new Error(UNAUTHORIZED_MSG);
+    }
+  }
+
+  await throwIfResNotOk(res);
+  return res;
 }
 
 /** Driver details from API: results.driver_name, results.phone, results.vehicles[0].reg_number */
@@ -120,20 +184,31 @@ export async function fetchDriverDetails(params: {
   }
 }
 
-/** Fetch open/closed counts. Your API: GET /api/v1/testRoutes/tickets/stats. */
-export async function fetchTicketCountsSafe(hubId?: string): Promise<{
-  open: number;
-  closed: number;
-}> {
+/** GET request with optional auth; on 401 tries refresh once and retries. Returns response. */
+export async function fetchWithAuthRetry(
+  route: string,
+  accessToken?: string | null,
+): Promise<Response> {
+  if (accessToken?.trim()) {
+    return apiRequestWithAuthRetry("GET", route, undefined, accessToken);
+  }
+  const baseUrl = getApiUrl();
+  const url = new URL(route, baseUrl);
+  return fetch(url.toString(), { method: "GET", credentials: "omit" });
+}
+
+/** Fetch open/closed counts. GET /api/v1/entry-app?view=counts → { success, data: { open, closed } }. On 401 tries refresh then retries. */
+export async function fetchTicketCountsSafe(
+  _hubId?: string,
+  accessToken?: string | null,
+): Promise<{ open: number; closed: number }> {
   try {
-    const baseUrl = getApiUrl();
-    const url = withHubId(new URL(TICKET_STATS_PATH, baseUrl), hubId);
-    const res = await fetch(url.toString(), { credentials: "omit" });
+    const res = await fetchWithAuthRetry(ENTRY_APP_COUNTS_PATH, accessToken);
     if (!res.ok) return { open: 0, closed: 0 };
-    const data = (await res.json()) as Record<string, unknown>;
-    const results = data.results as Record<string, unknown> | undefined;
-    const open = Number(results?.open ?? results?.openCount ?? 0) || 0;
-    const closed = Number(results?.closed ?? results?.closedCount ?? 0) || 0;
+    const json = (await res.json()) as { success?: boolean; data?: { open?: number; closed?: number } };
+    const data = json.data;
+    const open = Number(data?.open ?? 0) || 0;
+    const closed = Number(data?.closed ?? 0) || 0;
     return { open, closed };
   } catch {
     return { open: 0, closed: 0 };

@@ -7,7 +7,6 @@ import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { HomeHeaderButton } from "@/components/HomeHeaderButton";
 import { ThemeToggleHeaderButton } from "@/components/ThemeToggleHeaderButton";
 import WhoAreYouScreen from "@/screens/WhoAreYouScreen";
-import HubSelectScreen from "@/screens/HubSelectScreen";
 import VisitorTypeScreen from "@/screens/VisitorTypeScreen";
 import EntryFormScreen from "@/screens/EntryFormScreen";
 import VisitorPurposeScreen from "../screens/VisitorPurposeScreen";
@@ -15,6 +14,7 @@ import TokenDisplayScreen from "@/screens/TokenDisplayScreen";
 import ExitConfirmationScreen from "@/screens/ExitConfirmationScreen";
 import TicketListScreen from "../screens/TicketListScreen";
 import TicketDetailScreen from "../screens/TicketDetailScreen";
+import ProfileScreen from "@/screens/ProfileScreen";
 
 /** Entry type: dp = unified form (vehicle optional → old_dp if set, else new_dp); new_dp/old_dp/non_dp for downstream */
 export type EntryType = "new_dp" | "old_dp" | "non_dp" | "dp";
@@ -28,7 +28,6 @@ export interface EntryFormData {
 
 export type RootStackParamList = {
   WhoAreYou: undefined;
-  HubSelect: undefined;
   VisitorType: undefined;
   EntryForm: { entryType: EntryType };
   VisitorPurpose: { entryType: EntryType; formData: EntryFormData };
@@ -36,12 +35,13 @@ export type RootStackParamList = {
   ExitConfirmation: { token: string };
   TicketList: { filter: "open" | "closed" };
   TicketDetail: { ticketId: string };
+  Profile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const BACK_HIT_SLOP = { top: 16, bottom: 16, left: 16, right: 24 };
-const SCREENS_WITH_BACK = ["EntryForm", "VisitorPurpose", "TicketList", "TicketDetail"];
+const SCREENS_WITH_BACK = ["EntryForm", "VisitorPurpose", "TicketList", "TicketDetail", "Profile"];
 
 export default function RootStackNavigator() {
   const screenOptions = useScreenOptions();
@@ -77,15 +77,6 @@ export default function RootStackNavigator() {
         component={WhoAreYouScreen}
         options={{
           headerShown: false,
-          headerBackVisible: false,
-          gestureEnabled: false,
-        }}
-      />
-      <Stack.Screen
-        name="HubSelect"
-        component={HubSelectScreen}
-        options={{
-          headerTitle: "",
           headerBackVisible: false,
           gestureEnabled: false,
         }}
@@ -160,6 +151,13 @@ export default function RootStackNavigator() {
         options={{
           headerShown: false,
           gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          headerTitle: "Profile",
         }}
       />
     </Stack.Navigator>

@@ -24,10 +24,10 @@ import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { apiRequest } from "@/lib/query-client";
-import { ENTRY_PASS_PATH } from "@/lib/api-endpoints";
-import { useHub } from "@/contexts/HubContext";
+import { apiRequestWithAuthRetry, UNAUTHORIZED_MSG } from "@/lib/query-client";
+import { ENTRY_APP_CREATE_PATH } from "@/lib/api-endpoints";
 import { useUser } from "@/contexts/UserContext";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   RootStackParamList,
   EntryType,
@@ -232,7 +232,6 @@ export default function VisitorPurposeScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
-  const { hub } = useHub();
   const { user } = useUser();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showRunningRepairModal, setShowRunningRepairModal] = useState(false);
@@ -258,6 +257,8 @@ export default function VisitorPurposeScreen() {
     return item;
   };
 
+  const { accessToken, clearAuth } = useAuth();
+
   const submitMutation = useMutation({
     mutationFn: async ({
       categoryTitle,
@@ -267,38 +268,32 @@ export default function VisitorPurposeScreen() {
       item: string;
     }) => {
       setSubmitError(null);
-      const purpose = getPurpose(categoryTitle);
+      const assignee = getPurpose(categoryTitle);
       const reason = getReason(categoryTitle, item);
 
       const body: Record<string, string> = {
         type: entryType,
         phone: (formData.phone ?? "").trim(),
         name: (formData.name ?? "").trim(),
-        purpose,
+        assignee,
         reason,
       };
-      if (hub?.id) {
-        body.hub_id = hub.id;
-      }
-      if (user?.name) body.staff_name = user.name;
-      if (user?.phone) body.staff_phone = user.phone;
+      if (user?.name) body.name = user.name;
+      if (user?.phone) body.phone = user.phone;
       if (entryType === "old_dp") {
-        const vehicle = (formData.vehicle_reg_number ?? "").trim();
-        if (vehicle) {
-          body.vehicle_reg_number = vehicle;
-          body.vehicle = vehicle;
-        }
+        const regNumber = (formData.vehicle_reg_number ?? "").trim();
+        if (regNumber) body.reg_number = regNumber;
       }
-      const response = await apiRequest("POST", ENTRY_PASS_PATH, body);
+      const response = await apiRequestWithAuthRetry("POST", ENTRY_APP_CREATE_PATH, body, accessToken);
       return response.json();
     },
     onSuccess: (data) => {
       setSubmitError(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const results = data.results ?? data;
-      const token = results.token_no ?? results.token ?? results.id ?? "";
-      const agentName = results.agent_name ?? results.agentName ?? results.agent ?? "—";
-      const gate = results.desk_location ?? results.gate ?? results.gate_name ?? "—";
+      const raw = data.data ?? data.results ?? data;
+      const token = raw.tokenNo ?? raw.token_no ?? raw.token ?? raw.id ?? "";
+      const agentName = raw.agentName ?? raw.agent_name ?? raw.agent ?? "—";
+      const gate = raw.deskLocation ?? raw.desk_location ?? raw.gate ?? raw.gate_name ?? "—";
       navigation.navigate("TokenDisplay", {
         token: String(token),
         agentName: String(agentName),
@@ -306,6 +301,11 @@ export default function VisitorPurposeScreen() {
       });
     },
     onError: (error: Error) => {
+      if (error.message === UNAUTHORIZED_MSG) {
+        clearAuth();
+        navigation.reset({ index: 0, routes: [{ name: "WhoAreYou" }] });
+        return;
+      }
       setSubmitError(error.message || "Something went wrong. Please try again.");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     },

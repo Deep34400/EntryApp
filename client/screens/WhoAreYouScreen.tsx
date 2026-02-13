@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -20,39 +21,83 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { sendOtp, verifyOtp } from "@/lib/auth-api";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "WhoAreYou">;
+
+type Step = "phone" | "otp";
 
 export default function WhoAreYouScreen() {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
-  const { user, isRestored, setUser } = useUser();
+  const auth = useAuth();
+  const { setUser: setUserContext } = useUser();
 
-  const [name, setName] = useState("");
+  const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const isFormValid = name.trim().length > 0 && phone.trim().length > 0;
+  const phoneTrimmed = phone.trim().replace(/\D/g, "");
+  const isPhoneValid = phoneTrimmed.length >= 10;
+  const isOtpValid = otp.trim().length >= 4;
 
+  // When we have a logged-in user (access token), go to main screen
   useEffect(() => {
-    if (!isRestored) return;
-    if (!user?.name?.trim() || !user?.phone?.trim()) return;
-    // Defer so state is committed and HubSelect shows reliably on phone
-    const t = setTimeout(() => {
-      navigation.replace("HubSelect");
-    }, 0);
-    return () => clearTimeout(t);
-  }, [isRestored, user, navigation]);
+    if (!auth.isRestored || !auth.isGuestReady) return;
+    if (auth.accessToken && auth.user) {
+      setUserContext({ name: auth.user.name, phone: auth.user.phone });
+      const t = setTimeout(() => navigation.replace("VisitorType"), 0);
+      return () => clearTimeout(t);
+    }
+  }, [auth.isRestored, auth.isGuestReady, auth.accessToken, auth.user, setUserContext, navigation]);
 
-  const hasUser = isRestored && user?.name?.trim() && user?.phone?.trim();
+  const hasUser = auth.isRestored && auth.isGuestReady && auth.accessToken && auth.user;
 
-  const handleContinue = () => {
-    if (!isFormValid) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setUser({ name: name.trim(), phone: phone.trim() });
-    // Navigate only from useEffect when user is set — avoids race on phone and ensures HubSelect shows
+  const handleSendOtp = async () => {
+    if (!isPhoneValid || !auth.guestToken) return;
+    setError(null);
+    setLoading(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await sendOtp(phoneTrimmed, auth.guestToken);
+      setStep("otp");
+      setOtp("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to send OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!isOtpValid || !auth.guestToken) return;
+    setError(null);
+    setLoading(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const data = await verifyOtp(phoneTrimmed, otp.trim(), auth.guestToken);
+      if (data) {
+        await auth.setTokensAfterVerify(data);
+        const primaryPhone =
+          data.user.userContacts?.find((c) => c.isPrimary)?.phoneNo ||
+          data.user.userContacts?.[0]?.phoneNo ||
+          data.user.name;
+        setUserContext({
+          name: data.user.name?.trim() || primaryPhone,
+          phone: primaryPhone,
+        });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Invalid OTP");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (hasUser) {
@@ -66,9 +111,32 @@ export default function WhoAreYouScreen() {
     );
   }
 
+  // Waiting for guest token
+  if (!auth.isGuestReady || !auth.isRestored) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: theme.backgroundRoot }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <ThemedText type="body" style={{ color: theme.textSecondary, marginTop: Spacing.lg }}>
+          Preparing…
+        </ThemedText>
+      </View>
+    );
+  }
+
+  // Guest token error (e.g. network)
+  if (auth.authError) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: theme.primary }]}>
+        <ThemedText type="body" style={{ color: "#fff", marginBottom: Spacing.lg, textAlign: "center" }}>
+          {auth.authError}
+        </ThemedText>
+        <Button onPress={() => auth.ensureGuestToken()}>Retry</Button>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.primary }]}>
-      {/* Top: small logo left + title */}
       <Animated.View
         entering={FadeInDown.delay(0).springify()}
         style={[styles.topSection, { paddingTop: insets.top + Spacing.xl }]}
@@ -105,7 +173,6 @@ export default function WhoAreYouScreen() {
         </View>
       </Animated.View>
 
-      {/* Form card — name & mobile above, phone visible */}
       <Animated.View
         entering={FadeInDown.delay(80).springify()}
         style={[
@@ -133,88 +200,129 @@ export default function WhoAreYouScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <ThemedText type="body" style={[styles.signInLabel, { color: theme.textSecondary }]}>
-              Sign in to continue
+              {step === "phone" ? "Sign in with your mobile number" : "Enter the OTP we sent you"}
             </ThemedText>
 
-            <View style={styles.fieldContainer}>
-              <ThemedText type="small" style={[styles.label, { color: theme.text }]}>
-                Name
-              </ThemedText>
-              <View
-                style={[
-                  styles.inputRow,
-                  {
-                    backgroundColor: theme.backgroundSecondary ?? theme.backgroundRoot,
-                    borderColor: theme.border,
-                  },
-                ]}
-              >
-                <Feather name="user" size={20} color={theme.primary} style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, { color: theme.text }]}
-                  placeholder="Enter your full name"
-                  placeholderTextColor={theme.textSecondary}
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                  testID="input-name"
-                />
+            {error ? (
+              <View style={[styles.errorBanner, { backgroundColor: theme.backgroundTertiary }]}>
+                <ThemedText type="small" style={{ color: theme.error }}>{error}</ThemedText>
               </View>
-            </View>
+            ) : null}
 
-            <View style={styles.fieldContainer}>
-              <ThemedText type="small" style={[styles.label, { color: theme.text }]}>
-                Mobile Number
-              </ThemedText>
-              <View
-                style={[
-                  styles.inputRow,
-                  styles.inputRowPhone,
-                  {
-                    backgroundColor: theme.backgroundSecondary ?? theme.backgroundRoot,
-                    borderColor: theme.border,
-                  },
-                ]}
-              >
-                <Feather name="phone" size={20} color={theme.primary} style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, styles.inputPhone, { color: theme.text }]}
-                  placeholder="10-digit mobile number"
-                  placeholderTextColor={theme.textSecondary}
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                  testID="input-phone"
-                />
-              </View>
-            </View>
-
-            <View style={styles.continueButtonWrap}>
-              <Button
-                onPress={handleContinue}
-                disabled={!isFormValid}
-                style={[
-                  styles.continueButton,
-                  {
-                    backgroundColor: isFormValid ? theme.primary : theme.backgroundTertiary,
-                    borderWidth: 1,
-                    borderColor: isFormValid ? theme.primary : theme.border,
-                    opacity: isFormValid ? 1 : 0.92,
-                    ...(isFormValid && Platform.OS === "ios"
-                      ? {
-                          shadowColor: theme.primary,
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.35,
-                          shadowRadius: 8,
-                        }
-                      : {}),
-                    ...(isFormValid && Platform.OS === "android" ? { elevation: 4 } : { elevation: 2 }),
-                  },
-                ]}
-              >
-                Continue
-              </Button>
-            </View>
+            {step === "phone" ? (
+              <>
+                <View style={styles.fieldContainer}>
+                  <ThemedText type="small" style={[styles.label, { color: theme.text }]}>
+                    Mobile Number
+                  </ThemedText>
+                  <View
+                    style={[
+                      styles.inputRow,
+                      styles.inputRowPhone,
+                      {
+                        backgroundColor: theme.backgroundSecondary ?? theme.backgroundRoot,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  >
+                    <Feather name="phone" size={20} color={theme.primary} style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.input, styles.inputPhone, { color: theme.text }]}
+                      placeholder="10-digit mobile number"
+                      placeholderTextColor={theme.textSecondary}
+                      value={phone}
+                      onChangeText={setPhone}
+                      keyboardType="phone-pad"
+                      maxLength={14}
+                      editable={!loading}
+                      testID="input-phone"
+                    />
+                  </View>
+                </View>
+                <View style={styles.continueButtonWrap}>
+                  <Button
+                    onPress={handleSendOtp}
+                    disabled={!isPhoneValid || loading}
+                    style={[
+                      styles.continueButton,
+                      {
+                        backgroundColor: isPhoneValid ? theme.primary : theme.backgroundTertiary,
+                        borderWidth: 1,
+                        borderColor: isPhoneValid ? theme.primary : theme.border,
+                        opacity: isPhoneValid ? 1 : 0.92,
+                        ...(isPhoneValid && Platform.OS === "ios"
+                          ? {
+                              shadowColor: theme.primary,
+                              shadowOffset: { width: 0, height: 4 },
+                              shadowOpacity: 0.35,
+                              shadowRadius: 8,
+                            }
+                          : {}),
+                        ...(isPhoneValid && Platform.OS === "android" ? { elevation: 4 } : { elevation: 2 }),
+                      },
+                    ]}
+                  >
+                    {loading ? "Sending…" : "Send OTP"}
+                  </Button>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.fieldContainer}>
+                  <ThemedText type="small" style={[styles.label, { color: theme.text }]}>
+                    OTP
+                  </ThemedText>
+                  <View
+                    style={[
+                      styles.inputRow,
+                      {
+                        backgroundColor: theme.backgroundSecondary ?? theme.backgroundRoot,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  >
+                    <Feather name="lock" size={20} color={theme.primary} style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      placeholder="Enter 6-digit OTP"
+                      placeholderTextColor={theme.textSecondary}
+                      value={otp}
+                      onChangeText={setOtp}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      editable={!loading}
+                      testID="input-otp"
+                    />
+                  </View>
+                </View>
+                <View style={styles.continueButtonWrap}>
+                  <Button
+                    onPress={handleVerifyOtp}
+                    disabled={!isOtpValid || loading}
+                    style={[
+                      styles.continueButton,
+                      {
+                        backgroundColor: isOtpValid ? theme.primary : theme.backgroundTertiary,
+                        borderWidth: 1,
+                        borderColor: isOtpValid ? theme.primary : theme.border,
+                        opacity: isOtpValid ? 1 : 0.92,
+                        ...(isOtpValid && Platform.OS === "ios"
+                          ? {
+                              shadowColor: theme.primary,
+                              shadowOffset: { width: 0, height: 4 },
+                              shadowOpacity: 0.35,
+                              shadowRadius: 8,
+                            }
+                          : {}),
+                        ...(isOtpValid && Platform.OS === "android" ? { elevation: 4 } : { elevation: 2 }),
+                      },
+                    ]}
+                  >
+                    {loading ? "Verifying…" : "Verify & Continue"}
+                  </Button>
+                </View>
+              </>
+            )}
           </ScrollView>
         </KeyboardAvoidingView>
       </Animated.View>
@@ -291,6 +399,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
     fontSize: 15,
     letterSpacing: 0.2,
+  },
+  errorBanner: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    marginBottom: Spacing.lg,
   },
   fieldContainer: {
     marginBottom: Spacing.xl,

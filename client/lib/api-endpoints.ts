@@ -6,54 +6,63 @@
  * Same pattern for GET (details) and POST (create/close): use apiRequest(method, path, body?).
  */
 
-// ----- GET: Hub list (choose location) -----
-// Path: GET /api/v1/hub/?page=1&limit=100
-// Response: { status, message, results: [{ id, hub_name, driver_processing_fee, city }] }
-export const HUB_LIST_PATH = "/api/v1/hub/";
-export function getHubListPath(page = 1, limit = 100): string {
-  return `${HUB_LIST_PATH}?page=${page}&limit=${limit}`;
+// ----- Identity & Auth -----
+/** POST /api/v1/identity — get or validate guest token (30-day). Body: appType, appVersion, lastLoginUserId, guestToken, accessToken, refreshToken, tokenVersion, macId */
+export const IDENTITY_PATH = "/api/v1/identity";
+
+/** POST /api/v1/users/login/otp — send OTP to phone. Headers: device-id, app-type, app-version, Authorization: Bearer <guestToken>. Body: { phoneNo } */
+export const LOGIN_OTP_PATH = "/api/v1/users/login/otp";
+
+/** POST /api/v1/users/login/otp/verify — verify OTP. Same headers. Body: { phoneNo, otp }. Returns user, accessToken, refreshToken, identity. */
+export const LOGIN_OTP_VERIFY_PATH = "/api/v1/users/login/otp/verify";
+
+/** POST /api/v1/auth/refresh — get new access (and optionally refresh) token. Body: { refreshToken }. Returns { accessToken, refreshToken }. */
+export const REFRESH_TOKEN_PATH = "/api/v1/users/login/refresh";
+
+/** App type for identity API body. */
+export const IDENTITY_APP_TYPE = "OPS_PORTAL";
+/** App type for login OTP headers. */
+export const APP_TYPE = "DRIVER_APP";
+export const APP_VERSION = 1;
+
+// ----- Entry App API (base) -----
+// All entry-app endpoints: create, list, counts, get by id, update/close.
+const ENTRY_APP_BASE = "/api/v1/entry-app";
+
+/** POST — Create entry. Body: { type, name, phone, assignee, reason, regNumber? }. assignee e.g. driver_manager/fleet_manager, reason e.g. "Settlement - Car Drop". */
+export const ENTRY_APP_CREATE_PATH = ENTRY_APP_BASE;
+
+/** GET — List open or closed. view=open|closed, limit=50 */
+export function getEntryAppListPath(view: "open" | "closed", limit = 50): string {
+  return `${ENTRY_APP_BASE}?view=${view}&limit=${limit}`;
 }
 
-/** Append hub_id query param to a path for APIs that filter by hub. */
-export function appendHubIdToPath(path: string, hubId: string | undefined): string {
-  if (!hubId) return path;
-  const sep = path.includes("?") ? "&" : "?";
-  return `${path}${sep}hub_id=${encodeURIComponent(hubId)}`;
+/** GET — Counts. Response: { success, data: { open, closed } } */
+export const ENTRY_APP_COUNTS_PATH = `${ENTRY_APP_BASE}?view=counts`;
+
+/** GET — Single entry by id (UUID). Response: { success, data: { id, tokenNo, purpose, name, phone, regNumber, status, entryTime, exitTime, ... } } */
+export function getEntryAppDetailPath(id: string): string {
+  return `${ENTRY_APP_BASE}/${encodeURIComponent(id)}`;
 }
 
-// ----- POST: Entry pass (create entry) -----
-// Path: POST /api/v1/testRoutes/entry_pass
-// Body: { type, phone, name, purpose, reason, hub_id?, vehicle_reg_number?, vehicle?, staff_name?, staff_phone? }
-// type: "new_dp" | "old_dp" | "non_dp"
-// purpose: "driver_manager" (Onboarding/Settlement) | "fleet_manager" (Maintenance) | "" (non_dp)
-// reason: "Maintenance - Accident" | "Settlement - DM collection" | "Onboarding - Enquiry" | "Self Recovery (QC)" etc.
-export const ENTRY_PASS_PATH = "/api/v1/testRoutes/entry_pass";
+/** PATCH — Update/close entry (same URL as GET detail). Body: { status: "CLOSED" } to close */
+export function getEntryAppUpdatePath(id: string): string {
+  return getEntryAppDetailPath(id);
+}
 
-/** Map visitor type to API purpose. */
+/** Map visitor type to API purpose (for create body). */
 export const VISITOR_PURPOSE: Record<string, string> = {
   sourcing: "driver_manager",
   maintenance: "fleet_manager",
   collection: "driver_manager",
 };
 
-/** Map visitor type to API reason (sourcing | maintenance | collection). */
+/** Map visitor type to API reason. */
 export const VISITOR_REASON: Record<string, string> = {
   sourcing: "sourcing",
   maintenance: "maintenance",
   collection: "collection",
 };
-
-// ----- GET: Ticket stats (counts) -----
-// Path: GET /api/v1/testRoutes/tickets/stats
-// Response: { status, message, results: { open?: number, closed?: number } } or similar.
-export const TICKET_STATS_PATH = "/api/v1/testRoutes/tickets/stats";
-
-// ----- GET: Ticket list (open or closed) -----
-// Path: GET /api/v1/testRoutes/tickets/stats?includeData=open | ?includeData=closed
-// Response: { status, message, results: { data: [...] } }.
-export function getTicketListPath(filter: "open" | "closed"): string {
-  return `${TICKET_STATS_PATH}?includeData=${filter}`;
-}
 
 // ----- GET: Driver details by reg_number or phone (auto-fill form) -----
 // Path: GET /api/v1/testRoutes/ticket/driverDetails?reg_number=... OR ?phone=...
@@ -69,25 +78,4 @@ export function getDriverDetailsPath(params: { reg_number?: string; phone?: stri
   return base;
 }
 
-// ----- GET: Ticket detail by ID (UUID) -----
-// Path: GET /api/v1/testRoutes/tickets/:ticketId
-// Response: { status, message, results: { id, token_no, name, email, phone, purpose, status, entry_time, exit_time, agent_name, desk_location, ... } }
-export function getTicketDetailPath(ticketId: string): string {
-  return `/api/v1/testRoutes/tickets/${encodeURIComponent(ticketId)}`;
-}
 
-// ----- PATCH: Update ticket (same URL as GET detail) -----
-// Path: PATCH /api/v1/testRoutes/tickets/:ticketId
-// Close ticket only: body { status: "CLOSED" }. Do not pass status when only updating name/email/etc.
-// Update details only: body { name?, email?, phone?, ... } — no status.
-export function getTicketUpdatePath(ticketId: string): string {
-  return getTicketDetailPath(ticketId);
-}
-
-// ----- POST: Close ticket (exit) -----
-// Path: POST /api/tickets/:token/close
-// Body: none
-// Response: { success: true } or 200 OK
-export function closeTicketPath(token: string): string {
-  return `/api/tickets/${encodeURIComponent(token)}/close`;
-}
