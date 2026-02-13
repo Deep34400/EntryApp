@@ -6,6 +6,7 @@
  */
 
 import { tryRefreshToken } from "@/lib/auth-bridge";
+import { parseApiErrorFromResponse } from "@/lib/api-error";
 
 /** Base URL from EXPO_PUBLIC_API_URL. */
 export function getApiUrl(): string {
@@ -17,36 +18,14 @@ export function getApiUrl(): string {
   return parsed.href.replace(/\/$/, "");
 }
 
-/** Parse API error body and throw with a clear message. */
+export const UNAUTHORIZED_MSG = "UNAUTHORIZED";
+
+/** On non-2xx: parses response body and throws ApiError (title, message, statusCode). No raw JSON or technical details. */
 export async function throwIfResNotOk(res: Response): Promise<void> {
   if (!res.ok) {
-    let message = res.statusText;
-    const text = await res.text().catch(() => "");
-    if (text) {
-      try {
-        const data = JSON.parse(text) as Record<string, unknown>;
-        const apiMessage = data.message as string | undefined;
-        const apiError = data.error as string | undefined;
-        const stack = data.stack as string | undefined;
-        if (typeof stack === "string" && stack.trim()) {
-          const firstLine = stack.split("\n")[0]?.trim().replace(/^Error:\s*/, "");
-          if (firstLine) message = firstLine;
-        } else if (typeof apiMessage === "string" && apiMessage.trim()) {
-          message = apiMessage;
-        } else if (typeof apiError === "string" && apiError.trim()) {
-          message = apiError;
-        } else if (text.length < 300) {
-          message = text;
-        }
-      } catch {
-        if (text.length < 300) message = text;
-      }
-    }
-    throw new Error(message);
+    throw await parseApiErrorFromResponse(res);
   }
 }
-
-export const UNAUTHORIZED_MSG = "UNAUTHORIZED";
 
 // ----- Refresh queue: only one refresh in flight -----
 let refreshPromise: Promise<string | null> | null = null;

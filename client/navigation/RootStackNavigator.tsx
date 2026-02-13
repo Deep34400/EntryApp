@@ -1,9 +1,8 @@
 import React from "react";
-import { View, Pressable, StyleSheet } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { HeaderBackButton } from "@react-navigation/elements";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
+import { BackHeaderButton } from "@/components/BackHeaderButton";
 import { HomeHeaderButton } from "@/components/HomeHeaderButton";
 import { ThemeToggleHeaderButton } from "@/components/ThemeToggleHeaderButton";
 import WhoAreYouScreen from "@/screens/WhoAreYouScreen";
@@ -40,8 +39,6 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Large touch area so back works on single tap and when tapping around the icon
-const BACK_HIT_SLOP = { top: 24, bottom: 24, left: 24, right: 32 };
 const SCREENS_WITH_BACK = ["EntryForm", "VisitorPurpose", "TicketList", "TicketDetail", "Profile"];
 
 export default function RootStackNavigator() {
@@ -53,18 +50,12 @@ export default function RootStackNavigator() {
         ...screenOptions,
         ...(SCREENS_WITH_BACK.includes(route.name)
           ? {
-              headerLeft: (props) =>
-                props.canGoBack ? (
-                  <Pressable
-                    onPress={() => navigation.goBack()}
-                    hitSlop={BACK_HIT_SLOP}
-                    style={backButtonStyles.wrapper}
-                  >
-                    <View style={backButtonStyles.inner} pointerEvents="none">
-                      <HeaderBackButton {...props} onPress={undefined} />
-                    </View>
-                  </Pressable>
-                ) : null,
+              headerLeft: (props) => (
+                <BackHeaderButton
+                  onPress={() => navigation.goBack()}
+                  canGoBack={!!props.canGoBack}
+                />
+              ),
             }
           : {}),
       })}
@@ -161,17 +152,3 @@ export default function RootStackNavigator() {
     </Stack.Navigator>
   );
 }
-
-const backButtonStyles = StyleSheet.create({
-  wrapper: {
-    minWidth: 56,
-    minHeight: 56,
-    justifyContent: "center",
-    alignItems: "flex-start",
-    marginLeft: -8,
-  },
-  inner: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});

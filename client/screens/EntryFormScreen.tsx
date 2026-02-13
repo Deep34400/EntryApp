@@ -97,7 +97,8 @@ export default function EntryFormScreen() {
       entryType === "dp"
         ? (formData.vehicle_reg_number?.trim() ? "old_dp" : "new_dp")
         : entryType;
-    navigation.navigate("VisitorPurpose", { entryType: effectiveType, formData });
+    // Use push so after "Back" and form edit, Next always opens a fresh screen with current formData
+    navigation.push("VisitorPurpose", { entryType: effectiveType, formData: { ...formData } });
   };
 
   const updateField = (key: keyof EntryFormData, value: string) => {

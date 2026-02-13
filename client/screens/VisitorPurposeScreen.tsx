@@ -25,6 +25,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequestWithAuthRetry, UNAUTHORIZED_MSG } from "@/lib/query-client";
+import { isApiError } from "@/lib/api-error";
 import { ENTRY_APP_CREATE_PATH } from "@/lib/api-endpoints";
 import { useUser } from "@/contexts/UserContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -272,10 +273,9 @@ export default function VisitorPurposeScreen() {
       const assignee = getPurpose(categoryTitle);
       const reason = getReason(categoryTitle, item);
 
-      let phone = (formData.phone ?? "").trim();
-      let name = (formData.name ?? "").trim();
-      if (user?.phone) phone = user.phone;
-      if (user?.name) name = user.name;
+      // Use form data as source of truth so edits after "Back" are sent; fall back to logged-in user only when form is empty
+      let phone = (formData.phone ?? "").trim() || (user?.phone ?? "").trim();
+      let name = (formData.name ?? "").trim() || (user?.name ?? "").trim();
 
       phone = phoneForApi(phone);
       if (!isPhoneValid(phone)) {
@@ -318,7 +318,10 @@ export default function VisitorPurposeScreen() {
         navigation.reset({ index: 0, routes: [{ name: "WhoAreYou" }] });
         return;
       }
-      setSubmitError(error.message || "Something went wrong. Please try again.");
+      const message = isApiError(error)
+        ? error.message
+        : (error.message || "Something went wrong. Please try again.");
+      setSubmitError(message);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     },
   });
