@@ -33,6 +33,7 @@ type Step = "phone" | "otp";
 
 const OTP_LENGTH = 6;
 const MIN_BUTTON_HEIGHT = 50;
+const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function LoginOtpScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -48,6 +49,7 @@ export default function LoginOtpScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phoneFocused, setPhoneFocused] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const phoneTrimmed = phone.trim().replace(/\D/g, "");
   const isPhoneValid = checkPhoneValid(phone);
@@ -73,6 +75,13 @@ export default function LoginOtpScreen() {
     }
   }, [step]);
 
+  // Resend OTP countdown
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = setInterval(() => setResendCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearInterval(id);
+  }, [resendCooldown]);
+
   const handleSendOtp = async () => {
     if (!isPhoneValid || !auth.guestToken) return;
     setError(null);
@@ -82,9 +91,28 @@ export default function LoginOtpScreen() {
       await sendOtp(phoneTrimmed, auth.guestToken);
       setStep("otp");
       setOtp("");
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to send OTP");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!isPhoneValid || !auth.guestToken || resendCooldown > 0) return;
+    setError(null);
+    setLoading(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await sendOtp(phoneTrimmed, auth.guestToken);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setOtp("");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to resend OTP");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -170,8 +198,8 @@ export default function LoginOtpScreen() {
             style={[
               styles.logoWrap,
               {
-                backgroundColor: theme.backgroundRoot,
-                borderColor: "rgba(255,255,255,0.35)",
+                backgroundColor: "#FFFFFF",
+                borderColor: "rgba(255,255,255,0.5)",
               },
             ]}
           >
@@ -192,30 +220,36 @@ export default function LoginOtpScreen() {
         </View>
       </Animated.View>
 
-      <Animated.View
-        entering={FadeInDown.delay(60).springify()}
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.backgroundRoot,
-            paddingBottom: insets.bottom + Spacing["2xl"],
-          },
-        ]}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={styles.keyboardView}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      <View style={[styles.canvas, { backgroundColor: theme.backgroundRoot }]}>
+        <Animated.View
+          entering={FadeInDown.delay(60).springify()}
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.backgroundRoot,
+              paddingBottom: insets.bottom + Spacing["2xl"],
+            },
+          ]}
         >
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={styles.keyboardView}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
           >
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
             <ThemedText type="body" style={[styles.screenLabel, { color: theme.textSecondary }]}>
               {step === "phone" ? "Sign in with your mobile number" : "Enter the OTP we sent you"}
             </ThemedText>
+            {step === "otp" && (
+              <ThemedText type="small" style={[styles.maskedPhone, { color: theme.textSecondary }]}>
+                We sent code to xxx-xxx-{phoneTrimmed.slice(-4) || "xxxx"}
+              </ThemedText>
+            )}
 
             {error ? (
               <View style={[styles.errorInline, { backgroundColor: theme.backgroundTertiary }]}>
@@ -233,7 +267,7 @@ export default function LoginOtpScreen() {
                     style={[
                       styles.inputWrap,
                       {
-                        backgroundColor: "#FFFFFF",
+                        backgroundColor: theme.backgroundDefault,
                         borderColor: inputBorderColor(phoneFocused),
                         borderWidth: 1.5,
                       },
@@ -244,6 +278,7 @@ export default function LoginOtpScreen() {
                       style={[styles.input, { color: theme.text }]}
                       placeholder={`${PHONE_MAX_DIGITS}-digit mobile number`}
                       placeholderTextColor={theme.textSecondary}
+                      selectionColor={theme.primary}
                       value={phone}
                       onChangeText={(v) => setPhone(normalizePhoneInput(v))}
                       onFocus={() => setPhoneFocused(true)}
@@ -302,7 +337,7 @@ export default function LoginOtpScreen() {
                           style={[
                             styles.otpBox,
                             {
-                              backgroundColor: "#FFFFFF",
+                              backgroundColor: theme.backgroundDefault,
                               borderColor: isActive ? theme.primary : theme.border,
                               borderWidth: isActive ? 2 : 1,
                             },
@@ -325,6 +360,19 @@ export default function LoginOtpScreen() {
                     })}
                   </Pressable>
                 </View>
+                <View style={styles.resendRow}>
+                  {resendCooldown > 0 ? (
+                    <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                      Resend OTP in 0:{String(resendCooldown).padStart(2, "0")}
+                    </ThemedText>
+                  ) : (
+                    <Pressable onPress={handleResendOtp} disabled={loading} hitSlop={8}>
+                      <ThemedText type="small" style={{ color: theme.primary, fontWeight: "600" }}>
+                        Resend OTP
+                      </ThemedText>
+                    </Pressable>
+                  )}
+                </View>
                 <View style={styles.buttonWrap}>
                   <Button
                     onPress={handleVerifyOtp}
@@ -342,9 +390,10 @@ export default function LoginOtpScreen() {
                 </View>
               </>
             )}
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </Animated.View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </Animated.View>
+      </View>
     </View>
   );
 }
@@ -394,28 +443,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.2,
   },
-  card: {
+  canvas: {
     flex: 1,
-    borderTopLeftRadius: BorderRadius["2xl"],
-    borderTopRightRadius: BorderRadius["2xl"],
+    alignItems: "center",
+  },
+  card: {
+    width: "90%",
+    maxWidth: 420,
+    marginTop: Spacing["2xl"],
+    borderRadius: BorderRadius["2xl"],
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.xl,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
+  keyboardView: {},
+  scrollView: {},
   scrollContent: {
-    paddingBottom: Spacing["3xl"],
+    paddingBottom: Spacing.xl,
     alignItems: "stretch",
-    flexGrow: 1,
   },
   screenLabel: {
     marginBottom: Spacing.lg,
     fontSize: 15,
+  },
+  maskedPhone: {
+    marginTop: -Spacing.sm,
+    marginBottom: Spacing.md,
+    fontSize: 13,
+  },
+  resendRow: {
+    marginBottom: Spacing.md,
+    alignItems: "center",
   },
   errorInline: {
     padding: Spacing.md,
@@ -423,7 +486,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   fieldContainer: {
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   label: {
     marginBottom: Spacing.sm,
@@ -474,7 +537,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   buttonWrap: {
-    marginTop: Spacing.xl,
+    marginTop: Spacing.lg,
     alignSelf: "stretch",
   },
   primaryButton: {
