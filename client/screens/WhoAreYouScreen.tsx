@@ -25,6 +25,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { sendOtp, verifyOtp } from "@/lib/auth-api";
+import { normalizePhoneInput, isPhoneValid as checkPhoneValid, PHONE_MAX_DIGITS } from "@/utils/validation";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "WhoAreYou">;
 
@@ -44,7 +45,7 @@ export default function WhoAreYouScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const phoneTrimmed = phone.trim().replace(/\D/g, "");
-  const isPhoneValid = phoneTrimmed.length >= 10;
+  const isPhoneValid = checkPhoneValid(phone);
   const isOtpValid = otp.trim().length >= 4;
 
   // When we have a logged-in user (access token), go to main screen
@@ -212,9 +213,12 @@ export default function WhoAreYouScreen() {
             {step === "phone" ? (
               <>
                 <View style={styles.fieldContainer}>
-                  <ThemedText type="small" style={[styles.label, { color: theme.text }]}>
-                    Mobile Number
-                  </ThemedText>
+                  <View style={[styles.labelRowWithAsterisk, { marginBottom: Spacing.sm }]}>
+                    <ThemedText type="small" style={[styles.label, { color: theme.text, marginBottom: 0 }]}>
+                      Mobile Number
+                    </ThemedText>
+                    <ThemedText type="small" style={[styles.label, { color: theme.error, marginBottom: 0 }]}> *</ThemedText>
+                  </View>
                   <View
                     style={[
                       styles.inputRow,
@@ -228,12 +232,12 @@ export default function WhoAreYouScreen() {
                     <Feather name="phone" size={20} color={theme.primary} style={styles.inputIcon} />
                     <TextInput
                       style={[styles.input, styles.inputPhone, { color: theme.text }]}
-                      placeholder="10-digit mobile number"
+                      placeholder={`${PHONE_MAX_DIGITS}-digit mobile number`}
                       placeholderTextColor={theme.textSecondary}
                       value={phone}
-                      onChangeText={setPhone}
+                      onChangeText={(v) => setPhone(normalizePhoneInput(v))}
                       keyboardType="phone-pad"
-                      maxLength={14}
+                      maxLength={PHONE_MAX_DIGITS}
                       editable={!loading}
                       testID="input-phone"
                     />
@@ -407,6 +411,10 @@ const styles = StyleSheet.create({
   },
   fieldContainer: {
     marginBottom: Spacing.xl,
+  },
+  labelRowWithAsterisk: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   label: {
     marginBottom: Spacing.sm,

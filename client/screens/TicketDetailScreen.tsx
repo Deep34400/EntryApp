@@ -38,7 +38,8 @@ export interface TicketDetailResult {
   created_at?: string;
   updated_at?: string;
   assignee?: string;
-  desk_location?: string;
+  desk_location?: string
+  purpose?: string;
 }
 
 function formatDateTime(iso?: string | null): string {
@@ -96,6 +97,7 @@ async function fetchTicketDetail(
     const assignee = d.assignee ?? d.assignee_name;
     const deskLocation = d.deskLocation ?? d.desk_location;
     const agentId = d.agentId ?? d.agent_id;
+    const purpose = d.purpose != null ? String(d.purpose) : undefined;
     return {
       id: String(d.id ?? ""),
       token_no: String(tokenNo ?? ""),
@@ -103,6 +105,7 @@ async function fetchTicketDetail(
       email: d.email != null ? String(d.email) : undefined,
       phone: d.phone != null ? String(d.phone) : undefined,
       reason: d.reason != null ? String(d.reason) : undefined,
+      purpose: purpose != null ? String(purpose) : undefined,
       agent_id: agentId != null ? String(agentId) : undefined,
       status: d.status != null ? String(d.status) : undefined,
       entry_time: entryTime != null ? String(entryTime) : undefined,
@@ -143,7 +146,7 @@ export default function TicketDetailScreen() {
   const closeMutation = useMutation({
     mutationFn: async () => {
       await apiRequestWithAuthRetry(
-        "PATCH",
+        "PUT",
         getEntryAppUpdatePath(ticketId),
         { status: "CLOSED" },
         auth.accessToken,
@@ -240,7 +243,7 @@ export default function TicketDetailScreen() {
         </ThemedText>
         <DetailRow label="Name" value={ticket.name} theme={theme} />
         <DetailRow label="Phone" value={ticket.phone} theme={theme} />
-        <DetailRow label="Purpose" value={ticket.reason} theme={theme} />
+        <DetailRow label="Purpose" value={ticket.purpose} theme={theme} />
       </View>
 
       <View style={[styles.section, { backgroundColor: theme.backgroundDefault }]}>

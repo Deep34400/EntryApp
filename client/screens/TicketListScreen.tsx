@@ -40,7 +40,8 @@ export interface TicketListItem {
   agent_name?: string;
   desk_location?: string;
   status?: string;
-  vehicle_reg_number?: string;
+  regNumber?: string;
+  phone?: string;
 }
 
 /** Normalize API item (camelCase or snake_case) to TicketListItem */
@@ -50,7 +51,7 @@ function normalizeTicket(item: Record<string, unknown>): TicketListItem {
   const tokenNo = item.tokenNo ?? item.token_no ?? item.token ?? item.id;
   const entryTime = item.entryTime ?? item.entry_time;
   const exitTime = item.exitTime ?? item.exit_time;
-  const regNumber = item.regNumber ?? item.vehicle_reg_number ?? item.vehicle;
+  const regNumber = item.regNumber ?? item.reg_number ?? item.vehicle;
   return {
     id,
     token_no: String(tokenNo ?? ""),
@@ -62,7 +63,8 @@ function normalizeTicket(item: Record<string, unknown>): TicketListItem {
     agent_name: item.agentName != null ? String(item.agentName) : item.agent_name != null ? String(item.agent_name) : undefined,
     desk_location: item.deskLocation != null ? String(item.deskLocation) : item.desk_location != null ? String(item.desk_location) : undefined,
     status: item.status != null ? String(item.status) : undefined,
-    vehicle_reg_number: regNumber != null ? String(regNumber) : undefined,
+    regNumber: regNumber != null ? String(regNumber) : undefined,
+    phone: item.phone != null ? String(item.phone) : undefined,
   };
 }
 
@@ -220,11 +222,19 @@ function TicketRow({
             </ThemedText>
           </View>
         )}
-        {item.vehicle_reg_number != null && item.vehicle_reg_number !== "" && (
+         {item.phone != null && item.phone !== "" && (
+          <View style={styles.infoRow}>
+            <Feather name="phone" size={14} color={theme.textSecondary} />
+            <ThemedText type="small" style={[styles.infoText, { color: theme.textSecondary }]}>
+              {item.phone}
+            </ThemedText>
+          </View>
+        )}
+        {item.regNumber != null && item.regNumber !== "" && (
           <View style={styles.infoRow}>
             <Feather name="truck" size={14} color={theme.textSecondary} />
             <ThemedText type="small" style={[styles.infoText, { color: theme.textSecondary }]}>
-              Reg: {item.vehicle_reg_number}
+              Reg: {item.regNumber}
             </ThemedText>
           </View>
         )}
@@ -236,6 +246,7 @@ function TicketRow({
             </ThemedText>
           </View>
         )}
+        
         {item.desk_location != null && item.desk_location !== "" && (
           <View style={styles.infoRow}>
             <Feather name="map-pin" size={14} color={theme.textSecondary} />
@@ -301,7 +312,7 @@ export default function TicketListScreen() {
         (t.reason ?? "").toLowerCase().includes(q) ||
         (t.purpose ?? "").toLowerCase().includes(q) ||
         (t.desk_location ?? "").toLowerCase().includes(q) ||
-        (t.vehicle_reg_number ?? "").toLowerCase().includes(q)
+        (t.regNumber ?? "").toLowerCase().includes(q)
     );
   }, [list, searchQuery]);
 

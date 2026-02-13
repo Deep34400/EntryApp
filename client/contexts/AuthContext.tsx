@@ -46,6 +46,8 @@ type AuthContextValue = {
   sessionExpired: boolean;
   /** Clear sessionExpired after redirecting to WhoAreYou. */
   clearSessionExpiredFlag: () => void;
+  /** True when user is logged in (has access token and user). */
+  isAuthenticated: boolean;
   /** Logged-in user (from OTP verify). Null when only guest. */
   user: AuthUser | null;
   /** Valid guest token (after ensureGuestToken). Use for send OTP / verify OTP. */
@@ -56,7 +58,11 @@ type AuthContextValue = {
   ensureGuestToken: () => Promise<void>;
   /** After OTP verify: save user + tokens and persist. Returns a Promise; await so storage is written before navigating. */
   setTokensAfterVerify: (data: NonNullable<VerifyOtpResponse["data"]>) => Promise<void>;
-  /** Logout: clear tokens and user from memory and storage. */
+  /** Update access token (e.g. after refresh). Persists to storage. */
+  setAccessToken: (accessToken: string) => void;
+  /** Logout: clear tokens and user from memory and storage. Redirect to login via sessionExpired/fetch-guest flow. */
+  logout: () => void;
+  /** @deprecated Use logout(). Logout: clear tokens and user. */
   clearAuth: () => void;
 };
 
@@ -290,10 +296,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [stored, persist],
   );
 
-  const clearAuth = useCallback(() => {
+  const logout = useCallback(() => {
     setIsGuestReady(false);
     persist(clearedStored(stored.identityId));
   }, [stored.identityId, persist]);
+
+  const setAccessToken = useCallback(
+    (accessToken: string) => {
+      const next: StoredAuth = { ...stored, accessToken: accessToken.trim() };
+      persist(next);
+    },
+    [stored, persist],
+  );
 
   const value: AuthContextValue = {
     isRestored,
@@ -301,12 +315,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authError,
     sessionExpired,
     clearSessionExpiredFlag,
+    isAuthenticated: !!(stored.accessToken?.trim() && stored.user),
     user: stored.user,
     guestToken: stored.guestToken || null,
     accessToken: stored.accessToken || null,
     ensureGuestToken,
     setTokensAfterVerify,
-    clearAuth,
+    setAccessToken,
+    logout,
+    clearAuth: logout,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -321,11 +338,14 @@ export function useAuth(): AuthContextValue {
       authError: null,
       sessionExpired: false,
       clearSessionExpiredFlag: () => {},
+      isAuthenticated: false,
       user: null,
       guestToken: null,
       accessToken: null,
       ensureGuestToken: async () => {},
       setTokensAfterVerify: () => Promise.resolve(),
+      setAccessToken: () => {},
+      logout: () => {},
       clearAuth: () => {},
     };
   }

@@ -1,5 +1,5 @@
 import React, { useLayoutEffect } from "react";
-import { View, StyleSheet, Pressable, ActivityIndicator, ScrollView, Image, RefreshControl, Alert } from "react-native";
+import { View, StyleSheet, Pressable, ActivityIndicator, ScrollView, Image, RefreshControl, Alert, Dimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, CommonActions } from "@react-navigation/native";
@@ -165,28 +165,37 @@ export default function VisitorTypeScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: "",
-      headerLeft: () => (
-        <View style={styles.headerLeftWrap}>
-          <View style={[styles.headerLogoWrap, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
-            <Image
-              source={require("../../assets/images/logo.png")}
-              style={styles.headerLogo}
-              resizeMode="contain"
-            />
+      headerLeft: () => {
+        const { width } = Dimensions.get("window");
+        const maxLeftWidth = Math.min(width * 0.52, width - 120);
+        return (
+          <View style={[styles.headerLeftWrap, { maxWidth: maxLeftWidth }]}>
+            <View style={[styles.headerLogoWrap, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
+              <Image
+                source={require("../../assets/images/logo.png")}
+                style={styles.headerLogo}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.headerWelcomeBlock}>
+              <Pressable
+                onPress={() => navigation.navigate("Profile")}
+                style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <ThemedText
+                  type="h4"
+                  style={[styles.headerUserName, { color: theme.text }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {user?.name?.trim() || "User"}
+                </ThemedText>
+              </Pressable>
+            </View>
           </View>
-          <View style={styles.headerWelcomeBlock}>
-            <Pressable
-              onPress={() => navigation.navigate("Profile")}
-              style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <ThemedText type="h4" style={[styles.headerUserName, { color: theme.text }]} numberOfLines={1}>
-                {user?.name?.trim() || "User"}
-              </ThemedText>
-            </Pressable>
-          </View>
-        </View>
-      ),
+        );
+      },
       headerRight: () => (
         <View style={styles.headerRight}>
           <ThemeToggleHeaderButton />
@@ -351,6 +360,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     minWidth: 0,
+    flexShrink: 1,
     gap: Spacing.md,
   },
   headerLogoWrap: {
@@ -369,6 +379,8 @@ const styles = StyleSheet.create({
   headerWelcomeBlock: {
     justifyContent: "center",
     minWidth: 0,
+    flex: 1,
+    flexShrink: 1,
   },
   headerUserName: {
     fontWeight: "700",

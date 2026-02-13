@@ -15,6 +15,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { fetchDriverDetails } from "@/lib/query-client";
 import { RootStackParamList, EntryType, EntryFormData } from "@/navigation/RootStackNavigator";
+import { normalizePhoneInput, isPhoneValid, PHONE_MAX_DIGITS } from "@/utils/validation";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "EntryForm">;
 type EntryFormRouteProp = RouteProp<RootStackParamList, "EntryForm">;
@@ -28,27 +29,37 @@ interface FormField {
   icon: keyof typeof Feather.glyphMap;
 }
 
-// Mobile number, Reg No (if Old DP or DP with optional vehicle), Visitor's Name.
+// Phone (10 digits, mandatory), Driver name (mandatory), Vehicle/Reg No (optional).
 function getFormFields(entryType: EntryType): FormField[] {
-  const base: FormField[] = [
-    { key: "phone", label: "Mobile Number", placeholder: "+91 99999 99999", keyboardType: "phone-pad", icon: "phone" },
-    { key: "name", label: "Visitor's Name", placeholder: "Enter full name", keyboardType: "default", icon: "user" },
-  ];
+  const phoneField: FormField = {
+    key: "phone",
+    label: "Mobile Number",
+    placeholder: `${PHONE_MAX_DIGITS}-digit number`,
+    keyboardType: "phone-pad",
+    icon: "phone",
+  };
+  const nameField: FormField = {
+    key: "name",
+    label: "Driver Name",
+    placeholder: "Enter full name",
+    keyboardType: "default",
+    icon: "user",
+  };
+  const vehicleOptional: FormField = {
+    key: "vehicle_reg_number",
+    label: "Vehicle No (optional)",
+    placeholder: "e.g. MH 01 AB 1234",
+    keyboardType: "default",
+    icon: "truck",
+    optional: true,
+  };
   if (entryType === "old_dp") {
-    return [
-      { key: "phone", label: "Mobile Number", placeholder: "+91 99999 99999", keyboardType: "phone-pad", icon: "phone" },
-      { key: "vehicle_reg_number", label: "Reg No", placeholder: "MH 01 AB 1234", keyboardType: "default", icon: "truck" },
-      { key: "name", label: "Visitor's Name", placeholder: "Enter full name", keyboardType: "default", icon: "user" },
-    ];
+    return [phoneField, vehicleOptional, nameField];
   }
   if (entryType === "dp") {
-    return [
-      { key: "phone", label: "Mobile Number", placeholder: "+91 99999 99999", keyboardType: "phone-pad", icon: "phone" },
-      { key: "name", label: "Visitor's Name", placeholder: "Enter full name", keyboardType: "default", icon: "user" },
-      { key: "vehicle_reg_number", label: "Vehicle No (optional)", placeholder: "MH 01 AB 1234", keyboardType: "default", icon: "truck", optional: true },
-    ];
+    return [phoneField, nameField, vehicleOptional];
   }
-  return base;
+  return [phoneField, nameField];
 }
 
 export default function EntryFormScreen() {
@@ -72,8 +83,11 @@ export default function EntryFormScreen() {
   const [fetchingDriver, setFetchingDriver] = useState(false);
 
   const isFormValid = useMemo(() => {
-    return fields.every((field) => field.optional || (formData[field.key]?.trim().length ?? 0) > 0);
-  }, [formData, fields]);
+    const phoneOk = isPhoneValid(formData.phone ?? "");
+    const nameOk = (formData.name ?? "").trim().length > 0;
+    const vehicleOk = true;
+    return phoneOk && nameOk && vehicleOk;
+  }, [formData]);
 
   const handleNext = () => {
     if (!isFormValid) return;
@@ -87,6 +101,10 @@ export default function EntryFormScreen() {
   };
 
   const updateField = (key: keyof EntryFormData, value: string) => {
+    if (key === "phone") {
+      setFormData((prev) => ({ ...prev, phone: normalizePhoneInput(value) }));
+      return;
+    }
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -213,6 +231,9 @@ export default function EntryFormScreen() {
                 <ThemedText type="small" style={[styles.label, { color: theme.text }]}>
                   {field.label}
                 </ThemedText>
+                {!field.optional ? (
+                  <ThemedText type="small" style={[styles.label, { color: theme.error }]}> *</ThemedText>
+                ) : null}
                 {(field.key === "vehicle_reg_number" || field.key === "phone") && fetchingDriver && (
                   <ActivityIndicator size="small" color={theme.primary} style={styles.fetchIndicator} />
                 )}
@@ -233,6 +254,7 @@ export default function EntryFormScreen() {
                   placeholderTextColor={theme.textSecondary}
                   value={formData[field.key] ?? ""}
                   onChangeText={(value) => updateField(field.key, value)}
+                  maxLength={field.key === "phone" ? PHONE_MAX_DIGITS : undefined}
                   onBlur={
                     field.key === "vehicle_reg_number"
                       ? handleRegNumberBlur

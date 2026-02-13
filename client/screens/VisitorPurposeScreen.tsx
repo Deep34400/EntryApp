@@ -33,6 +33,7 @@ import {
   EntryType,
   EntryFormData,
 } from "@/navigation/RootStackNavigator";
+import { isPhoneValid, phoneForApi } from "@/utils/validation";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorPurpose">;
 type VisitorPurposeRouteProp = RouteProp<RootStackParamList, "VisitorPurpose">;
@@ -244,10 +245,10 @@ export default function VisitorPurposeScreen() {
     return PURPOSE_ICONS[key] ?? "circle";
   };
 
-  /** purpose: Settlement/Onboarding → driver_manager, Maintenance → fleet_manager, Non DP → empty */
+  /** assignee: Settlement/Onboarding → DRIVER MANAGER, Maintenance → FLEET MANAGER, Non DP → empty */
   const getPurpose = (categoryTitle: string | null): string => {
-    if (categoryTitle === "Maintenance") return "fleet_manager";
-    if (categoryTitle === "Settlement" || categoryTitle === "Onboarding") return "driver_manager";
+    if (categoryTitle === "Maintenance") return "FLEET MANAGER";
+    if (categoryTitle === "Settlement" || categoryTitle === "Onboarding") return "DRIVER MANAGER";
     return ""; // non_dp
   };
 
@@ -271,15 +272,26 @@ export default function VisitorPurposeScreen() {
       const assignee = getPurpose(categoryTitle);
       const reason = getReason(categoryTitle, item);
 
+      let phone = (formData.phone ?? "").trim();
+      let name = (formData.name ?? "").trim();
+      if (user?.phone) phone = user.phone;
+      if (user?.name) name = user.name;
+
+      phone = phoneForApi(phone);
+      if (!isPhoneValid(phone)) {
+        throw new Error("Please enter a valid 10-digit mobile number.");
+      }
+      if (!name) {
+        throw new Error("Driver name is required.");
+      }
+
       const body: Record<string, string> = {
         type: entryType,
-        phone: (formData.phone ?? "").trim(),
-        name: (formData.name ?? "").trim(),
+        phone,
+        name,
         assignee,
         reason,
       };
-      if (user?.name) body.name = user.name;
-      if (user?.phone) body.phone = user.phone;
       if (entryType === "old_dp") {
         const regNumber = (formData.vehicle_reg_number ?? "").trim();
         if (regNumber) body.reg_number = regNumber;
@@ -292,12 +304,12 @@ export default function VisitorPurposeScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const raw = data.data ?? data.results ?? data;
       const token = raw.tokenNo ?? raw.token_no ?? raw.token ?? raw.id ?? "";
-      const agentName = raw.agentName ?? raw.agent_name ?? raw.agent ?? "—";
-      const gate = raw.deskLocation ?? raw.desk_location ?? raw.gate ?? raw.gate_name ?? "—";
+      const assignee = raw.assignee ?? raw.assignee_name ?? raw.agent ?? "—";
+      const desk_location = raw.deskLocation ?? raw.desk_location ?? raw.gate ?? raw.gate_name ?? "—";
       navigation.navigate("TokenDisplay", {
         token: String(token),
-        agentName: String(agentName),
-        gate: String(gate),
+        assignee: String(assignee),
+        desk_location: String(desk_location),
       });
     },
     onError: (error: Error) => {

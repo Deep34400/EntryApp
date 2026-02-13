@@ -19,10 +19,10 @@ export const LOGIN_OTP_VERIFY_PATH = "/api/v1/users/login/otp/verify";
 /** POST /api/v1/auth/refresh — get new access (and optionally refresh) token. Body: { refreshToken }. Returns { accessToken, refreshToken }. */
 export const REFRESH_TOKEN_PATH = "/api/v1/users/login/refresh";
 
-/** App type for identity API body. */
+/** App type for all auth/identity: identity body and login OTP/verify headers. Backend only handles OPS_PORTAL. */
 export const IDENTITY_APP_TYPE = "OPS_PORTAL";
-/** App type for login OTP headers. */
-export const APP_TYPE = "DRIVER_APP";
+/** Same as IDENTITY_APP_TYPE — use OPS_PORTAL for login headers (send OTP, verify OTP). */
+export const APP_TYPE = "OPS_PORTAL";
 export const APP_VERSION = 1;
 
 // ----- Entry App API (base) -----
@@ -52,9 +52,9 @@ export function getEntryAppUpdatePath(id: string): string {
 
 /** Map visitor type to API purpose (for create body). */
 export const VISITOR_PURPOSE: Record<string, string> = {
-  sourcing: "driver_manager",
-  maintenance: "fleet_manager",
-  collection: "driver_manager",
+  sourcing: "DRIVER MANAGER",
+  maintenance: "FLEET MANAGER",
+  collection: "DRIVER MANAGER",
 };
 
 /** Map visitor type to API reason. */

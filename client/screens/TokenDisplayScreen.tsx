@@ -18,7 +18,7 @@ type TokenDisplayRouteProp = RouteProp<RootStackParamList, "TokenDisplay">;
 
 export default function TokenDisplayScreen() {
   const route = useRoute<TokenDisplayRouteProp>();
-  const { token, agentName, gate } = route.params;
+  const { token, assignee, desk_location } = route.params;
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
@@ -27,8 +27,8 @@ export default function TokenDisplayScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const message = [
       `Token: ${token}`,
-      `Proceed to: ${agentName}`,
-      `Gate: ${gate}`,
+      `Proceed to: ${assignee}`,
+      `Desk / Location: ${desk_location}`,
     ].join("\n");
     try {
       await Share.share({
@@ -85,7 +85,7 @@ export default function TokenDisplayScreen() {
                   PROCEED TO
                 </ThemedText>
                 <ThemedText type="h3" style={{ color: theme.text }}>
-                  {agentName}
+                  {assignee}
                 </ThemedText>
               </View>
             </View>
@@ -101,7 +101,7 @@ export default function TokenDisplayScreen() {
                   GATE LOCATION
                 </ThemedText>
                 <ThemedText type="h3" style={{ color: theme.text }}>
-                  {gate}
+                  {desk_location}
                 </ThemedText>
               </View>
             </View>

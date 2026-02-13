@@ -31,7 +31,7 @@ export type RootStackParamList = {
   VisitorType: undefined;
   EntryForm: { entryType: EntryType };
   VisitorPurpose: { entryType: EntryType; formData: EntryFormData };
-  TokenDisplay: { token: string; agentName: string; gate: string };
+  TokenDisplay: { token: string; assignee: string; desk_location: string };
   ExitConfirmation: { token: string };
   TicketList: { filter: "open" | "closed" };
   TicketDetail: { ticketId: string };
@@ -40,7 +40,8 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const BACK_HIT_SLOP = { top: 16, bottom: 16, left: 16, right: 24 };
+// Large touch area so back works on single tap and when tapping around the icon
+const BACK_HIT_SLOP = { top: 24, bottom: 24, left: 24, right: 32 };
 const SCREENS_WITH_BACK = ["EntryForm", "VisitorPurpose", "TicketList", "TicketDetail", "Profile"];
 
 export default function RootStackNavigator() {
@@ -59,11 +60,8 @@ export default function RootStackNavigator() {
                     hitSlop={BACK_HIT_SLOP}
                     style={backButtonStyles.wrapper}
                   >
-                    <View style={backButtonStyles.inner}>
-                      <HeaderBackButton
-                        {...props}
-                        onPress={() => navigation.goBack()}
-                      />
+                    <View style={backButtonStyles.inner} pointerEvents="none">
+                      <HeaderBackButton {...props} onPress={undefined} />
                     </View>
                   </Pressable>
                 ) : null,
@@ -166,8 +164,8 @@ export default function RootStackNavigator() {
 
 const backButtonStyles = StyleSheet.create({
   wrapper: {
-    minWidth: 48,
-    minHeight: 48,
+    minWidth: 56,
+    minHeight: 56,
     justifyContent: "center",
     alignItems: "flex-start",
     marginLeft: -8,

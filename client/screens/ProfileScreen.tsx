@@ -60,14 +60,27 @@ export default function ProfileScreen() {
       }}
       showsVerticalScrollIndicator={false}
     >
-      <Animated.View entering={FadeInDown.delay(0).springify()} style={styles.card}>
+      <Animated.View
+        entering={FadeInDown.delay(0).springify()}
+        style={[styles.profileCard, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}
+      >
         <View style={[styles.avatarWrap, { backgroundColor: theme.primary }]}>
-          <Feather name="user" size={40} color="#FFFFFF" />
+          <Feather name="user" size={44} color="#FFFFFF" />
         </View>
-        <ThemedText type="h3" style={[styles.name, { color: theme.text }]}>
+        <ThemedText
+          type="h3"
+          style={[styles.profileName, { color: theme.text }]}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+        >
           {displayName}
         </ThemedText>
-        <ThemedText type="body" style={[styles.phone, { color: theme.textSecondary }]}>
+        <ThemedText
+          type="body"
+          style={[styles.profilePhone, { color: theme.textSecondary }]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
           {displayPhone}
         </ThemedText>
       </Animated.View>
@@ -78,15 +91,27 @@ export default function ProfileScreen() {
         </ThemedText>
         <View style={[styles.detailCard, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
           <View style={styles.detailRow}>
-            <Feather name="user" size={20} color={theme.primary} />
-            <ThemedText type="body" style={{ color: theme.text, marginLeft: Spacing.md }}>Name</ThemedText>
-            <ThemedText type="body" style={[styles.detailValue, { color: theme.text }]}>{displayName}</ThemedText>
+            <View style={styles.detailIconWrap}>
+              <Feather name="user" size={20} color={theme.primary} />
+            </View>
+            <View style={styles.detailLabelValue}>
+              <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>Name</ThemedText>
+              <ThemedText type="body" style={[styles.detailValue, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
+                {displayName}
+              </ThemedText>
+            </View>
           </View>
           <View style={[styles.detailDivider, { backgroundColor: theme.border }]} />
           <View style={styles.detailRow}>
-            <Feather name="phone" size={20} color={theme.primary} />
-            <ThemedText type="body" style={{ color: theme.text, marginLeft: Spacing.md }}>Mobile</ThemedText>
-            <ThemedText type="body" style={[styles.detailValue, { color: theme.text }]}>{displayPhone}</ThemedText>
+            <View style={styles.detailIconWrap}>
+              <Feather name="phone" size={20} color={theme.primary} />
+            </View>
+            <View style={styles.detailLabelValue}>
+              <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>Mobile</ThemedText>
+              <ThemedText type="body" style={[styles.detailValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
+                {displayPhone}
+              </ThemedText>
+            </View>
           </View>
         </View>
       </Animated.View>
@@ -118,9 +143,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  card: {
+  profileCard: {
     alignItems: "center",
     marginBottom: Spacing["2xl"],
+    paddingVertical: Spacing["2xl"],
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
   },
   avatarWrap: {
     width: 88,
@@ -130,13 +159,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: Spacing.lg,
   },
-  name: {
+  profileName: {
     marginBottom: Spacing.xs,
     textAlign: "center",
+    paddingHorizontal: Spacing.sm,
+    maxWidth: "100%",
   },
-  phone: {
+  profilePhone: {
     letterSpacing: 0.2,
     textAlign: "center",
+    paddingHorizontal: Spacing.sm,
   },
   section: {
     marginBottom: Spacing["2xl"],
@@ -157,13 +189,25 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.lg,
   },
+  detailIconWrap: {
+    width: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  detailLabelValue: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: Spacing.sm,
+  },
+  detailLabel: {
+    marginBottom: 2,
+  },
   detailValue: {
-    marginLeft: "auto",
-    maxWidth: "50%",
+    flexWrap: "wrap",
   },
   detailDivider: {
     height: 1,
-    marginLeft: Spacing.lg + 20 + Spacing.md,
+    marginLeft: 40 + Spacing.sm + Spacing.lg,
   },
   logoutWrap: {
     marginTop: Spacing.lg,

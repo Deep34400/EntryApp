@@ -1,49 +1,9 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getApiUrl, throwIfResNotOk, UNAUTHORIZED_MSG, requestWithAuthRetry } from "@/api/requestClient";
 import { ENTRY_APP_COUNTS_PATH, getDriverDetailsPath } from "./api-endpoints";
-import { tryRefreshToken } from "./auth-bridge";
 
-/**
- * API base URL — set EXPO_PUBLIC_API_URL in .env to your backend (e.g. http://localhost:8080).
- * Endpoints in api-endpoints.ts.
- */
-export function getApiUrl(): string {
-  const url = process.env.EXPO_PUBLIC_API_URL;
-  if (!url) {
-    throw new Error("Set EXPO_PUBLIC_API_URL in .env to your backend base URL");
-  }
-  const parsed = new URL(url);
-  return parsed.href.replace(/\/$/, "");
-}
-
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    let message = res.statusText;
-    const text = await res.text().catch(() => "");
-    if (text) {
-      try {
-        const data = JSON.parse(text) as Record<string, unknown>;
-        const apiMessage = data.message as string | undefined;
-        const apiError = data.error as string | undefined;
-        const stack = data.stack as string | undefined;
-        if (typeof stack === "string" && stack.trim()) {
-          const firstLine = stack.split("\n")[0]?.trim().replace(/^Error:\s*/, "");
-          if (firstLine) message = firstLine;
-        } else if (typeof apiMessage === "string" && apiMessage.trim()) {
-          message = apiMessage;
-        } else if (typeof apiError === "string" && apiError.trim()) {
-          message = apiError;
-        } else if (text.length < 300) {
-          message = text;
-        }
-      } catch {
-        if (text.length < 300) message = text;
-      }
-    }
-    throw new Error(message);
-  }
-}
-
-export const UNAUTHORIZED_MSG = "UNAUTHORIZED";
+// Re-export for callers that still use query-client for URL/errors
+export { getApiUrl, UNAUTHORIZED_MSG } from "@/api/requestClient";
 
 export async function apiRequest(
   method: string,
@@ -57,27 +17,14 @@ export async function apiRequest(
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "omit", // avoid CORS preflight issues; use "include" only if backend sends cookies
+    credentials: "omit",
   });
 
   await throwIfResNotOk(res);
   return res;
 }
 
-let refreshPromise: Promise<string | null> | null = null;
-
-/** Single-flight refresh. Returns new access token or null (session expired). Never uses guestToken. */
-async function getNewAccessTokenAfter401(): Promise<string | null> {
-  if (refreshPromise) return refreshPromise;
-  refreshPromise = tryRefreshToken();
-  try {
-    return await refreshPromise;
-  } finally {
-    refreshPromise = null;
-  }
-}
-
-/** Authenticated request: adds Authorization Bearer token. Throws Error(UNAUTHORIZED_MSG) on 401. */
+/** Authenticated request: adds Authorization Bearer token. Throws Error(UNAUTHORIZED_MSG) on 401. No retry. */
 export async function apiRequestWithAuth(
   method: string,
   route: string,
@@ -107,40 +54,14 @@ export async function apiRequestWithAuth(
   return res;
 }
 
-/** Authenticated request with retry: use accessToken only. On 401 try refresh once and retry with new accessToken. No fallback to guest. */
+/** Authenticated request with retry: on 401 refresh once and retry. See api/requestClient.ts for queue and redirect behavior. */
 export async function apiRequestWithAuthRetry(
   method: string,
   route: string,
   data?: unknown | undefined,
   accessToken?: string | null,
 ): Promise<Response> {
-  const baseUrl = getApiUrl();
-  const url = new URL(route, baseUrl);
-
-  const doRequest = (token: string | null): Promise<Response> => {
-    const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
-    if (token?.trim()) headers.Authorization = `Bearer ${token.trim()}`;
-    return fetch(url, {
-      method,
-      headers,
-      body: data ? JSON.stringify(data) : undefined,
-      credentials: "omit",
-    });
-  };
-
-  let res = await doRequest(accessToken ?? null);
-  if (res.status === 401) {
-    const newToken = await getNewAccessTokenAfter401();
-    if (newToken) {
-      res = await doRequest(newToken);
-    }
-    if (res.status === 401) {
-      throw new Error(UNAUTHORIZED_MSG);
-    }
-  }
-
-  await throwIfResNotOk(res);
-  return res;
+  return requestWithAuthRetry(method, route, data, accessToken);
 }
 
 /** Driver details from API: results.driver_name, results.phone, results.vehicles[0].reg_number */
