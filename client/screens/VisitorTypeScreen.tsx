@@ -153,7 +153,7 @@ export default function VisitorTypeScreen() {
             clearUser();
             setTimeout(() => {
               navigation.dispatch(
-                CommonActions.reset({ index: 0, routes: [{ name: "WhoAreYou" }] })
+                CommonActions.reset({ index: 0, routes: [{ name: "LoginOtp" }] })
               );
             }, 0);
           },

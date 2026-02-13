@@ -315,7 +315,7 @@ export default function VisitorPurposeScreen() {
     onError: (error: Error) => {
       if (error.message === UNAUTHORIZED_MSG) {
         clearAuth();
-        navigation.reset({ index: 0, routes: [{ name: "WhoAreYou" }] });
+        navigation.reset({ index: 0, routes: [{ name: "LoginOtp" }] });
         return;
       }
       const message = isApiError(error)

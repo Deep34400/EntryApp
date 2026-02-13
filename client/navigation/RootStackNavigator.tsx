@@ -5,7 +5,7 @@ import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { BackHeaderButton } from "@/components/BackHeaderButton";
 import { HomeHeaderButton } from "@/components/HomeHeaderButton";
 import { ThemeToggleHeaderButton } from "@/components/ThemeToggleHeaderButton";
-import WhoAreYouScreen from "@/screens/WhoAreYouScreen";
+import LoginOtpScreen from "@/screens/LoginOtpScreen";
 import VisitorTypeScreen from "@/screens/VisitorTypeScreen";
 import EntryFormScreen from "@/screens/EntryFormScreen";
 import VisitorPurposeScreen from "../screens/VisitorPurposeScreen";
@@ -26,7 +26,7 @@ export interface EntryFormData {
 }
 
 export type RootStackParamList = {
-  WhoAreYou: undefined;
+  LoginOtp: undefined;
   VisitorType: undefined;
   EntryForm: { entryType: EntryType };
   VisitorPurpose: { entryType: EntryType; formData: EntryFormData };
@@ -59,11 +59,11 @@ export default function RootStackNavigator() {
             }
           : {}),
       })}
-      initialRouteName="WhoAreYou"
+      initialRouteName="LoginOtp"
     >
       <Stack.Screen
-        name="WhoAreYou"
-        component={WhoAreYouScreen}
+        name="LoginOtp"
+        component={LoginOtpScreen}
         options={{
           headerShown: false,
           headerBackVisible: false,

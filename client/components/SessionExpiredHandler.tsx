@@ -8,7 +8,7 @@ type Props = {
   navigationRef: React.RefObject<NavigationContainerRef<ParamListBase> | null>;
 };
 
-/** When sessionExpired is set (refresh failed or token version mismatch), reset stack to WhoAreYou and clear flag. */
+/** When sessionExpired is set (refresh failed or token version mismatch), reset stack to LoginOtp and clear flag. */
 export function SessionExpiredHandler({ navigationRef }: Props) {
   const auth = useAuth();
 
@@ -20,7 +20,7 @@ export function SessionExpiredHandler({ navigationRef }: Props) {
         nav.dispatch(
           CommonActions.reset({
             index: 0,
-            routes: [{ name: "WhoAreYou" }],
+            routes: [{ name: "LoginOtp" }],
           })
         );
         auth.clearSessionExpiredFlag();

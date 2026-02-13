@@ -44,7 +44,7 @@ type AuthContextValue = {
   authError: string | null;
   /** Set when refresh failed (401 or token version mismatch); app should redirect to login. */
   sessionExpired: boolean;
-  /** Clear sessionExpired after redirecting to WhoAreYou. */
+  /** Clear sessionExpired after redirecting to LoginOtp. */
   clearSessionExpiredFlag: () => void;
   /** True when user is logged in (has access token and user). */
   isAuthenticated: boolean;

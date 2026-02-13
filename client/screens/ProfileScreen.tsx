@@ -42,7 +42,7 @@ export default function ProfileScreen() {
             auth.clearAuth();
             clearUser();
             navigation.dispatch(
-              CommonActions.reset({ index: 0, routes: [{ name: "WhoAreYou" }] })
+              CommonActions.reset({ index: 0, routes: [{ name: "LoginOtp" }] })
             );
           },
         },

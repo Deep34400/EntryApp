@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
+  Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -27,22 +27,27 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { sendOtp, verifyOtp } from "@/lib/auth-api";
 import { normalizePhoneInput, isPhoneValid as checkPhoneValid, PHONE_MAX_DIGITS } from "@/utils/validation";
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, "WhoAreYou">;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, "LoginOtp">;
 
 type Step = "phone" | "otp";
 
-export default function WhoAreYouScreen() {
+const OTP_LENGTH = 6;
+const MIN_BUTTON_HEIGHT = 50;
+
+export default function LoginOtpScreen() {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const auth = useAuth();
   const { setUser: setUserContext } = useUser();
+  const otpInputRef = useRef<TextInput>(null);
 
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phoneFocused, setPhoneFocused] = useState(false);
 
   const phoneTrimmed = phone.trim().replace(/\D/g, "");
   const isPhoneValid = checkPhoneValid(phone);
@@ -60,6 +65,14 @@ export default function WhoAreYouScreen() {
 
   const hasUser = auth.isRestored && auth.isGuestReady && auth.accessToken && auth.user;
 
+  // Auto-focus OTP input when entering OTP step
+  useEffect(() => {
+    if (step === "otp") {
+      const t = setTimeout(() => otpInputRef.current?.focus(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [step]);
+
   const handleSendOtp = async () => {
     if (!isPhoneValid || !auth.guestToken) return;
     setError(null);
@@ -69,8 +82,10 @@ export default function WhoAreYouScreen() {
       await sendOtp(phoneTrimmed, auth.guestToken);
       setStep("otp");
       setOtp("");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to send OTP");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
     }
@@ -84,6 +99,7 @@ export default function WhoAreYouScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const data = await verifyOtp(phoneTrimmed, otp.trim(), auth.guestToken);
       if (data) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         await auth.setTokensAfterVerify(data);
         const primaryPhone =
           data.user.userContacts?.find((c) => c.isPrimary)?.phoneNo ||
@@ -96,9 +112,15 @@ export default function WhoAreYouScreen() {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Invalid OTP");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const setOtpDigits = (text: string) => {
+    const digits = text.replace(/\D/g, "").slice(0, OTP_LENGTH);
+    setOtp(digits);
   };
 
   if (hasUser) {
@@ -112,7 +134,6 @@ export default function WhoAreYouScreen() {
     );
   }
 
-  // Waiting for guest token
   if (!auth.isGuestReady || !auth.isRestored) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.backgroundRoot }]}>
@@ -124,7 +145,6 @@ export default function WhoAreYouScreen() {
     );
   }
 
-  // Guest token error (e.g. network)
   if (auth.authError) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.primary }]}>
@@ -136,38 +156,36 @@ export default function WhoAreYouScreen() {
     );
   }
 
+  const inputBorderColor = (focused: boolean) =>
+    focused ? theme.primary : theme.border;
+
   return (
     <View style={[styles.container, { backgroundColor: theme.primary }]}>
       <Animated.View
         entering={FadeInDown.delay(0).springify()}
-        style={[styles.topSection, { paddingTop: insets.top + Spacing.xl }]}
+        style={[styles.header, { paddingTop: insets.top + Spacing.md }]}
       >
-        <View style={styles.topRow}>
+        <View style={styles.headerRow}>
           <View
             style={[
-              styles.logoWrapSmall,
+              styles.logoWrap,
               {
                 backgroundColor: theme.backgroundRoot,
-                borderColor: "rgba(255,255,255,0.4)",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.15,
-                shadowRadius: 8,
-                elevation: 6,
+                borderColor: "rgba(255,255,255,0.35)",
               },
             ]}
           >
             <Image
               source={require("../../assets/images/logo.png")}
-              style={styles.logoSmall}
+              style={styles.logo}
               resizeMode="contain"
             />
           </View>
-          <View style={styles.heroTextWrap}>
-            <ThemedText type="h3" style={styles.heroTitle}>
+          <View style={styles.headerTextWrap}>
+            <ThemedText type="h4" style={styles.headerTitle}>
               Gate Entry / Exit
             </ThemedText>
-            <ThemedText type="small" style={styles.heroSubtitle}>
+            <ThemedText type="small" style={styles.headerSubtitle}>
               Gate Management System
             </ThemedText>
           </View>
@@ -175,16 +193,11 @@ export default function WhoAreYouScreen() {
       </Animated.View>
 
       <Animated.View
-        entering={FadeInDown.delay(80).springify()}
+        entering={FadeInDown.delay(60).springify()}
         style={[
-          styles.bottomCard,
+          styles.card,
           {
             backgroundColor: theme.backgroundRoot,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.15,
-            shadowRadius: 12,
-            elevation: 12,
             paddingBottom: insets.bottom + Spacing["2xl"],
           },
         ]}
@@ -200,12 +213,12 @@ export default function WhoAreYouScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <ThemedText type="body" style={[styles.signInLabel, { color: theme.textSecondary }]}>
+            <ThemedText type="body" style={[styles.screenLabel, { color: theme.textSecondary }]}>
               {step === "phone" ? "Sign in with your mobile number" : "Enter the OTP we sent you"}
             </ThemedText>
 
             {error ? (
-              <View style={[styles.errorBanner, { backgroundColor: theme.backgroundTertiary }]}>
+              <View style={[styles.errorInline, { backgroundColor: theme.backgroundTertiary }]}>
                 <ThemedText type="small" style={{ color: theme.error }}>{error}</ThemedText>
               </View>
             ) : null}
@@ -213,29 +226,28 @@ export default function WhoAreYouScreen() {
             {step === "phone" ? (
               <>
                 <View style={styles.fieldContainer}>
-                  <View style={[styles.labelRowWithAsterisk, { marginBottom: Spacing.sm }]}>
-                    <ThemedText type="small" style={[styles.label, { color: theme.text, marginBottom: 0 }]}>
-                      Mobile Number
-                    </ThemedText>
-                    <ThemedText type="small" style={[styles.label, { color: theme.error, marginBottom: 0 }]}> *</ThemedText>
-                  </View>
+                  <ThemedText type="small" style={[styles.label, { color: theme.text }]}>
+                    Mobile Number <ThemedText style={{ color: theme.error }}>*</ThemedText>
+                  </ThemedText>
                   <View
                     style={[
-                      styles.inputRow,
-                      styles.inputRowPhone,
+                      styles.inputWrap,
                       {
-                        backgroundColor: theme.backgroundSecondary ?? theme.backgroundRoot,
-                        borderColor: theme.border,
+                        backgroundColor: "#FFFFFF",
+                        borderColor: inputBorderColor(phoneFocused),
+                        borderWidth: 1.5,
                       },
                     ]}
                   >
-                    <Feather name="phone" size={20} color={theme.primary} style={styles.inputIcon} />
+                    <Feather name="phone" size={18} color={theme.primary} style={styles.inputIcon} />
                     <TextInput
-                      style={[styles.input, styles.inputPhone, { color: theme.text }]}
+                      style={[styles.input, { color: theme.text }]}
                       placeholder={`${PHONE_MAX_DIGITS}-digit mobile number`}
                       placeholderTextColor={theme.textSecondary}
                       value={phone}
                       onChangeText={(v) => setPhone(normalizePhoneInput(v))}
+                      onFocus={() => setPhoneFocused(true)}
+                      onBlur={() => setPhoneFocused(false)}
                       keyboardType="phone-pad"
                       maxLength={PHONE_MAX_DIGITS}
                       editable={!loading}
@@ -243,26 +255,15 @@ export default function WhoAreYouScreen() {
                     />
                   </View>
                 </View>
-                <View style={styles.continueButtonWrap}>
+                <View style={styles.buttonWrap}>
                   <Button
                     onPress={handleSendOtp}
                     disabled={!isPhoneValid || loading}
                     style={[
-                      styles.continueButton,
+                      styles.primaryButton,
                       {
                         backgroundColor: isPhoneValid ? theme.primary : theme.backgroundTertiary,
-                        borderWidth: 1,
-                        borderColor: isPhoneValid ? theme.primary : theme.border,
-                        opacity: isPhoneValid ? 1 : 0.92,
-                        ...(isPhoneValid && Platform.OS === "ios"
-                          ? {
-                              shadowColor: theme.primary,
-                              shadowOffset: { width: 0, height: 4 },
-                              shadowOpacity: 0.35,
-                              shadowRadius: 8,
-                            }
-                          : {}),
-                        ...(isPhoneValid && Platform.OS === "android" ? { elevation: 4 } : { elevation: 2 }),
+                        opacity: isPhoneValid && !loading ? 1 : 0.7,
                       },
                     ]}
                   >
@@ -276,49 +277,63 @@ export default function WhoAreYouScreen() {
                   <ThemedText type="small" style={[styles.label, { color: theme.text }]}>
                     OTP
                   </ThemedText>
-                  <View
-                    style={[
-                      styles.inputRow,
-                      {
-                        backgroundColor: theme.backgroundSecondary ?? theme.backgroundRoot,
-                        borderColor: theme.border,
-                      },
-                    ]}
+                  <Pressable
+                    onPress={() => otpInputRef.current?.focus()}
+                    style={styles.otpRowWrap}
                   >
-                    <Feather name="lock" size={20} color={theme.primary} style={styles.inputIcon} />
+                    {/* Hidden input for actual typing */}
                     <TextInput
-                      style={[styles.input, { color: theme.text }]}
-                      placeholder="Enter 6-digit OTP"
-                      placeholderTextColor={theme.textSecondary}
+                      ref={otpInputRef}
                       value={otp}
-                      onChangeText={setOtp}
+                      onChangeText={setOtpDigits}
                       keyboardType="number-pad"
-                      maxLength={6}
+                      maxLength={OTP_LENGTH}
                       editable={!loading}
+                      style={styles.otpHiddenInput}
                       testID="input-otp"
                     />
-                  </View>
+                    {Array.from({ length: OTP_LENGTH }).map((_, i) => {
+                      const digit = otp[i] ?? "";
+                      const isActive = i === otp.length;
+                      const isFilled = digit !== "";
+                      return (
+                        <View
+                          key={i}
+                          style={[
+                            styles.otpBox,
+                            {
+                              backgroundColor: "#FFFFFF",
+                              borderColor: isActive ? theme.primary : theme.border,
+                              borderWidth: isActive ? 2 : 1,
+                            },
+                          ]}
+                        >
+                          <ThemedText
+                            type="body"
+                            style={[
+                              styles.otpBoxDigit,
+                              {
+                                color: theme.text,
+                                opacity: isFilled ? 1 : 0.4,
+                              },
+                            ]}
+                          >
+                            {digit}
+                          </ThemedText>
+                        </View>
+                      );
+                    })}
+                  </Pressable>
                 </View>
-                <View style={styles.continueButtonWrap}>
+                <View style={styles.buttonWrap}>
                   <Button
                     onPress={handleVerifyOtp}
                     disabled={!isOtpValid || loading}
                     style={[
-                      styles.continueButton,
+                      styles.primaryButton,
                       {
                         backgroundColor: isOtpValid ? theme.primary : theme.backgroundTertiary,
-                        borderWidth: 1,
-                        borderColor: isOtpValid ? theme.primary : theme.border,
-                        opacity: isOtpValid ? 1 : 0.92,
-                        ...(isOtpValid && Platform.OS === "ios"
-                          ? {
-                              shadowColor: theme.primary,
-                              shadowOffset: { width: 0, height: 4 },
-                              shadowOpacity: 0.35,
-                              shadowRadius: 8,
-                            }
-                          : {}),
-                        ...(isOtpValid && Platform.OS === "android" ? { elevation: 4 } : { elevation: 2 }),
+                        opacity: isOtpValid && !loading ? 1 : 0.7,
                       },
                     ]}
                   >
@@ -342,50 +357,49 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  topSection: {
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.lg,
+  header: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
   },
-  topRow: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
-  logoWrapSmall: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  logoWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
   },
-  logoSmall: {
-    width: 32,
-    height: 32,
+  logo: {
+    width: 26,
+    height: 26,
   },
-  heroTextWrap: {
+  headerTextWrap: {
     flex: 1,
     justifyContent: "center",
   },
-  heroTitle: {
+  headerTitle: {
     color: "#FFFFFF",
-    fontWeight: "800",
-    letterSpacing: 0.4,
-    fontSize: 20,
-    marginBottom: 2,
+    fontWeight: "700",
+    fontSize: 17,
+    marginBottom: 0,
   },
-  heroSubtitle: {
-    color: "rgba(255,255,255,0.88)",
-    fontSize: 13,
+  headerSubtitle: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 12,
     letterSpacing: 0.2,
   },
-  bottomCard: {
+  card: {
     flex: 1,
     borderTopLeftRadius: BorderRadius["2xl"],
     borderTopRightRadius: BorderRadius["2xl"],
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing["2xl"],
+    paddingTop: Spacing.xl,
     overflow: "hidden",
   },
   keyboardView: {
@@ -399,12 +413,11 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
     flexGrow: 1,
   },
-  signInLabel: {
-    marginBottom: Spacing.xl,
+  screenLabel: {
+    marginBottom: Spacing.lg,
     fontSize: 15,
-    letterSpacing: 0.2,
   },
-  errorBanner: {
+  errorInline: {
     padding: Spacing.md,
     borderRadius: BorderRadius.sm,
     marginBottom: Spacing.lg,
@@ -412,25 +425,16 @@ const styles = StyleSheet.create({
   fieldContainer: {
     marginBottom: Spacing.xl,
   },
-  labelRowWithAsterisk: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
   label: {
     marginBottom: Spacing.sm,
     fontWeight: "600",
-    letterSpacing: 0.3,
   },
-  inputRow: {
+  inputWrap: {
     flexDirection: "row",
     alignItems: "center",
     height: 52,
     borderRadius: BorderRadius.md,
-    borderWidth: 1,
     paddingLeft: Spacing.lg,
-  },
-  inputRowPhone: {
-    minHeight: 52,
   },
   inputIcon: {
     marginRight: Spacing.md,
@@ -440,20 +444,42 @@ const styles = StyleSheet.create({
     height: "100%",
     paddingHorizontal: Spacing.md,
     fontSize: 16,
+    paddingVertical: 0,
   },
-  inputPhone: {
-    fontSize: 17,
-    letterSpacing: 0.5,
+  otpRowWrap: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: Spacing.sm,
+    position: "relative",
+    minHeight: 52,
   },
-  continueButtonWrap: {
-    marginTop: Spacing["2xl"],
-    marginBottom: Spacing.lg,
+  otpHiddenInput: {
+    position: "absolute",
+    opacity: 0,
+    height: 52,
+    left: 0,
+    right: 0,
+    fontSize: 16,
+  },
+  otpBox: {
+    flex: 1,
+    height: 52,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    maxWidth: 52,
+  },
+  otpBoxDigit: {
+    fontSize: 20,
+    fontWeight: "600",
+  },
+  buttonWrap: {
+    marginTop: Spacing.xl,
     alignSelf: "stretch",
   },
-  continueButton: {
+  primaryButton: {
     borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.lg,
-    minHeight: 52,
+    minHeight: MIN_BUTTON_HEIGHT,
     alignSelf: "stretch",
     width: "100%",
     alignItems: "center",
