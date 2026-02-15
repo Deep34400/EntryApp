@@ -51,7 +51,7 @@ export default function ExitConfirmationScreen() {
             entering={ZoomIn.delay(100).springify()}
             style={[styles.successCircle, { backgroundColor: theme.success }]}
           >
-            <Feather name="check" size={64} color="#FFFFFF" />
+            <Feather name="check" size={64} color={theme.onPrimary} />
           </Animated.View>
 
           <Animated.View entering={FadeIn.delay(300)}>

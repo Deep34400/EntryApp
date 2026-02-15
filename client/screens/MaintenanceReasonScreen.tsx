@@ -66,7 +66,7 @@ function ReasonCard({
         ]}
       >
         <View style={[styles.iconContainer, { backgroundColor: theme.primary }]}>
-          <Feather name={icon} size={24} color="#FFFFFF" />
+          <Feather name={icon} size={24} color={theme.onPrimary} />
         </View>
         <View style={styles.cardContent}>
           <ThemedText type="h4">{title}</ThemedText>

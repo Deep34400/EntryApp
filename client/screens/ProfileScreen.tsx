@@ -97,7 +97,7 @@ export default function ProfileScreen() {
         style={[styles.identityCard, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}
       >
         <View style={[styles.avatarWrap, { backgroundColor: theme.primary }]}>
-          <Feather name={avatarIcon} size={36} color="#FFFFFF" />
+          <Feather name={avatarIcon} size={36} color={theme.onPrimary} />
         </View>
         <ThemedText
           type="h4"

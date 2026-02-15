@@ -176,7 +176,7 @@ export default function LoginOtpScreen() {
   if (auth.authError) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.primary }]}>
-        <ThemedText type="body" style={{ color: "#fff", marginBottom: Spacing.lg, textAlign: "center" }}>
+        <ThemedText type="body" style={{ color: theme.onPrimary, marginBottom: Spacing.lg, textAlign: "center" }}>
           {auth.authError}
         </ThemedText>
         <Button onPress={() => auth.ensureGuestToken()}>Retry</Button>
@@ -205,8 +205,8 @@ export default function LoginOtpScreen() {
             style={[
               styles.logoWrap,
               {
-                backgroundColor: "#FFFFFF",
-                borderColor: "rgba(255,255,255,0.5)",
+                backgroundColor: theme.surface,
+                borderColor: theme.border,
               },
             ]}
           >
@@ -217,10 +217,10 @@ export default function LoginOtpScreen() {
             />
           </View>
           <View style={styles.headerTextWrap}>
-            <ThemedText type="h4" style={styles.headerTitle}>
+            <ThemedText type="h4" style={[styles.headerTitle, { color: theme.onPrimary }]}>
               Gate Entry / Exit
             </ThemedText>
-            <ThemedText type="small" style={styles.headerSubtitle}>
+            <ThemedText type="small" style={[styles.headerSubtitle, { color: theme.onPrimary }]}>
               Gate Management System
             </ThemedText>
           </View>
@@ -234,6 +234,7 @@ export default function LoginOtpScreen() {
             styles.card,
             {
               backgroundColor: theme.backgroundRoot,
+              shadowColor: theme.shadowColor,
               paddingBottom: insets.bottom + Spacing["2xl"],
             },
           ]}
@@ -440,14 +441,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
-    color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 17,
     lineHeight: 22,
     marginBottom: 0,
   },
   headerSubtitle: {
-    color: "rgba(255,255,255,0.85)",
     fontSize: 12,
     lineHeight: 18,
     letterSpacing: 0.2,
@@ -464,7 +463,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.horizontalScreenPadding,
     paddingTop: Spacing.xl,
     overflow: "hidden",
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,

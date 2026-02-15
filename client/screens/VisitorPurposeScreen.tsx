@@ -144,7 +144,7 @@ function PurposeItem({
           styles.itemCard,
           {
             backgroundColor: theme.backgroundDefault,
-            shadowColor: "#000",
+            shadowColor: theme.shadowColor,
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.08,
             shadowRadius: 8,
@@ -199,7 +199,7 @@ function PurposeGridCard({
           {
             backgroundColor: theme.backgroundDefault,
             opacity: pressed ? 0.92 : 1,
-            shadowColor: "#000",
+            shadowColor: theme.shadowColor,
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.08,
             shadowRadius: 8,
@@ -208,7 +208,7 @@ function PurposeGridCard({
         ]}
       >
         <View style={[styles.gridCardIconWrap, { backgroundColor: theme.primary }]}>
-          <Feather name={icon} size={28} color="#FFFFFF" />
+          <Feather name={icon} size={28} color={theme.onPrimary} />
         </View>
         {showArrow ? (
           <View style={styles.gridCardLabelRow}>
@@ -362,7 +362,7 @@ export default function VisitorPurposeScreen() {
             {
               backgroundColor: theme.backgroundDefault,
               borderColor: theme.border,
-              shadowColor: "#000",
+              shadowColor: theme.shadowColor,
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.08,
               shadowRadius: 10,
@@ -371,7 +371,7 @@ export default function VisitorPurposeScreen() {
           ]}
         >
           <View style={[styles.headerCardIconWrap, { backgroundColor: theme.primary }]}>
-            <Feather name="shield" size={22} color="#FFFFFF" />
+            <Feather name="shield" size={22} color={theme.onPrimary} />
           </View>
           <View style={styles.headerCardText}>
             <ThemedText type="h4" style={[styles.headerCardTitle, { color: theme.text }]}>

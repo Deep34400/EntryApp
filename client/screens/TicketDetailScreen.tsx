@@ -15,8 +15,10 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
+import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing } from "@/constants/theme";
-import { ScreenPalette } from "@/constants/screenPalette";
+import { getScreenPalette } from "@/constants/screenPalette";
+import type { ScreenPaletteType } from "@/constants/screenPalette";
 import { formatDateTime } from "@/lib/format";
 import { fetchWithAuthRetry, apiRequestWithAuthRetry } from "@/lib/query-client";
 import { getEntryAppDetailPath, getEntryAppUpdatePath } from "@/lib/api-endpoints";
@@ -95,22 +97,24 @@ function DetailRowWithIcon({
   icon,
   label,
   value,
+  palette,
 }: {
   icon: keyof typeof Feather.glyphMap;
   label: string;
   value: string | undefined | null;
+  palette: ScreenPaletteType;
 }) {
   const display = value != null && value !== "" ? value : "—";
   return (
     <View style={styles.detailRowWithIcon}>
       <View style={styles.detailIconWrap}>
-        <Feather name={icon} size={18} color={ScreenPalette.textSecondary} />
+        <Feather name={icon} size={18} color={palette.textSecondary} />
       </View>
       <View style={styles.detailContent}>
-        <ThemedText type="small" style={styles.detailLabel}>
+        <ThemedText type="small" variant="secondary" style={styles.detailLabel}>
           {label}
         </ThemedText>
-        <ThemedText type="body" style={styles.detailValue} numberOfLines={2} ellipsizeMode="tail">
+        <ThemedText type="body" style={[styles.detailValue, { color: palette.textPrimary }]} numberOfLines={2} ellipsizeMode="tail">
           {display}
         </ThemedText>
       </View>
@@ -123,6 +127,8 @@ export default function TicketDetailScreen() {
   const navigation = useNavigation();
   const { ticketId } = route.params;
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
+  const palette = getScreenPalette(theme);
   const queryClient = useQueryClient();
   const auth = useAuth();
 
@@ -176,8 +182,8 @@ export default function TicketDetailScreen() {
 
   if (isLoading || !ticket) {
     return (
-      <View style={[styles.container, { backgroundColor: ScreenPalette.background }]}>
-        <View style={[styles.header, { paddingTop: insets.top + Spacing.md, paddingBottom: Spacing.lg }]}>
+      <View style={[styles.container, { backgroundColor: palette.background }]}>
+        <View style={[styles.header, { paddingTop: insets.top + Spacing.md, paddingBottom: Spacing.lg, borderBottomColor: palette.divider }]}>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -186,9 +192,9 @@ export default function TicketDetailScreen() {
             style={({ pressed }) => [styles.headerBack, { opacity: pressed ? 0.7 : 1 }]}
             hitSlop={16}
           >
-            <Feather name="chevron-left" size={24} color={ScreenPalette.textPrimary} />
+            <Feather name="chevron-left" size={24} color={palette.textPrimary} />
           </Pressable>
-          <ThemedText type="h3" style={styles.headerTitle}>
+          <ThemedText type="h3" style={[styles.headerTitle, { color: palette.textPrimary }]}>
             Ticket Details
           </ThemedText>
           <Pressable
@@ -196,24 +202,24 @@ export default function TicketDetailScreen() {
             style={({ pressed }) => [styles.headerHome, { opacity: pressed ? 0.7 : 1 }]}
             hitSlop={12}
           >
-            <Feather name="home" size={22} color={ScreenPalette.textPrimary} />
+            <Feather name="home" size={22} color={palette.textPrimary} />
           </Pressable>
         </View>
         <View style={[styles.center, { paddingBottom: insets.bottom + Spacing.xl }]}>
           {isLoading ? (
             <>
-              <ActivityIndicator size="large" color={ScreenPalette.primaryRed} />
-              <ThemedText type="body" style={[styles.loadingText, { color: ScreenPalette.textSecondary }]}>
+              <ActivityIndicator size="large" color={palette.primaryRed} />
+              <ThemedText type="body" variant="secondary" style={styles.loadingText}>
                 Loading ticket…
               </ThemedText>
             </>
           ) : (
             <>
-              <Feather name="alert-circle" size={48} color={ScreenPalette.textSecondary} />
-              <ThemedText type="h4" style={[styles.errorTitle, { color: ScreenPalette.textPrimary }]}>
+              <Feather name="alert-circle" size={48} color={palette.textSecondary} />
+              <ThemedText type="h4" style={[styles.errorTitle, { color: palette.textPrimary }]}>
                 Ticket not found
               </ThemedText>
-              <ThemedText type="body" style={[styles.errorSubtitle, { color: ScreenPalette.textSecondary }]}>
+              <ThemedText type="body" variant="secondary" style={styles.errorSubtitle}>
                 The ticket may have been removed or the link is invalid.
               </ThemedText>
             </>
@@ -224,9 +230,9 @@ export default function TicketDetailScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: ScreenPalette.background }]}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
       {/* Custom header: safe-area aware, flexible min height */}
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.md, paddingBottom: Spacing.lg }]}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.md, paddingBottom: Spacing.lg, borderBottomColor: palette.divider }]}>
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -236,9 +242,9 @@ export default function TicketDetailScreen() {
           hitSlop={16}
           accessibilityLabel="Go back"
         >
-          <Feather name="chevron-left" size={24} color={ScreenPalette.textPrimary} />
+          <Feather name="chevron-left" size={24} color={palette.textPrimary} />
         </Pressable>
-        <ThemedText type="h3" style={styles.headerTitle}>
+        <ThemedText type="h3" style={[styles.headerTitle, { color: palette.textPrimary }]}>
           Ticket Details
         </ThemedText>
         <Pressable
@@ -247,7 +253,7 @@ export default function TicketDetailScreen() {
           hitSlop={12}
           accessibilityLabel="Home"
         >
-          <Feather name="home" size={22} color={ScreenPalette.textPrimary} />
+          <Feather name="home" size={22} color={palette.textPrimary} />
         </Pressable>
       </View>
 
@@ -262,26 +268,26 @@ export default function TicketDetailScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={() => refetch()}
-            tintColor={ScreenPalette.primaryRed}
+            tintColor={palette.primaryRed}
           />
         }
       >
         {/* Token + status */}
         <View style={styles.tokenBlock}>
-          <ThemedText type="h1" style={styles.tokenNumber}>
+          <ThemedText type="h1" style={[styles.tokenNumber, { color: palette.textPrimary }]}>
             #{ticket.token_no}
           </ThemedText>
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: closed ? `${ScreenPalette.successGreen}30` : `${ScreenPalette.primaryRed}30` },
+              { backgroundColor: closed ? `${palette.successGreen}30` : `${palette.primaryRed}30` },
             ]}
           >
             <ThemedText
               type="small"
               style={[
                 styles.statusText,
-                { color: closed ? ScreenPalette.successGreen : ScreenPalette.primaryRed },
+                { color: closed ? palette.successGreen : palette.primaryRed },
               ]}
             >
               {statusLabel}
@@ -290,61 +296,61 @@ export default function TicketDetailScreen() {
         </View>
 
         {/* Visitor section */}
-        <View style={styles.section}>
-          <ThemedText type="small" style={styles.sectionTitle}>
+        <View style={[styles.section, { backgroundColor: palette.card, shadowColor: theme.shadowColor }]}>
+          <ThemedText type="small" variant="secondary" style={styles.sectionTitle}>
             Visitor
           </ThemedText>
-          <DetailRowWithIcon icon="user" label="Name" value={ticket.name} />
-          <DetailRowWithIcon icon="phone" label="Phone" value={ticket.phone} />
-          <DetailRowWithIcon icon="file-text" label="Purpose" value={ticket.purpose} />
+          <DetailRowWithIcon icon="user" label="Name" value={ticket.name} palette={palette} />
+          <DetailRowWithIcon icon="phone" label="Phone" value={ticket.phone} palette={palette} />
+          <DetailRowWithIcon icon="file-text" label="Purpose" value={ticket.purpose} palette={palette} />
         </View>
 
         {/* Assignment section */}
-        <View style={styles.section}>
-          <ThemedText type="small" style={styles.sectionTitle}>
+        <View style={[styles.section, { backgroundColor: palette.card, shadowColor: theme.shadowColor }]}>
+          <ThemedText type="small" variant="secondary" style={styles.sectionTitle}>
             Assignment
           </ThemedText>
           {ticket.assignee != null && ticket.assignee !== "" && (
-            <View style={styles.assigneeBadge}>
-              <ThemedText type="small" style={styles.assigneeBadgeText}>
+            <View style={[styles.assigneeBadge, { backgroundColor: `${palette.primaryRed}20` }]}>
+              <ThemedText type="small" style={[styles.assigneeBadgeText, { color: palette.textPrimary }]}>
                 {ticket.assignee}
               </ThemedText>
             </View>
           )}
           {ticket.desk_location != null && ticket.desk_location !== "" && (
             <View style={styles.locationRow}>
-              <Feather name="map-pin" size={16} color={ScreenPalette.textSecondary} />
-              <ThemedText type="body" style={styles.locationText} numberOfLines={2}>
+              <Feather name="map-pin" size={16} color={palette.textSecondary} />
+              <ThemedText type="body" style={[styles.locationText, { color: palette.textPrimary }]} numberOfLines={2}>
                 {ticket.desk_location}
               </ThemedText>
             </View>
           )}
           {(!ticket.assignee || ticket.assignee === "") && (!ticket.desk_location || ticket.desk_location === "") && (
-            <ThemedText type="body" style={styles.detailValue}>—</ThemedText>
+            <ThemedText type="body" style={[styles.detailValue, { color: palette.textPrimary }]}>—</ThemedText>
           )}
         </View>
 
         {/* Timings timeline */}
-        <View style={styles.section}>
-          <ThemedText type="small" style={styles.sectionTitle}>
+        <View style={[styles.section, { backgroundColor: palette.card, shadowColor: theme.shadowColor }]}>
+          <ThemedText type="small" variant="secondary" style={styles.sectionTitle}>
             Timings
           </ThemedText>
           <View style={styles.timeline}>
             <View style={styles.timelineRow}>
-              <View style={[styles.timelineDot, styles.timelineDotFilled]} />
+              <View style={[styles.timelineDot, styles.timelineDotFilled, { backgroundColor: palette.primaryRed }]} />
               <View style={styles.timelineContent}>
-                <ThemedText type="small" style={styles.detailLabel}>Entry</ThemedText>
-                <ThemedText type="body" style={styles.detailValue}>
+                <ThemedText type="small" variant="secondary" style={styles.detailLabel}>Entry</ThemedText>
+                <ThemedText type="body" style={[styles.detailValue, { color: palette.textPrimary }]}>
                   {ticket.entry_time ? formatDateTime(ticket.entry_time) : "—"}
                 </ThemedText>
               </View>
             </View>
-            <View style={styles.timelineLine} />
+            <View style={[styles.timelineLine, { backgroundColor: palette.divider }]} />
             <View style={styles.timelineRow}>
-              <View style={[styles.timelineDot, styles.timelineDotEmpty]} />
+              <View style={[styles.timelineDot, styles.timelineDotEmpty, { borderColor: palette.divider }]} />
               <View style={styles.timelineContent}>
-                <ThemedText type="small" style={styles.detailLabel}>Exit</ThemedText>
-                <ThemedText type="body" style={styles.detailValue}>
+                <ThemedText type="small" variant="secondary" style={styles.detailLabel}>Exit</ThemedText>
+                <ThemedText type="body" style={[styles.detailValue, { color: palette.textPrimary }]}>
                   {ticket.exit_time ? formatDateTime(ticket.exit_time) : "—"}
                 </ThemedText>
               </View>
@@ -360,21 +366,21 @@ export default function TicketDetailScreen() {
               disabled={closeMutation.isPending}
               style={({ pressed }) => [
                 styles.closeButton,
-                { opacity: pressed ? 0.9 : 1 },
+                { backgroundColor: palette.primaryRed, opacity: pressed ? 0.9 : 1 },
               ]}
             >
               {closeMutation.isPending ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={theme.onPrimary} size="small" />
               ) : (
                 <>
-                  <Feather name="log-out" size={20} color="#FFFFFF" style={styles.closeButtonIcon} />
-                  <ThemedText type="body" style={styles.closeButtonText}>
+                  <Feather name="log-out" size={20} color={theme.onPrimary} style={styles.closeButtonIcon} />
+                  <ThemedText type="body" style={[styles.closeButtonText, { color: theme.onPrimary }]}>
                     Mark as Exit
                   </ThemedText>
                 </>
               )}
             </Pressable>
-            <ThemedText type="small" style={styles.closeHint}>
+            <ThemedText type="small" variant="secondary" style={styles.closeHint}>
               This action will close the ticket
             </ThemedText>
           </View>
@@ -394,7 +400,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: Layout.horizontalScreenPadding,
     borderBottomWidth: 1,
-    borderBottomColor: ScreenPalette.divider,
     minHeight: Layout.headerMinHeight,
   },
   headerBack: {
@@ -403,7 +408,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
-    color: ScreenPalette.textPrimary,
     fontWeight: "700",
     lineHeight: 32,
   },
@@ -440,7 +444,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   tokenNumber: {
-    color: ScreenPalette.textPrimary,
     fontWeight: "700",
     marginBottom: Spacing.sm,
   },
@@ -454,18 +457,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   section: {
-    backgroundColor: ScreenPalette.card,
     borderRadius: CARD_RADIUS,
     padding: Layout.horizontalScreenPadding,
     marginBottom: Spacing.lg,
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 3,
   },
   sectionTitle: {
-    color: ScreenPalette.textSecondary,
     fontWeight: "600",
     marginBottom: Spacing.lg,
     textTransform: "uppercase",
@@ -486,23 +486,19 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   detailLabel: {
-    color: ScreenPalette.textSecondary,
     marginBottom: 2,
   },
   detailValue: {
-    color: ScreenPalette.textPrimary,
     lineHeight: 24,
   },
   assigneeBadge: {
     alignSelf: "flex-start",
-    backgroundColor: `${ScreenPalette.primaryRed}20`,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 14,
     marginBottom: Spacing.md,
   },
   assigneeBadgeText: {
-    color: ScreenPalette.textPrimary,
     fontWeight: "600",
   },
   locationRow: {
@@ -511,7 +507,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   locationText: {
-    color: ScreenPalette.textPrimary,
     flex: 1,
   },
   timeline: {
@@ -528,18 +523,14 @@ const styles = StyleSheet.create({
     marginRight: Spacing.lg,
     marginTop: 6,
   },
-  timelineDotFilled: {
-    backgroundColor: ScreenPalette.primaryRed,
-  },
+  timelineDotFilled: {},
   timelineDotEmpty: {
     backgroundColor: "transparent",
     borderWidth: 2,
-    borderColor: ScreenPalette.divider,
   },
   timelineLine: {
     width: 2,
     height: 24,
-    backgroundColor: ScreenPalette.divider,
     marginLeft: 5,
     marginVertical: 0,
   },
@@ -556,7 +547,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: ScreenPalette.primaryRed,
     paddingVertical: 16,
     paddingHorizontal: Spacing.xl,
     borderRadius: CARD_RADIUS,
@@ -566,11 +556,9 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   closeButtonText: {
-    color: "#FFFFFF",
     fontWeight: "600",
   },
   closeHint: {
-    color: ScreenPalette.textSecondary,
     textAlign: "center",
   },
 });

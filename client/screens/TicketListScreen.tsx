@@ -16,8 +16,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 
 import { ThemedText } from "@/components/ThemedText";
+import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing } from "@/constants/theme";
-import { ScreenPalette } from "@/constants/screenPalette";
+import { getScreenPalette } from "@/constants/screenPalette";
 import { fetchWithAuthRetry } from "@/lib/query-client";
 import { getEntryAppListPath } from "@/lib/api-endpoints";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,22 +43,21 @@ type TicketListRouteProp = RouteProp<RootStackParamList, "TicketList">;
 // Re-export for any screen that needs the list item type
 export type { TicketListItem } from "@/types/ticket";
 
-/** Muted red for overdue strip/badge — dark, not bright. */
-const OVERDUE_MUTED_RED = "#8B2A30";
-
 function TicketRow({
   item,
   onPress,
   isOpenList,
+  palette,
 }: {
   item: TicketListItem;
   onPress: () => void;
   isOpenList: boolean;
+  palette: ReturnType<typeof getScreenPalette>;
 }) {
   const category = getCategoryLabel(item);
   const isOverdue = isOpenList && isEntryOlderThan2Hours(item.entry_time);
   const duration = formatDurationHours(item.entry_time, item.exit_time);
-  const stripColor = isOverdue ? OVERDUE_MUTED_RED : ScreenPalette.divider;
+  const stripColor = isOverdue ? palette.overdueStrip : palette.divider;
   const slaLabel = isOpenList ? formatWaitingHours(item.entry_time) : `Completed • ${duration}`;
   const slaBadgeOverdue = isOpenList && isOverdue;
 
@@ -72,28 +72,28 @@ function TicketRow({
         style={({ pressed }) => [
           styles.card,
           {
-            backgroundColor: ScreenPalette.card,
+            backgroundColor: palette.card,
             opacity: pressed ? 0.92 : 1,
           },
         ]}
       >
         <View style={styles.cardMain}>
           <View style={styles.cardTop}>
-            <ThemedText type="h4" style={[styles.tokenNo, { color: ScreenPalette.textPrimary }]}>
+            <ThemedText type="h4" style={[styles.tokenNo, { color: palette.textPrimary }]}>
               #{item.token_no}
             </ThemedText>
             {isOpenList ? (
               <View
                 style={[
                   styles.timeBadge,
-                  { backgroundColor: slaBadgeOverdue ? OVERDUE_MUTED_RED : `${ScreenPalette.textSecondary}33` },
+                  { backgroundColor: slaBadgeOverdue ? palette.overdueStrip : `${palette.textSecondary}33` },
                 ]}
               >
                 <ThemedText
                   type="small"
                   style={[
                     styles.timeBadgeText,
-                    { color: slaBadgeOverdue ? "#E8B4B8" : ScreenPalette.textSecondary },
+                    { color: slaBadgeOverdue ? palette.overdueBadgeText : palette.textSecondary },
                   ]}
                   numberOfLines={1}
                 >
@@ -101,8 +101,8 @@ function TicketRow({
                 </ThemedText>
               </View>
             ) : (
-              <View style={[styles.timeBadge, { backgroundColor: `${ScreenPalette.successGreen}33` }]}>
-                <ThemedText type="small" style={[styles.timeBadgeText, { color: ScreenPalette.successGreen }]} numberOfLines={1}>
+              <View style={[styles.timeBadge, { backgroundColor: `${palette.successGreen}33` }]}>
+                <ThemedText type="small" style={[styles.timeBadgeText, { color: palette.successGreen }]} numberOfLines={1}>
                   {slaLabel}
                 </ThemedText>
               </View>
@@ -113,31 +113,31 @@ function TicketRow({
             <>
               {item.name != null && item.name !== "" && (
                 <View style={styles.cardRow}>
-                  <Feather name="user" size={16} color={ScreenPalette.textSecondary} style={styles.cardRowIcon} />
-                  <ThemedText type="body" style={[styles.cardName, { color: ScreenPalette.textPrimary }]} numberOfLines={2} ellipsizeMode="tail">
+                  <Feather name="user" size={16} color={palette.textSecondary} style={styles.cardRowIcon} />
+                  <ThemedText type="body" style={[styles.cardName, { color: palette.textPrimary }]} numberOfLines={2} ellipsizeMode="tail">
                     {item.name}
                   </ThemedText>
                 </View>
               )}
               {item.phone != null && item.phone !== "" && (
                 <View style={styles.cardRow}>
-                  <Feather name="phone" size={16} color={ScreenPalette.textSecondary} style={styles.cardRowIcon} />
-                  <ThemedText type="small" style={[styles.cardMeta, { color: ScreenPalette.textSecondary }]} numberOfLines={1}>
+                  <Feather name="phone" size={16} color={palette.textSecondary} style={styles.cardRowIcon} />
+                  <ThemedText type="small" style={[styles.cardMeta, { color: palette.textSecondary }]} numberOfLines={1}>
                     {item.phone}
                   </ThemedText>
                 </View>
               )}
               {(item.purpose != null || item.reason != null) && category !== "—" && (
                 <View style={styles.cardRow}>
-                  <Feather name="target" size={16} color={ScreenPalette.textSecondary} style={styles.cardRowIcon} />
-                  <ThemedText type="small" style={[styles.cardMeta, { color: ScreenPalette.textSecondary }]} numberOfLines={1}>
+                  <Feather name="target" size={16} color={palette.textSecondary} style={styles.cardRowIcon} />
+                  <ThemedText type="small" style={[styles.cardMeta, { color: palette.textSecondary }]} numberOfLines={1}>
                     {category}
                   </ThemedText>
                 </View>
               )}
               <View style={styles.cardRow}>
-                <Feather name="log-in" size={16} color={ScreenPalette.textSecondary} style={styles.cardRowIcon} />
-                <ThemedText type="small" style={[styles.cardTime, { color: ScreenPalette.textSecondary }]}>
+                <Feather name="log-in" size={16} color={palette.textSecondary} style={styles.cardRowIcon} />
+                <ThemedText type="small" style={[styles.cardTime, { color: palette.textSecondary }]}>
                   Entered {formatEntryTime(item.entry_time)}
                 </ThemedText>
               </View>
@@ -146,46 +146,46 @@ function TicketRow({
             <>
               {item.name != null && item.name !== "" && (
                 <View style={styles.cardRow}>
-                  <Feather name="user" size={16} color={ScreenPalette.textSecondary} style={styles.cardRowIcon} />
-                  <ThemedText type="body" style={[styles.cardName, { color: ScreenPalette.textPrimary }]} numberOfLines={2} ellipsizeMode="tail">
+                  <Feather name="user" size={16} color={palette.textSecondary} style={styles.cardRowIcon} />
+                  <ThemedText type="body" style={[styles.cardName, { color: palette.textPrimary }]} numberOfLines={2} ellipsizeMode="tail">
                     {item.name}
                   </ThemedText>
                 </View>
               )}
               {item.phone != null && item.phone !== "" && (
                 <View style={styles.cardRow}>
-                  <Feather name="phone" size={16} color={ScreenPalette.textSecondary} style={styles.cardRowIcon} />
-                  <ThemedText type="small" style={[styles.cardMeta, { color: ScreenPalette.textSecondary }]} numberOfLines={1}>
+                  <Feather name="phone" size={16} color={palette.textSecondary} style={styles.cardRowIcon} />
+                  <ThemedText type="small" style={[styles.cardMeta, { color: palette.textSecondary }]} numberOfLines={1}>
                     {item.phone}
                   </ThemedText>
                 </View>
               )}
               {(item.purpose != null || item.reason != null) && category !== "—" && (
                 <View style={styles.cardRow}>
-                  <Feather name="target" size={16} color={ScreenPalette.textSecondary} style={styles.cardRowIcon} />
-                  <ThemedText type="small" style={[styles.cardMeta, { color: ScreenPalette.textSecondary }]} numberOfLines={1}>
+                  <Feather name="target" size={16} color={palette.textSecondary} style={styles.cardRowIcon} />
+                  <ThemedText type="small" style={[styles.cardMeta, { color: palette.textSecondary }]} numberOfLines={1}>
                     {category}
                   </ThemedText>
                 </View>
               )}
               <View style={styles.cardRow}>
-                <Feather name="log-in" size={16} color={ScreenPalette.textSecondary} style={styles.cardRowIcon} />
-                <ThemedText type="small" style={[styles.cardTime, { color: ScreenPalette.textSecondary }]}>
+                <Feather name="log-in" size={16} color={palette.textSecondary} style={styles.cardRowIcon} />
+                <ThemedText type="small" style={[styles.cardTime, { color: palette.textSecondary }]}>
                   Entered {formatEntryTime(item.entry_time)}
                 </ThemedText>
               </View>
               {item.exit_time && (
                 <View style={styles.cardRow}>
-                  <Feather name="log-out" size={16} color={ScreenPalette.textSecondary} style={styles.cardRowIcon} />
-                  <ThemedText type="small" style={[styles.cardTime, { color: ScreenPalette.textSecondary }]}>
+                  <Feather name="log-out" size={16} color={palette.textSecondary} style={styles.cardRowIcon} />
+                  <ThemedText type="small" style={[styles.cardTime, { color: palette.textSecondary }]}>
                     Exited {formatEntryTime(item.exit_time)}
                   </ThemedText>
                 </View>
               )}
               {item.regNumber != null && item.regNumber !== "" && (
                 <View style={styles.cardRow}>
-                  <Feather name="package" size={16} color={ScreenPalette.textSecondary} style={styles.cardRowIcon} />
-                  <ThemedText type="small" style={[styles.cardMeta, { color: ScreenPalette.textSecondary }]} numberOfLines={1}>
+                  <Feather name="package" size={16} color={palette.textSecondary} style={styles.cardRowIcon} />
+                  <ThemedText type="small" style={[styles.cardMeta, { color: palette.textSecondary }]} numberOfLines={1}>
                     {item.regNumber}
                   </ThemedText>
                 </View>
@@ -221,6 +221,8 @@ export default function TicketListScreen() {
   const route = useRoute<TicketListRouteProp>();
   const { filter } = route.params;
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
+  const palette = getScreenPalette(theme);
   const auth = useAuth();
 
   const {
@@ -284,7 +286,7 @@ export default function TicketListScreen() {
         : `${list.length} completed`;
 
   return (
-    <View style={[styles.container, { backgroundColor: ScreenPalette.background }]}>
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
       {/* Flat header: safe-area aware, flexible min height for title + subtitle */}
       <View style={[styles.headerWrap, { paddingTop: insets.top, paddingBottom: Spacing.sm }]}>
         <View style={[styles.headerBar, { minHeight: HEADER_BAR_MIN_HEIGHT }]}>
@@ -297,13 +299,13 @@ export default function TicketListScreen() {
             hitSlop={8}
             accessibilityLabel="Go back"
           >
-            <Feather name="chevron-left" size={HEADER_ICON_SIZE} color={ScreenPalette.textSecondary} />
+            <Feather name="chevron-left" size={HEADER_ICON_SIZE} color={palette.textSecondary} />
           </Pressable>
           <View style={styles.headerCenter}>
-            <ThemedText type="h3" style={styles.headerTitle}>
+            <ThemedText type="h3" style={[styles.headerTitle, { color: palette.textPrimary }]}>
               {headerTitle}
             </ThemedText>
-            <ThemedText type="small" style={styles.headerSubtitle}>
+            <ThemedText type="small" variant="secondary" style={styles.headerSubtitle}>
               {headerSubtitle}
             </ThemedText>
           </View>
@@ -316,7 +318,7 @@ export default function TicketListScreen() {
             hitSlop={8}
             accessibilityLabel="Refresh"
           >
-            <Feather name="refresh-cw" size={HEADER_ICON_SIZE} color={ScreenPalette.textSecondary} />
+            <Feather name="refresh-cw" size={HEADER_ICON_SIZE} color={palette.textSecondary} />
           </Pressable>
         </View>
         {isOpen && over2HoursCount > 0 && (
@@ -325,33 +327,36 @@ export default function TicketListScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setShowOver2HoursOnly((prev) => !prev);
             }}
-            style={({ pressed }) => [styles.overdueStrip, { opacity: pressed ? 0.9 : 1 }]}
+            style={({ pressed }) => [
+              styles.overdueStrip,
+              { backgroundColor: palette.overdueStrip, opacity: pressed ? 0.9 : 1 },
+            ]}
           >
-            <ThemedText type="small" style={styles.overdueStripText}>
+            <ThemedText type="small" style={[styles.overdueStripText, { color: palette.overdueBadgeText }]}>
               ⚠ {over2HoursCount} ticket{over2HoursCount === 1 ? "" : "s"} overdue &gt; 2h
             </ThemedText>
-            <ThemedText type="small" style={styles.overdueStripAction}>
+            <ThemedText type="small" style={[styles.overdueStripAction, { color: palette.overdueBadgeText }]}>
               {showOver2HoursOnly ? "Show all" : "View"}
             </ThemedText>
           </Pressable>
         )}
-        <View style={styles.headerDivider} />
+        <View style={[styles.headerDivider, { backgroundColor: palette.divider }]} />
       </View>
 
       {isLoading ? (
         <View style={[styles.center, { paddingBottom: insets.bottom + Spacing.xl }]}>
-          <ActivityIndicator size="large" color={isOpen ? ScreenPalette.primaryRed : ScreenPalette.successGreen} />
-          <ThemedText type="body" style={[styles.loadingText, { color: ScreenPalette.textSecondary }]}>
+          <ActivityIndicator size="large" color={isOpen ? palette.primaryRed : palette.successGreen} />
+          <ThemedText type="body" variant="secondary" style={styles.loadingText}>
             Loading {isOpen ? "open" : "closed"} tickets…
           </ThemedText>
         </View>
       ) : list.length === 0 ? (
         <View style={[styles.center, { paddingBottom: insets.bottom + Spacing.xl }]}>
-          <Feather name={isOpen ? "inbox" : "archive"} size={48} color={ScreenPalette.textSecondary} />
-          <ThemedText type="h4" style={[styles.emptyTitle, { color: ScreenPalette.textPrimary }]}>
+          <Feather name={isOpen ? "inbox" : "archive"} size={48} color={palette.textSecondary} />
+          <ThemedText type="h4" style={[styles.emptyTitle, { color: palette.textPrimary }]}>
             No {isOpen ? "open" : "closed"} tickets
           </ThemedText>
-          <ThemedText type="body" style={[styles.emptySubtitle, { color: ScreenPalette.textSecondary }]}>
+          <ThemedText type="body" variant="secondary" style={styles.emptySubtitle}>
             {isOpen ? "Tickets will appear here when created." : "Closed tickets will appear here."}
           </ThemedText>
         </View>
@@ -363,33 +368,34 @@ export default function TicketListScreen() {
             <TicketRow
               item={item}
               isOpenList={isOpen}
+              palette={palette}
               onPress={() => navigation.navigate("TicketDetail", { ticketId: item.id })}
             />
           )}
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + Spacing.xl }]}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: palette.divider }]} />}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={() => refetch()}
-              tintColor={isOpen ? ScreenPalette.primaryRed : ScreenPalette.successGreen}
+              tintColor={isOpen ? palette.primaryRed : palette.successGreen}
             />
           }
           ListHeaderComponent={
             <View style={styles.listHeader}>
-              <View style={styles.searchBarWrap}>
-                <Feather name="search" size={18} color={ScreenPalette.textSecondary} style={styles.searchIcon} />
+              <View style={[styles.searchBarWrap, { backgroundColor: palette.card, borderColor: palette.divider }]}>
+                <Feather name="search" size={18} color={palette.textSecondary} style={styles.searchIcon} />
                 <TextInput
-                  style={styles.searchInput}
+                  style={[styles.searchInput, { color: palette.textPrimary }]}
                   placeholder="Search token, name, phone"
-                  placeholderTextColor={ScreenPalette.textSecondary}
+                  placeholderTextColor={palette.textSecondary}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   returnKeyType="search"
                 />
                 {searchQuery.length > 0 ? (
                   <Pressable onPress={() => setSearchQuery("")} hitSlop={Spacing.md} style={styles.searchClear}>
-                    <Feather name="x-circle" size={18} color={ScreenPalette.textSecondary} />
+                    <Feather name="x-circle" size={18} color={palette.textSecondary} />
                   </Pressable>
                 ) : null}
               </View>
@@ -397,7 +403,7 @@ export default function TicketListScreen() {
           }
           ListEmptyComponent={
             <View style={styles.emptySearch}>
-              <ThemedText type="body" style={{ color: ScreenPalette.textSecondary }}>
+              <ThemedText type="body" variant="secondary">
                 {showOver2HoursOnly ? "No overdue tickets (2h+)." : "No tickets match your search."}
               </ThemedText>
             </View>
@@ -414,7 +420,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.horizontalScreenPadding,
   },
   headerWrap: {
-    backgroundColor: ScreenPalette.background,
     paddingBottom: 0,
   },
   headerBar: {
@@ -437,12 +442,10 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   headerTitle: {
-    color: ScreenPalette.textPrimary,
     fontWeight: "600",
     lineHeight: 28,
   },
   headerSubtitle: {
-    color: ScreenPalette.textSecondary,
     marginTop: 2,
     lineHeight: 20,
   },
@@ -450,23 +453,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: OVERDUE_MUTED_RED,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     marginTop: Spacing.xs,
   },
   overdueStripText: {
-    color: "#E8B4B8",
     fontWeight: "500",
   },
   overdueStripAction: {
-    color: "#E8B4B8",
     fontWeight: "600",
     marginLeft: Spacing.md,
   },
   headerDivider: {
     height: 1,
-    backgroundColor: ScreenPalette.divider,
   },
   center: {
     flex: 1,
@@ -499,9 +498,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     height: 44,
     borderRadius: SEARCH_RADIUS,
-    backgroundColor: ScreenPalette.card,
     borderWidth: 1,
-    borderColor: ScreenPalette.divider,
     paddingHorizontal: Spacing.lg,
   },
   searchIcon: {
@@ -512,7 +509,6 @@ const styles = StyleSheet.create({
     height: "100%",
     paddingVertical: 0,
     fontSize: 16,
-    color: ScreenPalette.textPrimary,
   },
   searchClear: {
     padding: Spacing.xs,

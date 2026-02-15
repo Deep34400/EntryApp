@@ -72,6 +72,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             styles.button,
             {
               backgroundColor: theme.link,
+              shadowColor: theme.shadowColor,
               opacity: pressed ? 0.9 : 1,
               transform: [{ scale: pressed ? 0.98 : 1 }],
             },
@@ -93,9 +94,9 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           transparent={true}
           onRequestClose={() => setIsModalVisible(false)}
         >
-          <View style={styles.modalOverlay}>
+          <View style={[styles.modalOverlay, { backgroundColor: theme.overlayScrim }]}>
             <ThemedView style={styles.modalContainer}>
-              <View style={styles.modalHeader}>
+              <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
                 <ThemedText type="h2" style={styles.modalTitle}>
                   Error Details
                 </ThemedText>
@@ -185,7 +186,6 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing["2xl"],
     minWidth: 200,
-    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -201,7 +201,6 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
   },
   modalContainer: {
@@ -218,7 +217,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(128, 128, 128, 0.2)",
   },
   modalTitle: {
     fontWeight: "600",

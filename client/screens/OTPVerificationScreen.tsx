@@ -25,7 +25,6 @@ import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { sendOtp, verifyOtp, isTokenVersionMismatch } from "@/lib/auth-api";
 
-const HEADER_BG = "#8B2C2C";
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SEC = 30;
 
@@ -170,11 +169,12 @@ export default function OTPVerificationScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <View
         style={[
           styles.header,
           {
+            backgroundColor: theme.primary,
             paddingTop: insets.top + Spacing.lg,
             paddingBottom: Spacing.xl,
             minHeight: 88 + insets.top,
@@ -189,9 +189,9 @@ export default function OTPVerificationScreen() {
             accessibilityLabel="Go back"
             accessibilityRole="button"
           >
-            <Feather name="chevron-left" size={28} color="#FFFFFF" />
+            <Feather name="chevron-left" size={28} color={theme.onPrimary} />
           </TouchableOpacity>
-          <View style={styles.logoWrap}>
+          <View style={[styles.logoWrap, { backgroundColor: theme.backgroundTertiary }]}>
             <Image
               source={require("../../assets/images/logo.png")}
               style={styles.logo}
@@ -199,13 +199,13 @@ export default function OTPVerificationScreen() {
             />
           </View>
           <View style={styles.headerTextWrap}>
-            <ThemedText style={styles.headerTitle}>Gate Entry / Exit</ThemedText>
-            <ThemedText style={styles.headerSubtitle}>Gate Management System</ThemedText>
+            <ThemedText style={[styles.headerTitle, { color: theme.onPrimary }]}>Gate Entry / Exit</ThemedText>
+            <ThemedText style={[styles.headerSubtitle, { color: theme.onPrimary }]}>Gate Management System</ThemedText>
           </View>
         </View>
       </View>
 
-      <View style={[styles.content, { paddingBottom: insets.bottom + Spacing["2xl"] }]}>
+      <View style={[styles.content, { backgroundColor: theme.backgroundRoot, paddingBottom: insets.bottom + Spacing["2xl"] }]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboardView}
@@ -297,8 +297,8 @@ export default function OTPVerificationScreen() {
             <View style={styles.buttonWrap}>
               {loading ? (
                 <View style={[styles.verifyButton, styles.verifyButtonLoading, { backgroundColor: theme.primary }]}>
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                  <ThemedText type="body" style={styles.buttonLoadingText}>
+                  <ActivityIndicator size="small" color={theme.onPrimary} />
+                  <ThemedText type="body" style={[styles.buttonLoadingText, { color: theme.onPrimary }]}>
                     Verifying…
                   </ThemedText>
                 </View>
@@ -328,10 +328,8 @@ export default function OTPVerificationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   header: {
-    backgroundColor: HEADER_BG,
     paddingHorizontal: Layout.horizontalScreenPadding,
     borderBottomLeftRadius: BorderRadius["2xl"],
     borderBottomRightRadius: BorderRadius["2xl"],
@@ -352,7 +350,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -365,14 +362,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    color: "#FFFFFF",
     fontSize: 22,
     fontWeight: "700",
     lineHeight: 28,
     marginBottom: 2,
   },
   headerSubtitle: {
-    color: "rgba(255,255,255,0.9)",
     fontSize: 14,
     lineHeight: 20,
   },
@@ -380,7 +375,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Layout.horizontalScreenPadding,
     paddingTop: Spacing["2xl"],
-    backgroundColor: "#FFFFFF",
   },
   keyboardView: {
     flex: 1,
@@ -451,7 +445,6 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   buttonLoadingText: {
-    color: "#FFFFFF",
     fontWeight: "600",
   },
 });

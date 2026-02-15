@@ -58,11 +58,11 @@ export default function TokenDisplayScreen() {
             style={[styles.tokenCard, { backgroundColor: theme.primary }]}
           >
             <View style={styles.tokenCardGradient}>
-              <ThemedText style={styles.tokenLabel}>TOKEN NUMBER</ThemedText>
-              <ThemedText style={[styles.tokenNumber, Typography.token]}>
+              <ThemedText style={[styles.tokenLabel, { color: theme.textSecondary }]}>TOKEN NUMBER</ThemedText>
+              <ThemedText style={[styles.tokenNumber, Typography.token, { color: theme.text }]}>
                 {token}
               </ThemedText>
-              <ThemedText style={styles.validityText}>
+              <ThemedText style={[styles.validityText, { color: theme.textSecondary }]}>
                 Valid for 24 hours at all gates
               </ThemedText>
             </View>
@@ -156,20 +156,17 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   tokenLabel: {
-    color: "rgba(0,0,0,0.6)",
     fontSize: 12,
     fontWeight: "700",
     letterSpacing: 1.5,
     marginBottom: Spacing.sm,
   },
   tokenNumber: {
-    color: "#1a1a1a",
     fontWeight: "800",
   },
   validityText: {
     marginTop: Spacing.xl,
     fontSize: 13,
-    color: "rgba(0,0,0,0.65)",
     fontWeight: "600",
   },
   detailCards: {

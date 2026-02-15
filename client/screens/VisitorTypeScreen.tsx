@@ -34,16 +34,10 @@ import { useUser } from "@/contexts/UserContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList, EntryType } from "@/navigation/RootStackNavigator";
 
-// Carrum brand — use theme.primary / theme.primaryDark for gradients and accents
 const CARD_RADIUS = 12;
 const HEADER_CURVE = 20;
-/** Min height for header content; grows when user name wraps to 2 lines. No fixed height. */
 const HEADER_CONTENT_MIN_HEIGHT = 65;
-/** Bottom padding so text clears the curved header shape. */
 const HEADER_CURVE_PADDING = HEADER_CURVE + Spacing.sm;
-const LIGHT_CARD = "#FFFFFF";
-const LIGHT_BG = "#F7F9FC";
-
 const HEADER_BG_HEIGHT = 80;
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
@@ -71,8 +65,7 @@ function VisitorTypeCard({
 }: VisitorTypeCardProps) {
   const { theme, isDark } = useTheme();
   const scale = useSharedValue(1);
-  const cardBg = isDark ? theme.backgroundDefault : LIGHT_CARD;
-  const subtitleColor = isDark ? theme.textSecondary : "#6B7280";
+  const cardBg = isDark ? theme.backgroundDefault : theme.surface;
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -101,7 +94,7 @@ function VisitorTypeCard({
           styles.entryCard,
           {
             backgroundColor: cardBg,
-            shadowColor: "#000",
+            shadowColor: theme.shadowColor,
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: isDark ? 0.2 : 0.08,
             shadowRadius: 12,
@@ -112,16 +105,13 @@ function VisitorTypeCard({
         testID={`card-${type}`}
       >
         <View style={[styles.entryCardIconWrap, { backgroundColor: iconBgColor }]}>
-          <Feather name={icon} size={22} color="#FFFFFF" />
+          <Feather name={icon} size={22} color={theme.onPrimary} />
         </View>
         <View style={styles.entryCardContent}>
           <ThemedText type="h4" style={styles.entryCardTitle}>
             {title}
           </ThemedText>
-          <ThemedText
-            type="small"
-            style={[styles.entryCardDescription, { color: subtitleColor }]}
-          >
+          <ThemedText type="small" variant="secondary" style={styles.entryCardDescription}>
             {description}
           </ThemedText>
         </View>
@@ -215,7 +205,7 @@ export default function VisitorTypeScreen() {
 
   const screenWidth = Dimensions.get("window").width;
   const drawerWidth = Math.min(screenWidth * 0.82, 320);
-  const pageBg = isDark ? theme.backgroundRoot : LIGHT_BG;
+  const pageBg = theme.backgroundRoot;
 
   const visitorTypes = [
     {
@@ -281,7 +271,7 @@ export default function VisitorTypeScreen() {
           >
             <View style={styles.headerRow}>
               <View style={styles.headerLeft}>
-                <View style={[styles.headerAvatarWrap, { backgroundColor: "rgba(255,255,255,0.25)" }]}>
+                <View style={[styles.headerAvatarWrap, { backgroundColor: theme.backgroundTertiary }]}>
                   <Image
                     source={require("../../assets/images/logo.png")}
                     style={styles.headerAvatar}
@@ -289,12 +279,12 @@ export default function VisitorTypeScreen() {
                   />
                 </View>
                 <View style={styles.headerWelcomeBlock}>
-                  <ThemedText type="small" style={styles.headerWelcomeLabel}>
+                  <ThemedText type="small" style={[styles.headerWelcomeLabel, { color: theme.onPrimary }]}>
                     Welcome
                   </ThemedText>
                   <ThemedText
                     type="h6"
-                    style={styles.headerUserName}
+                    style={[styles.headerUserName, { color: theme.onPrimary }]}
                     numberOfLines={2}
                     ellipsizeMode="tail"
                   >
@@ -309,7 +299,7 @@ export default function VisitorTypeScreen() {
                   hitSlop={16}
                   accessibilityLabel="Menu"
                 >
-                  <Feather name="menu" size={22} color="#FFFFFF" />
+                  <Feather name="menu" size={22} color={theme.onPrimary} />
                 </Pressable>
               </View>
             </View>
@@ -349,19 +339,19 @@ export default function VisitorTypeScreen() {
               accessibilityLabel={`OPEN: ${openCount}`}
             >
               <View style={styles.statCardTop}>
-                <Feather name="shield" size={20} color="rgba(255,255,255,0.9)" />
-                <ThemedText type="small" style={styles.statCardSubtitle}>
+                <Feather name="shield" size={20} color={theme.onPrimary} />
+                <ThemedText type="small" style={[styles.statCardSubtitle, { color: theme.onPrimary }]}>
                   Active Inside
                 </ThemedText>
               </View>
               {isFetching ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={theme.onPrimary} />
               ) : (
-                <ThemedText type="h1" style={styles.statCardNumber}>
+                <ThemedText type="h1" style={[styles.statCardNumber, { color: theme.onPrimary }]}>
                   {openCount}
                 </ThemedText>
               )}
-              <ThemedText type="small" style={styles.statCardLabel}>
+              <ThemedText type="small" style={[styles.statCardLabel, { color: theme.onPrimary }]}>
                 OPEN
               </ThemedText>
             </Pressable>
@@ -370,9 +360,9 @@ export default function VisitorTypeScreen() {
               style={({ pressed }) => [
                 styles.statCard,
                 {
-                  backgroundColor: isDark ? theme.backgroundDefault : "#E8ECF1",
+                  backgroundColor: theme.backgroundSecondary,
                   opacity: pressed ? 0.92 : 1,
-                  shadowColor: "#000",
+                  shadowColor: theme.shadowColor,
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: isDark ? 0.3 : 0.06,
                   shadowRadius: 8,
@@ -432,19 +422,19 @@ export default function VisitorTypeScreen() {
         onRequestClose={closeDrawer}
       >
         <TouchableWithoutFeedback onPress={closeDrawer}>
-          <View style={styles.drawerBackdrop} />
+          <View style={[styles.drawerBackdrop, { backgroundColor: theme.overlayBackdrop }]} />
         </TouchableWithoutFeedback>
         <View style={[styles.drawerWrap, { width: drawerWidth }]} pointerEvents="box-none">
-          <View
-            style={[
-              styles.drawerPanel,
-              {
-                backgroundColor: isDark ? theme.backgroundDefault : LIGHT_CARD,
-                paddingTop: insets.top,
-                paddingBottom: insets.bottom + Spacing.md,
-              },
-            ]}
-          >
+            <View
+              style={[
+                styles.drawerPanel,
+                {
+                  backgroundColor: theme.surface,
+                  paddingTop: insets.top,
+                  paddingBottom: insets.bottom + Spacing.md,
+                },
+              ]}
+            >
             {/* Compact header: title and close vertically centered */}
             <View style={[styles.drawerHeader, { borderBottomColor: theme.border }]}>
               <ThemedText type="h4" style={{ color: theme.text }}>Menu</ThemedText>
@@ -460,7 +450,7 @@ export default function VisitorTypeScreen() {
             {/* Profile: tight spacing, immediately after header */}
             <View style={styles.drawerProfile}>
               <View style={[styles.drawerAvatar, { backgroundColor: theme.primary }]}>
-                <ThemedText type="h3" style={{ color: "#FFFFFF" }}>
+                <ThemedText type="h3" style={{ color: theme.onPrimary }}>
                   {(user?.name?.trim() || "S").charAt(0).toUpperCase()}
                 </ThemedText>
               </View>
@@ -542,7 +532,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerWelcomeLabel: {
-    color: "rgba(255,255,255,0.9)",
     marginBottom: 0,
     letterSpacing: 0.3,
     lineHeight: 18,
@@ -560,7 +549,6 @@ const styles = StyleSheet.create({
     height: 36,
   },
   headerUserName: {
-    color: "#FFFFFF",
     fontWeight: "700",
     flex: 1,
     lineHeight: 24,
@@ -609,18 +597,15 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   statCardSubtitle: {
-    color: "rgba(255,255,255,0.9)",
     letterSpacing: 0.3,
   },
   statCardSubtitleGrey: {
     letterSpacing: 0.3,
   },
   statCardNumber: {
-    color: "#FFFFFF",
     fontWeight: "700",
   },
   statCardLabel: {
-    color: "rgba(255,255,255,0.85)",
     letterSpacing: 0.5,
     fontWeight: "600",
   },
@@ -670,7 +655,6 @@ const styles = StyleSheet.create({
   },
   drawerBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
   },
   drawerWrap: {
     position: "absolute",

@@ -1,26 +1,27 @@
-import { DesignTokens } from "@/constants/designTokens";
-
-const { brand, darkUI } = DesignTokens;
+import type { ThemeColors } from "@/constants/theme";
 
 /**
- * Dark UI palette for Ticket List and Ticket Detail screens.
- * Derived from design tokens — change DesignTokens in designTokens.ts
- * to update primary red and black/dark colors app-wide.
+ * Ticket list/detail palette derived from global theme.
+ * Use getScreenPalette(theme) so one theme value updates the entire app.
  */
-export const ScreenPalette = {
-  background: darkUI.background,
-  card: darkUI.card,
-  primaryRed: brand.primary,
-  warningOrange: brand.warning,
-  successGreen: brand.success,
-  textPrimary: darkUI.textPrimary,
-  textSecondary: darkUI.textSecondary,
-  divider: darkUI.divider,
-  headerGradientStart: darkUI.headerGradientStart,
-  headerGradientEnd: darkUI.headerGradientEnd,
-  headerButtonBg: darkUI.headerButtonBg,
-  alertGradientStart: brand.primary,
-  alertGradientEnd: darkUI.alertGradientEnd,
-} as const;
+export function getScreenPalette(theme: ThemeColors) {
+  return {
+    background: theme.backgroundRoot,
+    card: theme.card,
+    primaryRed: theme.primary,
+    warningOrange: theme.warning,
+    successGreen: theme.success,
+    textPrimary: theme.text,
+    textSecondary: theme.textSecondary,
+    divider: theme.border,
+    headerGradientStart: theme.backgroundRoot,
+    headerGradientEnd: theme.backgroundDefault,
+    headerButtonBg: theme.backgroundDefault,
+    alertGradientStart: theme.primary,
+    alertGradientEnd: theme.primaryDark,
+    overdueStrip: theme.overdueStrip,
+    overdueBadgeText: theme.overdueBadgeText,
+  } as const;
+}
 
-export type ScreenPaletteType = typeof ScreenPalette;
+export type ScreenPaletteType = ReturnType<typeof getScreenPalette>;

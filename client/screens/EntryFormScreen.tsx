@@ -202,7 +202,7 @@ export default function EntryFormScreen() {
             {
               backgroundColor: theme.backgroundDefault,
               borderColor: theme.border,
-              shadowColor: "#000",
+              shadowColor: theme.shadowColor,
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.08,
               shadowRadius: 12,
@@ -212,7 +212,7 @@ export default function EntryFormScreen() {
         >
           <View style={styles.visitorCardHeader}>
             <View style={[styles.shieldIconWrap, { backgroundColor: theme.primary }]}>
-              <Feather name="shield" size={24} color="#FFFFFF" />
+              <Feather name="shield" size={24} color={theme.onPrimary} />
             </View>
             <ThemedText type="h4" style={[styles.visitorCardTitle, { color: theme.text }]}>
               Visitor Details

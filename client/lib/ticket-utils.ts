@@ -4,7 +4,7 @@
  */
 
 import type { TicketListItem } from "@/types/ticket";
-import { ScreenPalette } from "@/constants/screenPalette";
+import type { ScreenPaletteType } from "@/constants/screenPalette";
 
 /** Time thresholds (minutes). Over 2h = overdue; 30m–2h = warning. */
 export const WAITING_THRESHOLD_WARNING_MINS = 30;
@@ -42,10 +42,13 @@ export function getWaitingMinutes(entryTime?: string | null): number | null {
   }
 }
 
-/** Time badge color: grey <30m, orange 30m–2h, red >2h. Uses ScreenPalette. */
-export function getTimeBadgeColor(waitingMinutes: number | null): string {
-  if (waitingMinutes == null) return ScreenPalette.textSecondary;
-  if (waitingMinutes < WAITING_THRESHOLD_WARNING_MINS) return ScreenPalette.textSecondary;
-  if (waitingMinutes < WAITING_THRESHOLD_OVERDUE_MINS) return ScreenPalette.warningOrange;
-  return ScreenPalette.primaryRed;
+/** Time badge color: grey <30m, orange 30m–2h, red >2h. Pass palette from theme. */
+export function getTimeBadgeColor(
+  waitingMinutes: number | null,
+  palette: Pick<ScreenPaletteType, "textSecondary" | "warningOrange" | "primaryRed">,
+): string {
+  if (waitingMinutes == null) return palette.textSecondary;
+  if (waitingMinutes < WAITING_THRESHOLD_WARNING_MINS) return palette.textSecondary;
+  if (waitingMinutes < WAITING_THRESHOLD_OVERDUE_MINS) return palette.warningOrange;
+  return palette.primaryRed;
 }
