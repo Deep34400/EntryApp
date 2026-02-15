@@ -19,27 +19,20 @@ import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from "reac
 
 import { ThemedText } from "@/components/ThemedText";
 import { Spacing } from "@/constants/theme";
+import { ScreenPalette } from "@/constants/screenPalette";
 import { fetchWithAuthRetry } from "@/lib/query-client";
 import { getEntryAppListPath } from "@/lib/api-endpoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-
-// Dark premium palette for Open/Closed Tickets screen
-const PALETTE = {
-  background: "#0F1115",
-  card: "#1A1D24",
-  primaryRed: "#E53935",
-  warningOrange: "#FF8F00",
-  successGreen: "#2ECC71",
-  textPrimary: "#FFFFFF",
-  textSecondary: "#A0A4AB",
-  divider: "#2A2E36",
-  headerGradientStart: "#0F1115",
-  headerGradientEnd: "#151922",
-  headerButtonBg: "#1A1D24",
-  alertGradientStart: "#E53935",
-  alertGradientEnd: "#B71C1C",
-} as const;
+import { formatEntryTime, formatWaitingHours, formatDurationHours } from "@/lib/format";
+import type { TicketListItem } from "@/types/ticket";
+import { normalizeTicketListItem } from "@/types/ticket";
+import {
+  getCategoryLabel,
+  isEntryOlderThan2Hours,
+  getWaitingMinutes,
+  getTimeBadgeColor,
+} from "@/lib/ticket-utils";
 
 const HEADER_HEIGHT = 56;
 const HEADER_BUTTON_SIZE = 40;
@@ -51,133 +44,8 @@ const SEARCH_RADIUS = 16;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "TicketList">;
 type TicketListRouteProp = RouteProp<RootStackParamList, "TicketList">;
 
-export interface TicketListItem {
-  id: string;
-  token_no: string;
-  name?: string;
-  purpose?: string;
-  reason?: string;
-  entry_time?: string;
-  exit_time?: string;
-  agent_name?: string;
-  desk_location?: string;
-  status?: string;
-  regNumber?: string;
-  phone?: string;
-}
-
-/** Normalize API item (camelCase or snake_case) to TicketListItem */
-function normalizeTicket(item: Record<string, unknown>): TicketListItem {
-  const id =
-    String(item.id ?? item.token_no ?? item.token ?? "") || `row-${Date.now()}`;
-  const tokenNo = item.tokenNo ?? item.token_no ?? item.token ?? item.id;
-  const entryTime = item.entryTime ?? item.entry_time;
-  const exitTime = item.exitTime ?? item.exit_time;
-  const regNumber = item.regNumber ?? item.reg_number ?? item.vehicle;
-  return {
-    id,
-    token_no: String(tokenNo ?? ""),
-    name: item.name != null ? String(item.name) : undefined,
-    purpose: item.purpose != null ? String(item.purpose) : undefined,
-    reason: item.reason != null ? String(item.reason) : undefined,
-    entry_time: entryTime != null ? String(entryTime) : undefined,
-    exit_time: exitTime != null ? String(exitTime) : undefined,
-    agent_name: item.agentName != null ? String(item.agentName) : item.agent_name != null ? String(item.agent_name) : undefined,
-    desk_location: item.deskLocation != null ? String(item.deskLocation) : item.desk_location != null ? String(item.desk_location) : undefined,
-    status: item.status != null ? String(item.status) : undefined,
-    regNumber: regNumber != null ? String(regNumber) : undefined,
-    phone: item.phone != null ? String(item.phone) : undefined,
-  };
-}
-
-function formatEntryTime(iso?: string): string {
-  if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-  } catch {
-    return iso;
-  }
-}
-
-/** Right-side label: hours only, e.g. "3h", "48h", or "45m" (waiting since entry for open) */
-function formatWaitingHours(entryTime?: string): string {
-  if (!entryTime) return "—";
-  try {
-    const entry = new Date(entryTime).getTime();
-    const ms = Date.now() - entry;
-    if (ms < 0) return "—";
-    const mins = Math.floor(ms / 60_000);
-    const hours = Math.floor(mins / 60);
-    if (hours >= 1) return `${hours}h`;
-    return mins < 60 ? `${mins}m` : "1h";
-  } catch {
-    return "—";
-  }
-}
-
-/** Duration between entry and exit for closed tickets, e.g. "3h", "48h", "45m" */
-function formatDurationHours(entryTime?: string, exitTime?: string): string {
-  if (!entryTime || !exitTime) return "—";
-  try {
-    const entry = new Date(entryTime).getTime();
-    const exit = new Date(exitTime).getTime();
-    const ms = exit - entry;
-    if (ms < 0) return "—";
-    const mins = Math.floor(ms / 60_000);
-    const hours = Math.floor(mins / 60);
-    if (hours >= 1) return `${hours}h`;
-    return mins < 60 ? `${mins}m` : "1h";
-  } catch {
-    return "—";
-  }
-}
-
-/** Category line: "Reason • Purpose" or just purpose (e.g. "Accident • Maintenance", "Sourcing • Sourcing") */
-function getCategoryLabel(item: TicketListItem): string {
-  const reason = (item.reason ?? "").trim();
-  const purpose = (item.purpose ?? "").trim();
-  if (reason && purpose && reason !== purpose) return `${reason} • ${purpose}`;
-  if (reason) return reason;
-  if (purpose) return purpose;
-  return "—";
-}
-
-const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-const THIRTY_MINS_MS = 30 * 60 * 1000;
-
-function isEntryOlderThan2Hours(entryTime?: string): boolean {
-  if (!entryTime) return false;
-  try {
-    const entry = new Date(entryTime).getTime();
-    return Date.now() - entry > TWO_HOURS_MS;
-  } catch {
-    return false;
-  }
-}
-
-/** Waiting minutes since entry (for open tickets). */
-function getWaitingMinutes(entryTime?: string): number | null {
-  if (!entryTime) return null;
-  try {
-    const entry = new Date(entryTime).getTime();
-    const ms = Date.now() - entry;
-    return ms < 0 ? null : Math.floor(ms / 60_000);
-  } catch {
-    return null;
-  }
-}
-
-/** Time badge color: grey <30m, orange 30m–2h, red >2h */
-function getTimeBadgeColor(waitingMinutes: number | null): string {
-  if (waitingMinutes == null) return PALETTE.textSecondary;
-  if (waitingMinutes < 30) return PALETTE.textSecondary;
-  if (waitingMinutes < 120) return PALETTE.warningOrange;
-  return PALETTE.primaryRed;
-}
+// Re-export for any screen that needs the list item type
+export type { TicketListItem } from "@/types/ticket";
 
 function TicketRow({
   item,
@@ -203,9 +71,9 @@ function TicketRow({
       style={({ pressed }) => [
         styles.card,
         {
-          backgroundColor: PALETTE.card,
+          backgroundColor: ScreenPalette.card,
           borderLeftWidth: isOverdue ? 2 : 0,
-          borderLeftColor: PALETTE.primaryRed,
+          borderLeftColor: ScreenPalette.primaryRed,
           opacity: pressed ? 0.92 : 1,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 2 },
@@ -219,7 +87,7 @@ function TicketRow({
         <View style={styles.cardTop}>
           <ThemedText
             type="h4"
-            style={[styles.tokenNo, { color: isOpenList ? PALETTE.primaryRed : PALETTE.textPrimary }]}
+            style={[styles.tokenNo, { color: isOpenList ? ScreenPalette.primaryRed : ScreenPalette.textPrimary }]}
           >
             #{item.token_no}
           </ThemedText>
@@ -234,7 +102,7 @@ function TicketRow({
               </ThemedText>
             </View>
           ) : (
-            <View style={[styles.completedBadge, { backgroundColor: PALETTE.successGreen }]}>
+            <View style={[styles.completedBadge, { backgroundColor: ScreenPalette.successGreen }]}>
               <ThemedText type="small" style={styles.completedBadgeText} numberOfLines={1}>
                 Completed • {duration}
               </ThemedText>
@@ -245,56 +113,56 @@ function TicketRow({
         {isOpenList ? (
           <>
             {item.name != null && item.name !== "" && (
-              <ThemedText type="body" style={[styles.cardName, { color: PALETTE.textPrimary }]} numberOfLines={1}>
+              <ThemedText type="body" style={[styles.cardName, { color: ScreenPalette.textPrimary }]} numberOfLines={1}>
                 {item.name}
               </ThemedText>
             )}
             {item.phone != null && item.phone !== "" && (
-              <ThemedText type="small" style={[styles.cardMeta, { color: PALETTE.textSecondary }]} numberOfLines={1}>
+              <ThemedText type="small" style={[styles.cardMeta, { color: ScreenPalette.textSecondary }]} numberOfLines={1}>
                 {item.phone}
               </ThemedText>
             )}
             {(item.purpose != null || item.reason != null) && category !== "—" && (
-              <ThemedText type="small" style={[styles.cardMeta, { color: PALETTE.textSecondary }]} numberOfLines={1}>
+              <ThemedText type="small" style={[styles.cardMeta, { color: ScreenPalette.textSecondary }]} numberOfLines={1}>
                 {category}
               </ThemedText>
             )}
-            <ThemedText type="small" style={[styles.cardTime, { color: PALETTE.textSecondary }]}>
+            <ThemedText type="small" style={[styles.cardTime, { color: ScreenPalette.textSecondary }]}>
               Entered {formatEntryTime(item.entry_time)}
             </ThemedText>
           </>
         ) : (
           <>
-            <ThemedText type="small" style={[styles.cardTime, { color: PALETTE.textSecondary }]}>
+            <ThemedText type="small" style={[styles.cardTime, { color: ScreenPalette.textSecondary }]}>
               Entered: {formatEntryTime(item.entry_time)}
             </ThemedText>
             {item.exit_time && (
-              <ThemedText type="small" style={[styles.cardTime, { color: PALETTE.textSecondary }]}>
+              <ThemedText type="small" style={[styles.cardTime, { color: ScreenPalette.textSecondary }]}>
                 Exited: {formatEntryTime(item.exit_time)}
               </ThemedText>
             )}
             {item.name != null && item.name !== "" && (
-              <ThemedText type="body" style={[styles.cardName, styles.cardNameClosed, { color: PALETTE.textPrimary }]} numberOfLines={1}>
+              <ThemedText type="body" style={[styles.cardName, styles.cardNameClosed, { color: ScreenPalette.textPrimary }]} numberOfLines={1}>
                 {item.name}
               </ThemedText>
             )}
             {item.phone != null && item.phone !== "" && (
-              <ThemedText type="small" style={[styles.cardMeta, { color: PALETTE.textSecondary }]} numberOfLines={1}>
+              <ThemedText type="small" style={[styles.cardMeta, { color: ScreenPalette.textSecondary }]} numberOfLines={1}>
                 {item.phone}
               </ThemedText>
             )}
             {item.regNumber != null && item.regNumber !== "" && (
-              <ThemedText type="small" style={[styles.cardMeta, styles.cardVehicle, { color: PALETTE.textSecondary }]} numberOfLines={1}>
+              <ThemedText type="small" style={[styles.cardMeta, styles.cardVehicle, { color: ScreenPalette.textSecondary }]} numberOfLines={1}>
                 {item.regNumber}
               </ThemedText>
             )}
             {(item.purpose != null || item.reason != null) && category !== "—" && (
-              <ThemedText type="small" style={[styles.cardMeta, { color: PALETTE.textSecondary }]} numberOfLines={1}>
+              <ThemedText type="small" style={[styles.cardMeta, { color: ScreenPalette.textSecondary }]} numberOfLines={1}>
                 {category}
               </ThemedText>
             )}
             <View style={styles.cardDivider} />
-            <ThemedText type="small" style={[styles.cardDuration, { color: PALETTE.textSecondary }]}>
+            <ThemedText type="small" style={[styles.cardDuration, { color: ScreenPalette.textSecondary }]}>
               Total Duration: {duration}
             </ThemedText>
           </>
@@ -316,7 +184,7 @@ async function fetchTicketList(
     if (!res.ok) return [];
     const json = (await res.json()) as { success?: boolean; data?: unknown[] };
     const list = Array.isArray(json.data) ? json.data as Record<string, unknown>[] : [];
-    return list.map((item) => normalizeTicket(item));
+    return list.map((item) => normalizeTicketListItem(item));
   } catch {
     return [];
   }
@@ -392,15 +260,15 @@ export default function TicketListScreen() {
   const screenWidth = Dimensions.get("window").width;
 
   return (
-    <View style={[styles.container, { backgroundColor: PALETTE.background }]}>
+    <View style={[styles.container, { backgroundColor: ScreenPalette.background }]}>
       {/* Premium header: dark charcoal gradient, circular buttons, title + subtitle */}
       <View style={[styles.headerWrap, { paddingTop: insets.top + Spacing.md }]}>
         <View style={styles.headerGradientWrap}>
           <Svg width={screenWidth} height={HEADER_HEIGHT} style={StyleSheet.absoluteFill}>
             <Defs>
               <SvgLinearGradient id="headerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <Stop offset="0%" stopColor={PALETTE.headerGradientStart} stopOpacity={1} />
-                <Stop offset="100%" stopColor={PALETTE.headerGradientEnd} stopOpacity={1} />
+                <Stop offset="0%" stopColor={ScreenPalette.headerGradientStart} stopOpacity={1} />
+                <Stop offset="100%" stopColor={ScreenPalette.headerGradientEnd} stopOpacity={1} />
               </SvgLinearGradient>
             </Defs>
             <Rect x={0} y={0} width={screenWidth} height={HEADER_HEIGHT} fill="url(#headerGrad)" />
@@ -416,7 +284,7 @@ export default function TicketListScreen() {
               accessibilityLabel="Go back"
             >
               <View style={styles.headerCircleInner}>
-                <Feather name="chevron-left" size={22} color={PALETTE.textPrimary} />
+                <Feather name="chevron-left" size={22} color={ScreenPalette.textPrimary} />
               </View>
             </Pressable>
             <View style={styles.headerCenter}>
@@ -437,7 +305,7 @@ export default function TicketListScreen() {
               accessibilityLabel="Refresh"
             >
               <View style={styles.headerCircleInner}>
-                <Feather name="refresh-cw" size={20} color={PALETTE.textPrimary} />
+                <Feather name="refresh-cw" size={20} color={ScreenPalette.textPrimary} />
               </View>
             </Pressable>
           </View>
@@ -447,18 +315,18 @@ export default function TicketListScreen() {
 
       {isLoading ? (
         <View style={[styles.center, { paddingBottom: insets.bottom + Spacing.xl }]}>
-          <ActivityIndicator size="large" color={isOpen ? PALETTE.primaryRed : PALETTE.successGreen} />
-          <ThemedText type="body" style={[styles.loadingText, { color: PALETTE.textSecondary }]}>
+          <ActivityIndicator size="large" color={isOpen ? ScreenPalette.primaryRed : ScreenPalette.successGreen} />
+          <ThemedText type="body" style={[styles.loadingText, { color: ScreenPalette.textSecondary }]}>
             Loading {isOpen ? "open" : "closed"} tickets…
           </ThemedText>
         </View>
       ) : list.length === 0 ? (
         <View style={[styles.center, { paddingBottom: insets.bottom + Spacing.xl }]}>
-          <Feather name={isOpen ? "inbox" : "archive"} size={48} color={PALETTE.textSecondary} />
-          <ThemedText type="h4" style={[styles.emptyTitle, { color: PALETTE.textPrimary }]}>
+          <Feather name={isOpen ? "inbox" : "archive"} size={48} color={ScreenPalette.textSecondary} />
+          <ThemedText type="h4" style={[styles.emptyTitle, { color: ScreenPalette.textPrimary }]}>
             No {isOpen ? "open" : "closed"} tickets
           </ThemedText>
-          <ThemedText type="body" style={[styles.emptySubtitle, { color: PALETTE.textSecondary }]}>
+          <ThemedText type="body" style={[styles.emptySubtitle, { color: ScreenPalette.textSecondary }]}>
             {isOpen ? "Tickets will appear here when created." : "Closed tickets will appear here."}
           </ThemedText>
         </View>
@@ -479,7 +347,7 @@ export default function TicketListScreen() {
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={() => refetch()}
-              tintColor={isOpen ? PALETTE.primaryRed : PALETTE.successGreen}
+              tintColor={isOpen ? ScreenPalette.primaryRed : ScreenPalette.successGreen}
             />
           }
           ListHeaderComponent={
@@ -504,18 +372,18 @@ export default function TicketListScreen() {
               )}
               <View style={styles.searchBarWrap}>
                 <View style={styles.searchBarInner}>
-                  <Feather name="search" size={20} color={PALETTE.textSecondary} style={styles.searchIcon} />
+                  <Feather name="search" size={20} color={ScreenPalette.textSecondary} style={styles.searchIcon} />
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Search by token, name, phone…"
-                    placeholderTextColor={PALETTE.textSecondary}
+                    placeholderTextColor={ScreenPalette.textSecondary}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     returnKeyType="search"
                   />
                   {searchQuery.length > 0 ? (
                     <Pressable onPress={() => setSearchQuery("")} hitSlop={Spacing.md} style={styles.searchClear}>
-                      <Feather name="x-circle" size={20} color={PALETTE.textSecondary} />
+                      <Feather name="x-circle" size={20} color={ScreenPalette.textSecondary} />
                     </Pressable>
                   ) : null}
                 </View>
@@ -524,7 +392,7 @@ export default function TicketListScreen() {
           }
           ListEmptyComponent={
             <View style={styles.emptySearch}>
-              <ThemedText type="body" style={{ color: PALETTE.textSecondary }}>
+              <ThemedText type="body" style={{ color: ScreenPalette.textSecondary }}>
                 {showOver2HoursOnly ? "No overdue tickets (2h+)." : "No tickets match your search."}
               </ThemedText>
             </View>
@@ -561,7 +429,7 @@ const styles = StyleSheet.create({
     width: HEADER_BUTTON_SIZE,
     height: HEADER_BUTTON_SIZE,
     borderRadius: HEADER_BUTTON_SIZE / 2,
-    backgroundColor: PALETTE.headerButtonBg,
+    backgroundColor: ScreenPalette.headerButtonBg,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -582,16 +450,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
-    color: PALETTE.textPrimary,
+    color: ScreenPalette.textPrimary,
     fontWeight: "700",
   },
   headerSubtitle: {
-    color: PALETTE.textSecondary,
+    color: ScreenPalette.textSecondary,
     marginTop: 2,
   },
   headerDivider: {
     height: 1,
-    backgroundColor: PALETTE.divider,
+    backgroundColor: ScreenPalette.divider,
   },
   center: {
     flex: 1,
@@ -620,7 +488,7 @@ const styles = StyleSheet.create({
     height: Spacing.md,
   },
   alertBanner: {
-    backgroundColor: PALETTE.alertGradientEnd,
+    backgroundColor: ScreenPalette.alertGradientEnd,
     borderRadius: CARD_RADIUS,
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.xl,
@@ -653,7 +521,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "rgba(42, 46, 54, 0.8)",
     borderWidth: 1,
-    borderColor: PALETTE.divider,
+    borderColor: ScreenPalette.divider,
   },
   searchBarInner: {
     flex: 1,
@@ -670,7 +538,7 @@ const styles = StyleSheet.create({
     height: "100%",
     paddingVertical: 0,
     fontSize: 16,
-    color: PALETTE.textPrimary,
+    color: ScreenPalette.textPrimary,
   },
   searchClear: {
     padding: Spacing.xs,
@@ -732,7 +600,7 @@ const styles = StyleSheet.create({
   },
   cardDivider: {
     height: 1,
-    backgroundColor: PALETTE.divider,
+    backgroundColor: ScreenPalette.divider,
     marginVertical: Spacing.md,
   },
   cardDuration: {

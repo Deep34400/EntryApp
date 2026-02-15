@@ -16,21 +16,12 @@ import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Spacing } from "@/constants/theme";
+import { ScreenPalette } from "@/constants/screenPalette";
+import { formatDateTime } from "@/lib/format";
 import { fetchWithAuthRetry, apiRequestWithAuthRetry } from "@/lib/query-client";
 import { getEntryAppDetailPath, getEntryAppUpdatePath } from "@/lib/api-endpoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-
-// Dark premium palette (Gate Entry)
-const PALETTE = {
-  background: "#0F1115",
-  card: "#1A1D24",
-  primaryRed: "#E53935",
-  successGreen: "#2ECC71",
-  textPrimary: "#FFFFFF",
-  textSecondary: "#A0A4AB",
-  divider: "#2A2E36",
-} as const;
 
 const CARD_RADIUS = 18;
 
@@ -52,19 +43,6 @@ export interface TicketDetailResult {
   assignee?: string;
   desk_location?: string;
   purpose?: string;
-}
-
-function formatDateTime(iso?: string | null): string {
-  if (iso == null || iso === "") return "—";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  } catch {
-    return String(iso);
-  }
 }
 
 /** GET /api/v1/entry-app/:id → { success, data }. On 401 tries refresh then retries. */
@@ -126,7 +104,7 @@ function DetailRowWithIcon({
   return (
     <View style={styles.detailRowWithIcon}>
       <View style={styles.detailIconWrap}>
-        <Feather name={icon} size={18} color={PALETTE.textSecondary} />
+        <Feather name={icon} size={18} color={ScreenPalette.textSecondary} />
       </View>
       <View style={styles.detailContent}>
         <ThemedText type="small" style={styles.detailLabel}>
@@ -198,7 +176,7 @@ export default function TicketDetailScreen() {
 
   if (isLoading || !ticket) {
     return (
-      <View style={[styles.container, { backgroundColor: PALETTE.background }]}>
+      <View style={[styles.container, { backgroundColor: ScreenPalette.background }]}>
         <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
           <Pressable
             onPress={() => {
@@ -208,7 +186,7 @@ export default function TicketDetailScreen() {
             style={({ pressed }) => [styles.headerBack, { opacity: pressed ? 0.7 : 1 }]}
             hitSlop={16}
           >
-            <Feather name="chevron-left" size={24} color={PALETTE.textPrimary} />
+            <Feather name="chevron-left" size={24} color={ScreenPalette.textPrimary} />
           </Pressable>
           <ThemedText type="h3" style={styles.headerTitle}>
             Ticket Details
@@ -218,24 +196,24 @@ export default function TicketDetailScreen() {
             style={({ pressed }) => [styles.headerHome, { opacity: pressed ? 0.7 : 1 }]}
             hitSlop={12}
           >
-            <Feather name="home" size={22} color={PALETTE.textPrimary} />
+            <Feather name="home" size={22} color={ScreenPalette.textPrimary} />
           </Pressable>
         </View>
         <View style={[styles.center, { paddingBottom: insets.bottom + Spacing.xl }]}>
           {isLoading ? (
             <>
-              <ActivityIndicator size="large" color={PALETTE.primaryRed} />
-              <ThemedText type="body" style={[styles.loadingText, { color: PALETTE.textSecondary }]}>
+              <ActivityIndicator size="large" color={ScreenPalette.primaryRed} />
+              <ThemedText type="body" style={[styles.loadingText, { color: ScreenPalette.textSecondary }]}>
                 Loading ticket…
               </ThemedText>
             </>
           ) : (
             <>
-              <Feather name="alert-circle" size={48} color={PALETTE.textSecondary} />
-              <ThemedText type="h4" style={[styles.errorTitle, { color: PALETTE.textPrimary }]}>
+              <Feather name="alert-circle" size={48} color={ScreenPalette.textSecondary} />
+              <ThemedText type="h4" style={[styles.errorTitle, { color: ScreenPalette.textPrimary }]}>
                 Ticket not found
               </ThemedText>
-              <ThemedText type="body" style={[styles.errorSubtitle, { color: PALETTE.textSecondary }]}>
+              <ThemedText type="body" style={[styles.errorSubtitle, { color: ScreenPalette.textSecondary }]}>
                 The ticket may have been removed or the link is invalid.
               </ThemedText>
             </>
@@ -246,7 +224,7 @@ export default function TicketDetailScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: PALETTE.background }]}>
+    <View style={[styles.container, { backgroundColor: ScreenPalette.background }]}>
       {/* Custom header */}
       <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
         <Pressable
@@ -258,7 +236,7 @@ export default function TicketDetailScreen() {
           hitSlop={16}
           accessibilityLabel="Go back"
         >
-          <Feather name="chevron-left" size={24} color={PALETTE.textPrimary} />
+          <Feather name="chevron-left" size={24} color={ScreenPalette.textPrimary} />
         </Pressable>
         <ThemedText type="h3" style={styles.headerTitle}>
           Ticket Details
@@ -269,7 +247,7 @@ export default function TicketDetailScreen() {
           hitSlop={12}
           accessibilityLabel="Home"
         >
-          <Feather name="home" size={22} color={PALETTE.textPrimary} />
+          <Feather name="home" size={22} color={ScreenPalette.textPrimary} />
         </Pressable>
       </View>
 
@@ -284,7 +262,7 @@ export default function TicketDetailScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={() => refetch()}
-            tintColor={PALETTE.primaryRed}
+            tintColor={ScreenPalette.primaryRed}
           />
         }
       >
@@ -296,14 +274,14 @@ export default function TicketDetailScreen() {
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: closed ? `${PALETTE.successGreen}30` : `${PALETTE.primaryRed}30` },
+              { backgroundColor: closed ? `${ScreenPalette.successGreen}30` : `${ScreenPalette.primaryRed}30` },
             ]}
           >
             <ThemedText
               type="small"
               style={[
                 styles.statusText,
-                { color: closed ? PALETTE.successGreen : PALETTE.primaryRed },
+                { color: closed ? ScreenPalette.successGreen : ScreenPalette.primaryRed },
               ]}
             >
               {statusLabel}
@@ -335,7 +313,7 @@ export default function TicketDetailScreen() {
           )}
           {ticket.desk_location != null && ticket.desk_location !== "" && (
             <View style={styles.locationRow}>
-              <Feather name="map-pin" size={16} color={PALETTE.textSecondary} />
+              <Feather name="map-pin" size={16} color={ScreenPalette.textSecondary} />
               <ThemedText type="body" style={styles.locationText} numberOfLines={2}>
                 {ticket.desk_location}
               </ThemedText>
@@ -417,7 +395,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: PALETTE.divider,
+    borderBottomColor: ScreenPalette.divider,
   },
   headerBack: {
     minWidth: 48,
@@ -425,7 +403,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
-    color: PALETTE.textPrimary,
+    color: ScreenPalette.textPrimary,
     fontWeight: "700",
   },
   headerHome: {
@@ -461,7 +439,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   tokenNumber: {
-    color: PALETTE.textPrimary,
+    color: ScreenPalette.textPrimary,
     fontWeight: "700",
     marginBottom: Spacing.sm,
   },
@@ -475,7 +453,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   section: {
-    backgroundColor: PALETTE.card,
+    backgroundColor: ScreenPalette.card,
     borderRadius: CARD_RADIUS,
     padding: 20,
     marginBottom: Spacing.lg,
@@ -486,7 +464,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   sectionTitle: {
-    color: PALETTE.textSecondary,
+    color: ScreenPalette.textSecondary,
     fontWeight: "600",
     marginBottom: Spacing.lg,
     textTransform: "uppercase",
@@ -507,22 +485,22 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   detailLabel: {
-    color: PALETTE.textSecondary,
+    color: ScreenPalette.textSecondary,
     marginBottom: 2,
   },
   detailValue: {
-    color: PALETTE.textPrimary,
+    color: ScreenPalette.textPrimary,
   },
   assigneeBadge: {
     alignSelf: "flex-start",
-    backgroundColor: `${PALETTE.primaryRed}20`,
+    backgroundColor: `${ScreenPalette.primaryRed}20`,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 14,
     marginBottom: Spacing.md,
   },
   assigneeBadgeText: {
-    color: PALETTE.textPrimary,
+    color: ScreenPalette.textPrimary,
     fontWeight: "600",
   },
   locationRow: {
@@ -531,7 +509,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   locationText: {
-    color: PALETTE.textPrimary,
+    color: ScreenPalette.textPrimary,
     flex: 1,
   },
   timeline: {
@@ -549,17 +527,17 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   timelineDotFilled: {
-    backgroundColor: PALETTE.primaryRed,
+    backgroundColor: ScreenPalette.primaryRed,
   },
   timelineDotEmpty: {
     backgroundColor: "transparent",
     borderWidth: 2,
-    borderColor: PALETTE.divider,
+    borderColor: ScreenPalette.divider,
   },
   timelineLine: {
     width: 2,
     height: 24,
-    backgroundColor: PALETTE.divider,
+    backgroundColor: ScreenPalette.divider,
     marginLeft: 5,
     marginVertical: 0,
   },
@@ -576,7 +554,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: PALETTE.primaryRed,
+    backgroundColor: ScreenPalette.primaryRed,
     paddingVertical: 16,
     paddingHorizontal: Spacing.xl,
     borderRadius: CARD_RADIUS,
@@ -590,7 +568,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   closeHint: {
-    color: PALETTE.textSecondary,
+    color: ScreenPalette.textSecondary,
     textAlign: "center",
   },
 });
