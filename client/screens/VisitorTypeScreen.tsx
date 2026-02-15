@@ -323,11 +323,12 @@ export default function VisitorTypeScreen() {
               onPress={handleClosedTickets}
               style={({ pressed }) => [
                 styles.statCard,
+                styles.statCardClosed,
                 {
-                  backgroundColor: theme.surface,
+                  backgroundColor: theme.successBackground,
                   opacity: pressed ? 0.92 : 1,
                   borderWidth: 1,
-                  borderColor: theme.border,
+                  borderColor: theme.success,
                   shadowColor: theme.shadowColor,
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: isDark ? 0.15 : 0.04,
@@ -338,18 +339,18 @@ export default function VisitorTypeScreen() {
               accessibilityLabel={`CLOSED: ${closedCount}`}
             >
               <View style={styles.statCardTop}>
-                <ThemedText type="small" style={[styles.statCardSubtitleGrey, { color: theme.textSecondary }]}>
+                <ThemedText type="small" style={[styles.statCardSubtitle, { color: theme.successText }]}>
                   Today Completed
                 </ThemedText>
               </View>
               {isFetching ? (
-                <ActivityIndicator size="small" color={theme.text} />
+                <ActivityIndicator size="small" color={theme.successText} />
               ) : (
-                <ThemedText type="h1" style={{ color: theme.text }}>
+                <ThemedText type="h1" style={[styles.statCardNumber, { color: theme.successText }]}>
                   {closedCount}
                 </ThemedText>
               )}
-              <ThemedText type="small" style={[styles.statCardLabelGrey, { color: theme.textSecondary }]}>
+              <ThemedText type="small" style={[styles.statCardLabel, { color: theme.successText }]}>
                 CLOSED
               </ThemedText>
             </Pressable>
@@ -551,6 +552,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  statCardClosed: {},
   statCardTop: {
     flexDirection: "row",
     alignItems: "center",
@@ -559,17 +561,10 @@ const styles = StyleSheet.create({
   statCardSubtitle: {
     letterSpacing: 0.3,
   },
-  statCardSubtitleGrey: {
-    letterSpacing: 0.3,
-  },
   statCardNumber: {
     fontWeight: "700",
   },
   statCardLabel: {
-    letterSpacing: 0.5,
-    fontWeight: "600",
-  },
-  statCardLabelGrey: {
     letterSpacing: 0.5,
     fontWeight: "600",
   },

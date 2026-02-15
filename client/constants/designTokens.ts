@@ -19,6 +19,15 @@ export const DesignTokens = {
   semantic: {
     overdueStrip: "#8B2A30",
     overdueBadgeText: "#E8B4B8",
+    /** Light green background for CLOSED/success cards (enterprise-grade). */
+    successBackground: "#E6F4EA",
+    /** Dark green text on success cards — readable, not neon. */
+    successText: "#166534",
+  },
+  /** Dark theme success card — light green tint on dark. */
+  semanticDark: {
+    successBackground: "#1E3A2F",
+    successText: "#4ADE80",
   },
 
   /** Light theme — warm neutrals. */

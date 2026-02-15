@@ -4,7 +4,7 @@ import { DesignTokens } from "@/constants/designTokens";
 /** Re-export so design system can be imported from one place: @/constants/theme */
 export { DesignTokens } from "@/constants/designTokens";
 
-const { brand, semantic, light: lightN, dark: darkN, overlay, shadow } = DesignTokens;
+const { brand, semantic, semanticDark, light: lightN, dark: darkN, overlay, shadow } = DesignTokens;
 
 export type ThemeColors = {
   text: string;
@@ -33,6 +33,10 @@ export type ThemeColors = {
   /** Overdue strip/badge. */
   overdueStrip: string;
   overdueBadgeText: string;
+  /** CLOSED/success card background (light green). */
+  successBackground: string;
+  /** CLOSED/success card text (dark green). */
+  successText: string;
   /** Modal/drawer backdrop. */
   overlayBackdrop: string;
   overlayScrim: string;
@@ -67,6 +71,8 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     onPrimary: brand.onPrimary,
     overdueStrip: semantic.overdueStrip,
     overdueBadgeText: semantic.overdueBadgeText,
+    successBackground: semantic.successBackground,
+    successText: semantic.successText,
     overlayBackdrop: overlay.backdrop,
     overlayScrim: overlay.modalScrim,
     shadowColor: shadow.light,
@@ -94,6 +100,8 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     onPrimary: brand.onPrimary,
     overdueStrip: semantic.overdueStrip,
     overdueBadgeText: semantic.overdueBadgeText,
+    successBackground: semanticDark.successBackground,
+    successText: semanticDark.successText,
     overlayBackdrop: overlay.backdrop,
     overlayScrim: overlay.modalScrim,
     shadowColor: shadow.dark,
