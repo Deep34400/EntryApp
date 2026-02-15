@@ -553,7 +553,7 @@ export default function VisitorPurposeScreen() {
                   style={({ pressed }) => [
                     styles.modalItemCard,
                     {
-                      backgroundColor: theme.backgroundRoot ?? theme.backgroundSecondary,
+                      backgroundColor: theme.backgroundDefault,
                       opacity: pressed ? 0.9 : 1,
                       borderColor: theme.border,
                     },

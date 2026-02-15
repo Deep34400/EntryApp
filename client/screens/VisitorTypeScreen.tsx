@@ -34,14 +34,11 @@ import { useUser } from "@/contexts/UserContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList, EntryType } from "@/navigation/RootStackNavigator";
 
-// Gate Entry premium palette
-const GATE_GRADIENT_START = "#C62828";
-const GATE_GRADIENT_END = "#8E0000";
-const GATE_BG_LIGHT = "#F7F9FC";
-const GATE_CARD_WHITE = "#FFFFFF";
-const GATE_ORANGE_RED = "#D84315";
+// Carrum brand — use theme.primary / theme.primaryDark for gradients and accents
 const CARD_RADIUS = 18;
 const HEADER_CURVE = 28;
+const LIGHT_CARD = "#FFFFFF";
+const LIGHT_BG = "#F7F9FC";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
 
@@ -68,7 +65,7 @@ function VisitorTypeCard({
 }: VisitorTypeCardProps) {
   const { theme, isDark } = useTheme();
   const scale = useSharedValue(1);
-  const cardBg = isDark ? theme.backgroundDefault : GATE_CARD_WHITE;
+  const cardBg = isDark ? theme.backgroundDefault : LIGHT_CARD;
   const subtitleColor = isDark ? theme.textSecondary : "#6B7280";
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -212,7 +209,7 @@ export default function VisitorTypeScreen() {
 
   const screenWidth = Dimensions.get("window").width;
   const drawerWidth = Math.min(screenWidth * 0.82, 320);
-  const pageBg = isDark ? theme.backgroundRoot : GATE_BG_LIGHT;
+  const pageBg = isDark ? theme.backgroundRoot : LIGHT_BG;
 
   const visitorTypes = [
     {
@@ -220,14 +217,14 @@ export default function VisitorTypeScreen() {
       title: "Delivery Partner Entry",
       description: "Delivery partner – onboarding, settlement, vehicle optional.",
       icon: "truck" as keyof typeof Feather.glyphMap,
-      iconBgColor: GATE_GRADIENT_END,
+      iconBgColor: theme.primaryDark,
     },
     {
       type: "non_dp" as EntryType,
       title: "Staff Entry",
       description: "Self recovery, testing, police, test drive, personal use.",
       icon: "user" as keyof typeof Feather.glyphMap,
-      iconBgColor: GATE_ORANGE_RED,
+      iconBgColor: theme.primary,
     },
   ];
 
@@ -258,8 +255,8 @@ export default function VisitorTypeScreen() {
                 x2="0%"
                 y2="100%"
               >
-                <Stop offset="0%" stopColor={GATE_GRADIENT_START} stopOpacity={1} />
-                <Stop offset="100%" stopColor={GATE_GRADIENT_END} stopOpacity={1} />
+                <Stop offset="0%" stopColor={theme.primary} stopOpacity={1} />
+                <Stop offset="100%" stopColor={theme.primaryDark} stopOpacity={1} />
               </SvgLinearGradient>
             </Defs>
             <Rect x={0} y={0} width={screenWidth} height={100} fill="url(#headerGrad)" />
@@ -323,7 +320,7 @@ export default function VisitorTypeScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={() => refetch()}
-            tintColor={GATE_GRADIENT_END}
+            tintColor={theme.primary}
           />
         }
       >
@@ -335,7 +332,11 @@ export default function VisitorTypeScreen() {
               style={({ pressed }) => [
                 styles.statCard,
                 styles.statCardOpen,
-                { opacity: pressed ? 0.92 : 1 },
+                {
+                  opacity: pressed ? 0.92 : 1,
+                  backgroundColor: theme.primary,
+                  shadowColor: theme.primary,
+                },
               ]}
               accessibilityLabel={`OPEN: ${openCount}`}
             >
@@ -393,7 +394,7 @@ export default function VisitorTypeScreen() {
 
         {/* Select Entry Purpose */}
         <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.sectionHeader}>
-          <Feather name="shield" size={20} color={GATE_GRADIENT_END} />
+          <Feather name="shield" size={20} color={theme.primary} />
           <ThemedText type="h3" style={[styles.sectionTitle, { color: theme.text }]}>
             Select Entry Purpose
           </ThemedText>
@@ -430,7 +431,7 @@ export default function VisitorTypeScreen() {
             style={[
               styles.drawerPanel,
               {
-                backgroundColor: isDark ? theme.backgroundDefault : GATE_CARD_WHITE,
+                backgroundColor: isDark ? theme.backgroundDefault : LIGHT_CARD,
                 paddingTop: insets.top + Spacing.xl,
                 paddingBottom: insets.bottom + Spacing.xl,
               },
@@ -481,8 +482,8 @@ export default function VisitorTypeScreen() {
                 onPress={handleLogout}
                 style={({ pressed }) => [styles.drawerItem, styles.drawerItemDanger, { opacity: pressed ? 0.7 : 1 }]}
               >
-                <Feather name="power" size={22} color="#DC2626" />
-                <ThemedText type="body" style={styles.drawerItemDangerText}>Logout</ThemedText>
+                <Feather name="power" size={22} color={theme.error} />
+                <ThemedText type="body" style={[styles.drawerItemDangerText, { color: theme.error }]}>Logout</ThemedText>
               </Pressable>
             </View>
           </View>
@@ -578,8 +579,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   statCardOpen: {
-    backgroundColor: GATE_GRADIENT_END,
-    shadowColor: GATE_GRADIENT_END,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 10,
@@ -705,7 +704,6 @@ const styles = StyleSheet.create({
   },
   drawerItemDanger: {},
   drawerItemDangerText: {
-    color: "#DC2626",
     fontWeight: "600",
   },
 });

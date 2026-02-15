@@ -1,50 +1,51 @@
 import { Platform } from "react-native";
+import { DesignTokens } from "@/constants/designTokens";
+
+/** Re-export so design system can be imported from one place: @/constants/theme */
+export { DesignTokens } from "@/constants/designTokens";
+
+const { brand, light: lightNeutrals, dark: darkNeutrals } = DesignTokens;
 
 /**
- * Color theme aligned with company logo:
- * Deep crimson/maroon (subdued, rich red) + warm neutrals for a cohesive, premium look.
+ * Theme colors derived from design tokens.
+ * Change DesignTokens.brand in designTokens.ts to rebrand the whole app.
  */
-const primaryColor = "#9B2C2C";
-const primaryDark = "#7F1D1D";
-const successColor = "#059669";
-const errorColor = "#DC2626";
-
 export const Colors = {
   light: {
-    text: "#1C1917",
-    textSecondary: "#78716C",
+    text: lightNeutrals.text,
+    textSecondary: lightNeutrals.textSecondary,
     buttonText: "#FFFFFF",
-    tabIconDefault: "#78716C",
-    tabIconSelected: primaryColor,
-    link: primaryColor,
-    linkPressed: primaryDark,
-    backgroundRoot: "#FAFAF9",
-    backgroundDefault: "#F5F5F4",
-    backgroundSecondary: "#E7E5E4",
-    backgroundTertiary: "#D6D3D1",
-    border: "#E7E5E4",
-    success: successColor,
-    error: errorColor,
-    primary: primaryColor,
-    primaryDark: primaryDark,
+    tabIconDefault: lightNeutrals.textSecondary,
+    tabIconSelected: brand.primary,
+    link: brand.primary,
+    linkPressed: brand.primaryDark,
+    backgroundRoot: lightNeutrals.backgroundRoot,
+    backgroundDefault: lightNeutrals.backgroundDefault,
+    backgroundSecondary: lightNeutrals.backgroundSecondary,
+    backgroundTertiary: lightNeutrals.backgroundTertiary,
+    border: lightNeutrals.border,
+    success: brand.success,
+    error: brand.error,
+    primary: brand.primary,
+    primaryDark: brand.primaryDark,
   },
   dark: {
-    text: "#FAFAF9",
-    textSecondary: "#A8A29E",
+    text: darkNeutrals.text,
+    textSecondary: darkNeutrals.textSecondary,
     buttonText: "#FFFFFF",
-    tabIconDefault: "#A8A29E",
-    tabIconSelected: primaryColor,
-    link: primaryColor,
-    linkPressed: primaryDark,
-    backgroundRoot: "#1C1917",
-    backgroundDefault: "#292524",
-    backgroundSecondary: "#44403C",
-    backgroundTertiary: "#57534E",
-    border: "#44403C",
-    success: successColor,
-    error: errorColor,
-    primary: primaryColor,
-    primaryDark: primaryDark,
+    tabIconDefault: darkNeutrals.textSecondary,
+    tabIconSelected: brand.primary,
+    link: brand.primary,
+    linkPressed: brand.primaryDark,
+    backgroundRoot: darkNeutrals.backgroundRoot,
+    backgroundDefault: darkNeutrals.backgroundDefault,
+    backgroundSecondary: darkNeutrals.backgroundSecondary,
+    backgroundTertiary: darkNeutrals.backgroundTertiary,
+    border: darkNeutrals.border,
+    success: brand.success,
+    error: brand.error,
+    primary: brand.primary,
+    primaryDark: brand.primaryDark,
   },
 };
 
