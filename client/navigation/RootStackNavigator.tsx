@@ -6,6 +6,7 @@ import { BackHeaderButton } from "@/components/BackHeaderButton";
 import { HomeHeaderButton } from "@/components/HomeHeaderButton";
 import { ThemeToggleHeaderButton } from "@/components/ThemeToggleHeaderButton";
 import LoginOtpScreen from "@/screens/LoginOtpScreen";
+import OTPVerificationScreen from "@/screens/OTPVerificationScreen";
 import VisitorTypeScreen from "@/screens/VisitorTypeScreen";
 import EntryFormScreen from "@/screens/EntryFormScreen";
 import VisitorPurposeScreen from "../screens/VisitorPurposeScreen";
@@ -27,6 +28,7 @@ export interface EntryFormData {
 
 export type RootStackParamList = {
   LoginOtp: undefined;
+  OTPVerification: { phone: string };
   VisitorType: undefined;
   EntryForm: { entryType: EntryType };
   VisitorPurpose: { entryType: EntryType; formData: EntryFormData };
@@ -70,6 +72,11 @@ export default function RootStackNavigator() {
           headerBackVisible: false,
           gestureEnabled: false,
         }}
+      />
+      <Stack.Screen
+        name="OTPVerification"
+        component={OTPVerificationScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="VisitorType"
