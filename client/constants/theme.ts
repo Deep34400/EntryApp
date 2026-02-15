@@ -127,10 +127,18 @@ export const Layout = {
   horizontalScreenPadding: 16,
   /** Minimum header height (px); flexible above this. */
   headerMinHeight: 64,
+  /** Compact header content height (e.g. curved gradient header). */
+  compactHeaderContentHeight: 56,
+  /** Bottom curve radius for compact gradient headers (px). */
+  headerCurveRadius: 16,
   /** Minimum touch target for back/header buttons (px). */
   backButtonTouchTarget: 44,
   /** Minimum touch target for primary actions (px). */
   minTouchTarget: 44,
+  /** Minimum height for stat/summary cards (compact, enterprise). */
+  statCardMinHeight: 80,
+  /** Avatar size in compact headers (px). */
+  headerAvatarSize: 36,
 } as const;
 
 export const BorderRadius = {

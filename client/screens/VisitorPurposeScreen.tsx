@@ -208,7 +208,7 @@ function PurposeGridCard({
         ]}
       >
         <View style={[styles.gridCardIconWrap, { backgroundColor: theme.primary }]}>
-          <Feather name={icon} size={28} color={theme.onPrimary} />
+          <Feather name={icon} size={22} color={theme.onPrimary} />
         </View>
         {showArrow ? (
           <View style={styles.gridCardLabelRow}>
@@ -364,14 +364,14 @@ export default function VisitorPurposeScreen() {
               borderColor: theme.border,
               shadowColor: theme.shadowColor,
               shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 10,
-              elevation: 4,
+              shadowOpacity: 0.06,
+              shadowRadius: 8,
+              elevation: 3,
             },
           ]}
         >
           <View style={[styles.headerCardIconWrap, { backgroundColor: theme.primary }]}>
-            <Feather name="shield" size={22} color={theme.onPrimary} />
+            <Feather name="shield" size={20} color={theme.onPrimary} />
           </View>
           <View style={styles.headerCardText}>
             <ThemedText type="h4" style={[styles.headerCardTitle, { color: theme.text }]}>
@@ -524,7 +524,7 @@ export default function VisitorPurposeScreen() {
         animationType="fade"
         onRequestClose={() => setShowRunningRepairModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { backgroundColor: theme.overlayBackdrop }]}>
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={() => setShowRunningRepairModal(false)}
@@ -588,24 +588,25 @@ const styles = StyleSheet.create({
   headerCard: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: Spacing.xl,
-    padding: Spacing.xl,
-    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
   },
   headerCardIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.sm,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.lg,
+    marginRight: Spacing.md,
   },
   headerCardText: {
     flex: 1,
+    minWidth: 0,
   },
   headerCardTitle: {
-    fontWeight: "700",
+    fontWeight: "600",
     marginBottom: Spacing.xs,
   },
   headerCardDesc: {
@@ -617,18 +618,18 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: "row",
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderRadius: BorderRadius.md,
     alignItems: "center",
     justifyContent: "center",
   },
   tabButtonText: {
-    fontWeight: "700",
+    fontWeight: "600",
   },
   grid: {
     flexDirection: "row",
@@ -637,27 +638,27 @@ const styles = StyleSheet.create({
   },
   gridCardWrap: {
     width: "48%",
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   gridCard: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    minHeight: 120,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    minHeight: 100,
   },
   gridCardIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.sm,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   gridCardLabel: {
     textAlign: "center",
-    fontWeight: "600",
+    fontWeight: "500",
   },
   gridCardLabelRow: {
     flexDirection: "row",
@@ -668,9 +669,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing["2xl"],
   },
   categoryTitle: {
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    marginBottom: Spacing.md,
+    fontWeight: "600",
+    letterSpacing: 0.3,
+    marginBottom: Spacing.sm,
   },
   itemsRow: {
     gap: Spacing.lg,
@@ -679,9 +680,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
   },
   itemTitle: {
     flex: 1,
@@ -697,13 +698,12 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Layout.horizontalScreenPadding,
   },
   runningRepairModalContent: {
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.xl,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
     maxHeight: "80%",
   },
   modalHeader: {
@@ -716,14 +716,14 @@ const styles = StyleSheet.create({
     padding: Spacing.xs,
   },
   modalSubtitle: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   modalItems: {
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   modalItemCard: {
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
   },

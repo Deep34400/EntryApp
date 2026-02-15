@@ -34,11 +34,6 @@ import { useUser } from "@/contexts/UserContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList, EntryType } from "@/navigation/RootStackNavigator";
 
-const CARD_RADIUS = 12;
-const HEADER_CURVE = 20;
-const HEADER_CONTENT_MIN_HEIGHT = 65;
-const HEADER_CURVE_PADDING = HEADER_CURVE + Spacing.sm;
-const HEADER_BG_HEIGHT = 80;
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
 
@@ -95,17 +90,17 @@ function VisitorTypeCard({
           {
             backgroundColor: cardBg,
             shadowColor: theme.shadowColor,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: isDark ? 0.2 : 0.08,
-            shadowRadius: 12,
-            elevation: 4,
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: isDark ? 0.15 : 0.06,
+            shadowRadius: 8,
+            elevation: 3,
           },
           animatedStyle,
         ]}
         testID={`card-${type}`}
       >
         <View style={[styles.entryCardIconWrap, { backgroundColor: iconBgColor }]}>
-          <Feather name={icon} size={22} color={theme.onPrimary} />
+          <Feather name={icon} size={20} color={theme.onPrimary} />
         </View>
         <View style={styles.entryCardContent}>
           <ThemedText type="h4" style={styles.entryCardTitle}>
@@ -232,16 +227,16 @@ export default function VisitorTypeScreen() {
           style={[
             styles.headerGradientWrap,
             {
-              borderBottomLeftRadius: HEADER_CURVE,
-              borderBottomRightRadius: HEADER_CURVE,
+              borderBottomLeftRadius: Layout.headerCurveRadius,
+              borderBottomRightRadius: Layout.headerCurveRadius,
               overflow: "hidden",
-              minHeight: HEADER_CONTENT_MIN_HEIGHT + HEADER_CURVE_PADDING + (insets.top + Spacing.sm),
+              minHeight: Layout.compactHeaderContentHeight + Layout.headerCurveRadius + Spacing.sm + (insets.top + Spacing.xs),
             },
           ]}
         >
           <Svg
             width={screenWidth}
-            height={140}
+            height={insets.top + Layout.compactHeaderContentHeight + Layout.headerCurveRadius + Spacing.md}
             style={StyleSheet.absoluteFill}
           >
             <Defs>
@@ -256,16 +251,16 @@ export default function VisitorTypeScreen() {
                 <Stop offset="100%" stopColor={theme.primaryDark} stopOpacity={1} />
               </SvgLinearGradient>
             </Defs>
-            <Rect x={0} y={0} width={screenWidth} height={140} fill="url(#headerGrad)" />
+            <Rect x={0} y={0} width={screenWidth} height={insets.top + Layout.compactHeaderContentHeight + Layout.headerCurveRadius + Spacing.md} fill="url(#headerGrad)" />
           </Svg>
           <View
             style={[
               styles.headerInner,
               {
-                paddingTop: insets.top + Spacing.sm,
-                paddingBottom: HEADER_CURVE_PADDING,
+                paddingTop: insets.top + Spacing.xs,
+                paddingBottom: Layout.headerCurveRadius + Spacing.sm,
                 paddingHorizontal: Layout.horizontalScreenPadding,
-                minHeight: HEADER_CONTENT_MIN_HEIGHT,
+                minHeight: Layout.compactHeaderContentHeight,
               },
             ]}
           >
@@ -311,7 +306,7 @@ export default function VisitorTypeScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: Math.max(insets.bottom, Spacing.md) + Spacing.lg },
+          { paddingBottom: Math.max(insets.bottom, Spacing.sm) + Spacing.xl },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -508,7 +503,7 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   headerGradientWrap: {
-    minHeight: 88,
+    minHeight: Layout.compactHeaderContentHeight + Layout.headerCurveRadius + Spacing.sm,
   },
   headerInner: {
     flex: 1,
@@ -537,16 +532,16 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   headerAvatarWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: Layout.headerAvatarSize,
+    height: Layout.headerAvatarSize,
+    borderRadius: Layout.headerAvatarSize / 2,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
   headerAvatar: {
-    width: 36,
-    height: 36,
+    width: Layout.headerAvatarSize - 4,
+    height: Layout.headerAvatarSize - 4,
   },
   headerUserName: {
     fontWeight: "700",
@@ -569,10 +564,10 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: Layout.horizontalScreenPadding,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
   },
   statsSection: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   statsRow: {
     flexDirection: "row",
@@ -580,16 +575,16 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    borderRadius: CARD_RADIUS,
-    padding: Spacing.lg,
-    minHeight: 96,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.md,
+    minHeight: Layout.statCardMinHeight,
     justifyContent: "space-between",
   },
   statCardOpen: {
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   statCardTop: {
     flexDirection: "row",
@@ -617,25 +612,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   sectionTitle: {
-    fontWeight: "700",
+    fontWeight: "600",
     letterSpacing: 0.2,
   },
   cardsContainer: {
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   entryCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: Spacing.lg,
-    borderRadius: CARD_RADIUS,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
   },
   entryCardIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.sm,
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.md,
@@ -672,9 +667,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    minHeight: 56,
+    minHeight: Layout.minTouchTarget,
     paddingVertical: 0,
-    paddingBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
     marginBottom: Spacing.md,
     borderBottomWidth: 1,
   },
@@ -688,7 +683,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   drawerProfileName: {
     flex: 1,
@@ -696,9 +691,9 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   drawerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: Layout.headerAvatarSize + 8,
+    height: Layout.headerAvatarSize + 8,
+    borderRadius: (Layout.headerAvatarSize + 8) / 2,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -713,13 +708,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
-    minHeight: 48,
-    paddingVertical: Spacing.md,
+    minHeight: Layout.minTouchTarget,
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.md,
   },
   drawerItemLogout: {
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
   },
   drawerItemDanger: {},
   drawerItemDangerText: {

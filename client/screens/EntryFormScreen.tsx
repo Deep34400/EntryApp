@@ -189,8 +189,8 @@ export default function EntryFormScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: insets.bottom + Spacing.buttonHeight + Spacing.lg,
+            paddingTop: headerHeight + Spacing.md,
+            paddingBottom: insets.bottom + Spacing.buttonHeight + Spacing.md,
           },
         ]}
       >
@@ -204,15 +204,15 @@ export default function EntryFormScreen() {
               borderColor: theme.border,
               shadowColor: theme.shadowColor,
               shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 12,
-              elevation: 4,
+              shadowOpacity: 0.06,
+              shadowRadius: 8,
+              elevation: 3,
             },
           ]}
         >
           <View style={styles.visitorCardHeader}>
             <View style={[styles.shieldIconWrap, { backgroundColor: theme.primary }]}>
-              <Feather name="shield" size={24} color={theme.onPrimary} />
+              <Feather name="shield" size={20} color={theme.onPrimary} />
             </View>
             <ThemedText type="h4" style={[styles.visitorCardTitle, { color: theme.text }]}>
               Visitor Details
@@ -314,10 +314,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   visitorCard: {
-    borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
-    padding: Spacing["2xl"],
-    marginBottom: Spacing.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
   },
   visitorCardHeader: {
     flexDirection: "row",
@@ -326,21 +326,21 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   shieldIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.sm,
     alignItems: "center",
     justifyContent: "center",
   },
   visitorCardTitle: {
-    fontWeight: "700",
+    fontWeight: "600",
   },
   visitorCardDesc: {
-    marginBottom: Spacing["2xl"],
+    marginBottom: Spacing.lg,
     lineHeight: 22,
   },
   fieldContainer: {
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
   },
   labelRow: {
     flexDirection: "row",
@@ -358,10 +358,10 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    height: 52,
+    minHeight: Layout.minTouchTarget,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    paddingLeft: Spacing.lg,
+    paddingLeft: Spacing.md,
   },
   inputIcon: {
     marginRight: Spacing.md,

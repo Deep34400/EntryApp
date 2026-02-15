@@ -85,8 +85,8 @@ export default function ProfileScreen() {
     <ScrollView
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={{
-        paddingTop: headerHeight + Spacing.lg,
-        paddingBottom: insets.bottom + Spacing["2xl"],
+        paddingTop: headerHeight + Spacing.md,
+        paddingBottom: insets.bottom + Spacing.xl,
         paddingHorizontal: Layout.horizontalScreenPadding,
       }}
       showsVerticalScrollIndicator={false}
@@ -97,7 +97,7 @@ export default function ProfileScreen() {
         style={[styles.identityCard, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}
       >
         <View style={[styles.avatarWrap, { backgroundColor: theme.primary }]}>
-          <Feather name={avatarIcon} size={36} color={theme.onPrimary} />
+          <Feather name={avatarIcon} size={28} color={theme.onPrimary} />
         </View>
         <ThemedText
           type="h4"
@@ -175,19 +175,19 @@ const styles = StyleSheet.create({
   },
   identityCard: {
     alignItems: "center",
-    marginBottom: Spacing.xl,
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
   },
   avatarWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   identityName: {
     marginBottom: Spacing.xs,
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
   },
   section: {
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   sectionLabel: {
     marginBottom: Spacing.sm,
@@ -216,8 +216,8 @@ const styles = StyleSheet.create({
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
   },
   detailIconWrap: {
     width: 36,

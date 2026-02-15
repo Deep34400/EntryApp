@@ -15,7 +15,7 @@ This document describes the **single source of truth** for the app. Change value
 ## 2. Spacing & sizing
 
 - **Scale:** `Spacing.xs` (4), `Spacing.sm` (8), `Spacing.md` (12), `Spacing.lg` (16), plus `xl`, `2xl`, etc.
-- **Layout:** `Layout.horizontalScreenPadding` (16), `Layout.headerMinHeight`, `Layout.backButtonTouchTarget`, `Layout.minTouchTarget`.
+- **Layout:** `Layout.horizontalScreenPadding` (16), `Layout.headerMinHeight`, `Layout.compactHeaderContentHeight`, `Layout.headerCurveRadius`, `Layout.backButtonTouchTarget`, `Layout.minTouchTarget`, `Layout.statCardMinHeight`, `Layout.headerAvatarSize`, `Layout.inputHeight`.
 - Use these everywhere; avoid arbitrary margins/paddings.
 
 ---

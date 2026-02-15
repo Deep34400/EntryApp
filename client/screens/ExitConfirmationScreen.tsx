@@ -41,8 +41,8 @@ export default function ExitConfirmationScreen() {
         style={[
           styles.content,
           {
-            paddingTop: insets.top + Spacing["5xl"],
-            paddingBottom: insets.bottom + Spacing.xl,
+            paddingTop: insets.top + Spacing["3xl"],
+            paddingBottom: insets.bottom + Spacing.lg,
           },
         ]}
       >
@@ -51,7 +51,7 @@ export default function ExitConfirmationScreen() {
             entering={ZoomIn.delay(100).springify()}
             style={[styles.successCircle, { backgroundColor: theme.success }]}
           >
-            <Feather name="check" size={64} color={theme.onPrimary} />
+            <Feather name="check" size={48} color={theme.onPrimary} />
           </Animated.View>
 
           <Animated.View entering={FadeIn.delay(300)}>
@@ -97,20 +97,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   successCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing["3xl"],
+    marginBottom: Spacing.xl,
   },
   title: {
     textAlign: "center",
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   message: {
     textAlign: "center",
-    marginBottom: Spacing["3xl"],
+    marginBottom: Spacing.xl,
   },
   redirect: {
     textAlign: "center",

@@ -66,7 +66,7 @@ function ReasonCard({
         ]}
       >
         <View style={[styles.iconContainer, { backgroundColor: theme.primary }]}>
-          <Feather name={icon} size={24} color={theme.onPrimary} />
+          <Feather name={icon} size={20} color={theme.onPrimary} />
         </View>
         <View style={styles.cardContent}>
           <ThemedText type="h4">{title}</ThemedText>
@@ -102,8 +102,8 @@ export default function MaintenanceReasonScreen() {
         style={[
           styles.content,
           {
-            paddingTop: headerHeight + Spacing.xl,
-            paddingBottom: insets.bottom + Spacing.xl,
+            paddingTop: headerHeight + Spacing.md,
+            paddingBottom: insets.bottom + Spacing.lg,
           },
         ]}
       >
@@ -142,28 +142,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.horizontalScreenPadding,
   },
   header: {
-    marginBottom: Spacing["3xl"],
+    marginBottom: Spacing.lg,
   },
   title: {
     marginBottom: Spacing.sm,
   },
   subtitle: {},
   cardsContainer: {
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
   card: {
     flexDirection: "row",
     alignItems: "center",
-    padding: Spacing.xl,
+    padding: Spacing.md,
     borderRadius: BorderRadius.md,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: BorderRadius.sm,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.lg,
+    marginRight: Spacing.md,
   },
   cardContent: {
     flex: 1,
