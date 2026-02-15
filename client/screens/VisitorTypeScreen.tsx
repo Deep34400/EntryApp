@@ -28,17 +28,23 @@ import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { fetchTicketCountsSafe } from "@/lib/query-client";
 import { useUser } from "@/contexts/UserContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList, EntryType } from "@/navigation/RootStackNavigator";
 
 // Carrum brand — use theme.primary / theme.primaryDark for gradients and accents
-const CARD_RADIUS = 18;
-const HEADER_CURVE = 28;
+const CARD_RADIUS = 12;
+const HEADER_CURVE = 20;
+/** Min height for header content; grows when user name wraps to 2 lines. No fixed height. */
+const HEADER_CONTENT_MIN_HEIGHT = 65;
+/** Bottom padding so text clears the curved header shape. */
+const HEADER_CURVE_PADDING = HEADER_CURVE + Spacing.sm;
 const LIGHT_CARD = "#FFFFFF";
 const LIGHT_BG = "#F7F9FC";
+
+const HEADER_BG_HEIGHT = 80;
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
 
@@ -106,7 +112,7 @@ function VisitorTypeCard({
         testID={`card-${type}`}
       >
         <View style={[styles.entryCardIconWrap, { backgroundColor: iconBgColor }]}>
-          <Feather name={icon} size={26} color="#FFFFFF" />
+          <Feather name={icon} size={22} color="#FFFFFF" />
         </View>
         <View style={styles.entryCardContent}>
           <ThemedText type="h4" style={styles.entryCardTitle}>
@@ -120,7 +126,7 @@ function VisitorTypeCard({
           </ThemedText>
         </View>
         <View style={styles.entryCardArrow}>
-          <Feather name="chevron-right" size={24} color={theme.textSecondary} />
+          <Feather name="chevron-right" size={20} color={theme.textSecondary} />
         </View>
       </AnimatedPressable>
     </Animated.View>
@@ -230,7 +236,7 @@ export default function VisitorTypeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: pageBg }]}>
-      {/* Custom gradient header with curved bottom */}
+      {/* Custom gradient header with curved bottom — safe-area aware, flexible height */}
       <View style={styles.headerOuter} pointerEvents="box-none">
         <View
           style={[
@@ -239,12 +245,13 @@ export default function VisitorTypeScreen() {
               borderBottomLeftRadius: HEADER_CURVE,
               borderBottomRightRadius: HEADER_CURVE,
               overflow: "hidden",
+              minHeight: HEADER_CONTENT_MIN_HEIGHT + HEADER_CURVE_PADDING + (insets.top + Spacing.sm),
             },
           ]}
         >
           <Svg
             width={screenWidth}
-            height={100}
+            height={140}
             style={StyleSheet.absoluteFill}
           >
             <Defs>
@@ -259,15 +266,16 @@ export default function VisitorTypeScreen() {
                 <Stop offset="100%" stopColor={theme.primaryDark} stopOpacity={1} />
               </SvgLinearGradient>
             </Defs>
-            <Rect x={0} y={0} width={screenWidth} height={100} fill="url(#headerGrad)" />
+            <Rect x={0} y={0} width={screenWidth} height={140} fill="url(#headerGrad)" />
           </Svg>
           <View
             style={[
               styles.headerInner,
               {
-                paddingTop: insets.top + Spacing.md,
-                paddingBottom: Spacing.lg,
-                paddingHorizontal: Spacing.lg,
+                paddingTop: insets.top + Spacing.sm,
+                paddingBottom: HEADER_CURVE_PADDING,
+                paddingHorizontal: Layout.horizontalScreenPadding,
+                minHeight: HEADER_CONTENT_MIN_HEIGHT,
               },
             ]}
           >
@@ -285,9 +293,9 @@ export default function VisitorTypeScreen() {
                     Welcome
                   </ThemedText>
                   <ThemedText
-                    type="h5"
+                    type="h6"
                     style={styles.headerUserName}
-                    numberOfLines={1}
+                    numberOfLines={2}
                     ellipsizeMode="tail"
                   >
                     {user?.name?.trim() || "Sumit"}
@@ -301,7 +309,7 @@ export default function VisitorTypeScreen() {
                   hitSlop={16}
                   accessibilityLabel="Menu"
                 >
-                  <Feather name="menu" size={24} color="#FFFFFF" />
+                  <Feather name="menu" size={22} color="#FFFFFF" />
                 </Pressable>
               </View>
             </View>
@@ -313,7 +321,7 @@ export default function VisitorTypeScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: Math.max(insets.bottom, Spacing.lg) + Spacing.xl },
+          { paddingBottom: Math.max(insets.bottom, Spacing.md) + Spacing.lg },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -394,8 +402,8 @@ export default function VisitorTypeScreen() {
 
         {/* Select Entry Purpose */}
         <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.sectionHeader}>
-          <Feather name="shield" size={20} color={theme.primary} />
-          <ThemedText type="h3" style={[styles.sectionTitle, { color: theme.text }]}>
+          <Feather name="shield" size={18} color={theme.primary} />
+          <ThemedText type="h4" style={[styles.sectionTitle, { color: theme.text }]}>
             Select Entry Purpose
           </ThemedText>
         </Animated.View>
@@ -432,12 +440,12 @@ export default function VisitorTypeScreen() {
               styles.drawerPanel,
               {
                 backgroundColor: isDark ? theme.backgroundDefault : LIGHT_CARD,
-                paddingTop: insets.top + Spacing.xl,
-                paddingBottom: insets.bottom + Spacing.xl,
+                paddingTop: insets.top,
+                paddingBottom: insets.bottom + Spacing.md,
               },
             ]}
           >
-            {/* Drawer header: Close button so guard can easily close menu */}
+            {/* Compact header: title and close vertically centered */}
             <View style={[styles.drawerHeader, { borderBottomColor: theme.border }]}>
               <ThemedText type="h4" style={{ color: theme.text }}>Menu</ThemedText>
               <Pressable
@@ -446,41 +454,50 @@ export default function VisitorTypeScreen() {
                 hitSlop={16}
                 accessibilityLabel="Close menu"
               >
-                <Feather name="x" size={26} color={theme.text} />
+                <Feather name="x" size={24} color={theme.text} />
               </Pressable>
             </View>
+            {/* Profile: tight spacing, immediately after header */}
             <View style={styles.drawerProfile}>
               <View style={[styles.drawerAvatar, { backgroundColor: theme.primary }]}>
                 <ThemedText type="h3" style={{ color: "#FFFFFF" }}>
                   {(user?.name?.trim() || "S").charAt(0).toUpperCase()}
                 </ThemedText>
               </View>
-              <ThemedText type="h4" style={{ color: theme.text }}>
+              <ThemedText
+                type="h4"
+                style={[styles.drawerProfileName, { color: theme.text }]}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
                 {user?.name?.trim() || "Sumit"}
               </ThemedText>
             </View>
+            {/* Menu items + logout near bottom with natural spacing */}
             <View style={styles.drawerMenu}>
-              <Pressable
-                onPress={handleViewProfile}
-                style={({ pressed }) => [styles.drawerItem, { opacity: pressed ? 0.7 : 1 }]}
-              >
-                <Feather name="user" size={22} color={theme.text} />
-                <ThemedText type="body" style={{ color: theme.text }}>View Profile</ThemedText>
-              </Pressable>
-              {themeContext && (
+              <View style={styles.drawerMenuItems}>
                 <Pressable
-                  onPress={handleToggleTheme}
+                  onPress={handleViewProfile}
                   style={({ pressed }) => [styles.drawerItem, { opacity: pressed ? 0.7 : 1 }]}
                 >
-                  <Feather name={isDark ? "sun" : "moon"} size={22} color={theme.text} />
-                  <ThemedText type="body" style={{ color: theme.text }}>
-                    {isDark ? "Light mode" : "Dark mode"}
-                  </ThemedText>
+                  <Feather name="user" size={22} color={theme.text} />
+                  <ThemedText type="body" style={{ color: theme.text }}>View Profile</ThemedText>
                 </Pressable>
-              )}
+                {themeContext && (
+                  <Pressable
+                    onPress={handleToggleTheme}
+                    style={({ pressed }) => [styles.drawerItem, { opacity: pressed ? 0.7 : 1 }]}
+                  >
+                    <Feather name={isDark ? "sun" : "moon"} size={22} color={theme.text} />
+                    <ThemedText type="body" style={{ color: theme.text }}>
+                      {isDark ? "Light mode" : "Dark mode"}
+                    </ThemedText>
+                  </Pressable>
+                )}
+              </View>
               <Pressable
                 onPress={handleLogout}
-                style={({ pressed }) => [styles.drawerItem, styles.drawerItemDanger, { opacity: pressed ? 0.7 : 1 }]}
+                style={({ pressed }) => [styles.drawerItem, styles.drawerItemDanger, styles.drawerItemLogout, { opacity: pressed ? 0.7 : 1 }]}
               >
                 <Feather name="power" size={22} color={theme.error} />
                 <ThemedText type="body" style={[styles.drawerItemDangerText, { color: theme.error }]}>Logout</ThemedText>
@@ -501,11 +518,11 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   headerGradientWrap: {
-    height: 100,
+    minHeight: 88,
   },
   headerInner: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-end",
   },
   headerRow: {
     flexDirection: "row",
@@ -517,7 +534,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     minWidth: 0,
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   headerWelcomeBlock: {
     flex: 1,
@@ -526,25 +543,27 @@ const styles = StyleSheet.create({
   },
   headerWelcomeLabel: {
     color: "rgba(255,255,255,0.9)",
-    marginBottom: 2,
+    marginBottom: 0,
     letterSpacing: 0.3,
+    lineHeight: 18,
   },
   headerAvatarWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
   headerAvatar: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
   },
   headerUserName: {
     color: "#FFFFFF",
     fontWeight: "700",
     flex: 1,
+    lineHeight: 24,
   },
   headerRight: {
     flexDirection: "row",
@@ -552,8 +571,8 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   headerIconBtn: {
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: Layout.backButtonTouchTarget,
+    minHeight: Layout.backButtonTouchTarget,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -561,21 +580,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing["2xl"],
+    paddingHorizontal: Layout.horizontalScreenPadding,
+    paddingTop: Spacing.md,
   },
   statsSection: {
-    marginBottom: Spacing["2xl"],
+    marginBottom: Spacing.md,
   },
   statsRow: {
     flexDirection: "row",
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
   statCard: {
     flex: 1,
     borderRadius: CARD_RADIUS,
-    padding: Spacing.xl,
-    minHeight: 120,
+    padding: Spacing.lg,
+    minHeight: 96,
     justifyContent: "space-between",
   },
   statCardOpen: {
@@ -587,7 +606,7 @@ const styles = StyleSheet.create({
   statCardTop: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   statCardSubtitle: {
     color: "rgba(255,255,255,0.9)",
@@ -613,28 +632,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
   },
   sectionTitle: {
     fontWeight: "700",
     letterSpacing: 0.2,
   },
   cardsContainer: {
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
   entryCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: Spacing.xl,
+    padding: Spacing.lg,
     borderRadius: CARD_RADIUS,
   },
   entryCardIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.lg,
+    marginRight: Spacing.md,
   },
   entryCardContent: {
     flex: 1,
@@ -663,44 +682,60 @@ const styles = StyleSheet.create({
   drawerPanel: {
     flex: 1,
     width: "100%",
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
   },
   drawerHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: Spacing.xl,
+    minHeight: 56,
+    paddingVertical: 0,
     paddingBottom: Spacing.md,
+    marginBottom: Spacing.md,
     borderBottomWidth: 1,
   },
   drawerCloseBtn: {
-    minWidth: 48,
-    minHeight: 48,
+    minWidth: Layout.backButtonTouchTarget,
+    minHeight: Layout.backButtonTouchTarget,
     justifyContent: "center",
     alignItems: "center",
   },
   drawerProfile: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: Spacing["2xl"],
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  drawerProfileName: {
+    flex: 1,
+    textAlign: "left",
+    lineHeight: 22,
   },
   drawerAvatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.md,
   },
   drawerMenu: {
+    flex: 1,
+    justifyContent: "space-between",
+  },
+  drawerMenuItems: {
     gap: Spacing.xs,
   },
   drawerItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
-    paddingVertical: Spacing.lg,
+    minHeight: 48,
+    paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.md,
+  },
+  drawerItemLogout: {
+    marginTop: Spacing.md,
   },
   drawerItemDanger: {},
   drawerItemDangerText: {

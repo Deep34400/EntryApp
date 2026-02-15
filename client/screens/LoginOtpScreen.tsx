@@ -20,7 +20,7 @@ import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -191,7 +191,14 @@ export default function LoginOtpScreen() {
     <View style={[styles.container, { backgroundColor: theme.primary }]}>
       <Animated.View
         entering={FadeInDown.delay(0).springify()}
-        style={[styles.header, { paddingTop: insets.top + Spacing.md }]}
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top + Spacing.md,
+            paddingBottom: Spacing.lg,
+            minHeight: 88 + insets.top,
+          },
+        ]}
       >
         <View style={styles.headerRow}>
           <View
@@ -407,8 +414,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   header: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingHorizontal: Layout.horizontalScreenPadding,
+    minHeight: 88,
   },
   headerRow: {
     flexDirection: "row",
@@ -436,11 +443,13 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 17,
+    lineHeight: 22,
     marginBottom: 0,
   },
   headerSubtitle: {
     color: "rgba(255,255,255,0.85)",
     fontSize: 12,
+    lineHeight: 18,
     letterSpacing: 0.2,
   },
   canvas: {
@@ -452,7 +461,7 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     marginTop: Spacing["2xl"],
     borderRadius: BorderRadius["2xl"],
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Layout.horizontalScreenPadding,
     paddingTop: Spacing.xl,
     overflow: "hidden",
     shadowColor: "#000",

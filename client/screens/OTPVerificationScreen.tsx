@@ -19,7 +19,7 @@ import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -171,7 +171,16 @@ export default function OTPVerificationScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.lg, paddingBottom: Spacing.xl }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top + Spacing.lg,
+            paddingBottom: Spacing.xl,
+            minHeight: 88 + insets.top,
+          },
+        ]}
+      >
         <View style={styles.headerRow}>
           <TouchableOpacity
             style={styles.backWrap}
@@ -232,7 +241,7 @@ export default function OTPVerificationScreen() {
                     style={[
                       styles.otpBox,
                       {
-                        backgroundColor: theme.backgroundSecondary ?? theme.backgroundDefault,
+                        backgroundColor: theme.backgroundSecondary,
                         borderColor: hasError
                           ? theme.error
                           : isFocused
@@ -323,9 +332,10 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: HEADER_BG,
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Layout.horizontalScreenPadding,
     borderBottomLeftRadius: BorderRadius["2xl"],
     borderBottomRightRadius: BorderRadius["2xl"],
+    minHeight: 88,
   },
   headerRow: {
     flexDirection: "row",
@@ -333,8 +343,8 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   backWrap: {
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: Layout.backButtonTouchTarget,
+    minHeight: Layout.backButtonTouchTarget,
     justifyContent: "center",
     marginRight: Spacing.xs,
   },
@@ -358,15 +368,17 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 22,
     fontWeight: "700",
+    lineHeight: 28,
     marginBottom: 2,
   },
   headerSubtitle: {
     color: "rgba(255,255,255,0.9)",
     fontSize: 14,
+    lineHeight: 20,
   },
   content: {
     flex: 1,
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Layout.horizontalScreenPadding,
     paddingTop: Spacing["2xl"],
     backgroundColor: "#FFFFFF",
   },

@@ -2,7 +2,16 @@
 
 **Current brand:** Soft dark professional theme. Background `#15181D`, cards `#1E2228`, primary red `#C7363E`, soft alert red `#E06A6A`, text primary white, text secondary `#A1A6AD`. No pure black; warm, enterprise-grade, modern SaaS look.
 
-All app design (colors, spacing, typography) is controlled from a **single place** in `designTokens.ts` and `theme.ts`.
+All app design (colors, spacing, typography, layout) is controlled from a **single place** in `designTokens.ts` and `theme.ts`.
+
+## Responsive & layout rules (fleet hub operations)
+
+- **Horizontal screen padding:** 16px on all screens — use `Layout.horizontalScreenPadding` from `theme.ts`.
+- **Safe areas:** Respect top, bottom, left, right insets on every screen (`useSafeAreaInsets()`).
+- **Headers:** Min height ~64px (`Layout.headerMinHeight`). Left-aligned titles. Back and header buttons use 44×44pt minimum touch targets (`Layout.backButtonTouchTarget`).
+- **No fixed widths/heights** that break layout; use `minHeight` / `flex` so content can reflow.
+- **Typography:** Use `Typography` from theme; text wraps by default (avoid `numberOfLines` unless truncation is intended).
+- **Red:** Use only for errors, overdue states, or SLA alerts.
 
 ## Where to change design
 

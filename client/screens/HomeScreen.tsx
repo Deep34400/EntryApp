@@ -4,7 +4,7 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing } from "@/constants/theme";
+import { Layout, Spacing } from "@/constants/theme";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -18,7 +18,7 @@ export default function HomeScreen() {
       contentContainerStyle={{
         paddingTop: headerHeight + Spacing.xl,
         paddingBottom: tabBarHeight + Spacing.xl,
-        paddingHorizontal: Spacing.lg,
+        paddingHorizontal: Layout.horizontalScreenPadding,
       }}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
       data={[]}

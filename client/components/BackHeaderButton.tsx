@@ -5,9 +5,11 @@ import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/hooks/useTheme";
 
-const MIN_SIZE = 48;
+import { Layout } from "@/constants/theme";
+
+const MIN_SIZE = Layout.backButtonTouchTarget;
 const ICON_SIZE = 24;
-const HIT_SLOP = { top: 16, bottom: 16, left: 16, right: 24 };
+const HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 16 };
 const PADDING_LEFT = 8;
 
 type Props = {

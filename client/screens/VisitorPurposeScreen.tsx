@@ -23,7 +23,7 @@ import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequestWithAuthRetry, UNAUTHORIZED_MSG } from "@/lib/query-client";
 import { isApiError } from "@/lib/api-error";
 import { ENTRY_APP_CREATE_PATH } from "@/lib/api-endpoints";
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Layout.horizontalScreenPadding,
   },
   scrollContentFullScreen: {
     flexGrow: 1,

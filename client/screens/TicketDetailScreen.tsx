@@ -15,7 +15,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
-import { Spacing } from "@/constants/theme";
+import { Layout, Spacing } from "@/constants/theme";
 import { ScreenPalette } from "@/constants/screenPalette";
 import { formatDateTime } from "@/lib/format";
 import { fetchWithAuthRetry, apiRequestWithAuthRetry } from "@/lib/query-client";
@@ -110,7 +110,7 @@ function DetailRowWithIcon({
         <ThemedText type="small" style={styles.detailLabel}>
           {label}
         </ThemedText>
-        <ThemedText type="body" style={styles.detailValue} numberOfLines={2}>
+        <ThemedText type="body" style={styles.detailValue} numberOfLines={2} ellipsizeMode="tail">
           {display}
         </ThemedText>
       </View>
@@ -177,7 +177,7 @@ export default function TicketDetailScreen() {
   if (isLoading || !ticket) {
     return (
       <View style={[styles.container, { backgroundColor: ScreenPalette.background }]}>
-        <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
+        <View style={[styles.header, { paddingTop: insets.top + Spacing.md, paddingBottom: Spacing.lg }]}>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -225,8 +225,8 @@ export default function TicketDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: ScreenPalette.background }]}>
-      {/* Custom header */}
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
+      {/* Custom header: safe-area aware, flexible min height */}
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.md, paddingBottom: Spacing.lg }]}>
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -392,23 +392,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: Spacing.lg,
+    paddingHorizontal: Layout.horizontalScreenPadding,
     borderBottomWidth: 1,
     borderBottomColor: ScreenPalette.divider,
+    minHeight: Layout.headerMinHeight,
   },
   headerBack: {
-    minWidth: 48,
-    minHeight: 48,
+    minWidth: Layout.backButtonTouchTarget,
+    minHeight: Layout.backButtonTouchTarget,
     justifyContent: "center",
   },
   headerTitle: {
     color: ScreenPalette.textPrimary,
     fontWeight: "700",
+    lineHeight: 32,
   },
   headerHome: {
-    minWidth: 48,
-    minHeight: 48,
+    minWidth: Layout.backButtonTouchTarget,
+    minHeight: Layout.backButtonTouchTarget,
     justifyContent: "center",
     alignItems: "flex-end",
   },
@@ -416,7 +417,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.horizontalScreenPadding,
     paddingTop: Spacing.xl,
   },
   center: {
@@ -455,7 +456,7 @@ const styles = StyleSheet.create({
   section: {
     backgroundColor: ScreenPalette.card,
     borderRadius: CARD_RADIUS,
-    padding: 20,
+    padding: Layout.horizontalScreenPadding,
     marginBottom: Spacing.lg,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -490,6 +491,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     color: ScreenPalette.textPrimary,
+    lineHeight: 24,
   },
   assigneeBadge: {
     alignSelf: "flex-start",

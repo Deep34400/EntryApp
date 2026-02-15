@@ -9,7 +9,7 @@ import Animated, {
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { BorderRadius, Spacing } from "@/constants/theme";
+import { BorderRadius, Layout, Spacing } from "@/constants/theme";
 
 interface ButtonProps {
   onPress?: () => void;
@@ -81,7 +81,8 @@ export function Button({
 
 const styles = StyleSheet.create({
   button: {
-    height: Spacing.buttonHeight,
+    minHeight: Math.max(Layout.minTouchTarget, Spacing.buttonHeight),
+    paddingVertical: Spacing.md,
     borderRadius: BorderRadius.full,
     alignItems: "center",
     justifyContent: "center",

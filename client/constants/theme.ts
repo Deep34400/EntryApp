@@ -63,6 +63,21 @@ export const Spacing = {
   buttonHeight: 56,
 };
 
+/**
+ * Global layout constants for responsive fleet hub app.
+ * Use across all screens for consistent safe-area-aware, flexible layouts.
+ */
+export const Layout = {
+  /** Horizontal screen padding on all screens (px). */
+  horizontalScreenPadding: 16,
+  /** Minimum header height (px); flexible above this. */
+  headerMinHeight: 64,
+  /** Minimum touch target for back/header buttons (px). */
+  backButtonTouchTarget: 44,
+  /** Minimum touch target for primary actions (px). */
+  minTouchTarget: 44,
+} as const;
+
 export const BorderRadius = {
   xs: 8,
   sm: 12,
@@ -95,6 +110,17 @@ export const Typography = {
     lineHeight: 28,
     fontWeight: "600" as const,
   },
+  h5: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "600" as const,
+  },
+  h6: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "600" as const,
+  },
+
   body: {
     fontSize: 16,
     lineHeight: 24,

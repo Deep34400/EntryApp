@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -9,13 +9,32 @@ import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Profile">;
+
+const AVATAR_ICONS: (keyof typeof Feather.glyphMap)[] = [
+  "briefcase",
+  "user-check",
+  "award",
+  "shield",
+  "headphones",
+];
+
+function getAvatarIcon(name: string): keyof typeof Feather.glyphMap {
+  const hash = (name || "user").split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return AVATAR_ICONS[hash % AVATAR_ICONS.length];
+}
+
+function formatRole(userType: string | undefined): string {
+  if (!userType?.trim()) return "—";
+  const normalized = userType.trim();
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1).toLowerCase();
+}
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -27,6 +46,18 @@ export default function ProfileScreen() {
 
   const displayName = auth.user?.name?.trim() || contextUser?.name?.trim() || "—";
   const displayPhone = auth.user?.phone || contextUser?.phone || "—";
+  const role = auth.user?.userType;
+
+  const avatarIcon = useMemo(() => getAvatarIcon(displayName), [displayName]);
+
+  const hasDetails = role?.trim();
+  const detailItems = useMemo(() => {
+    const items: { label: string; value: string; icon: keyof typeof Feather.glyphMap }[] = [];
+    if (role?.trim()) {
+      items.push({ label: "Role", value: formatRole(role), icon: "briefcase" });
+    }
+    return items;
+  }, [role]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -54,22 +85,23 @@ export default function ProfileScreen() {
     <ScrollView
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={{
-        paddingTop: headerHeight + Spacing.xl,
+        paddingTop: headerHeight + Spacing.lg,
         paddingBottom: insets.bottom + Spacing["2xl"],
-        paddingHorizontal: Spacing.xl,
+        paddingHorizontal: Layout.horizontalScreenPadding,
       }}
       showsVerticalScrollIndicator={false}
     >
+      {/* Identity section: avatar, name once, primary identifier (phone) */}
       <Animated.View
         entering={FadeInDown.delay(0).springify()}
-        style={[styles.profileCard, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}
+        style={[styles.identityCard, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}
       >
         <View style={[styles.avatarWrap, { backgroundColor: theme.primary }]}>
-          <Feather name="user" size={44} color="#FFFFFF" />
+          <Feather name={avatarIcon} size={36} color="#FFFFFF" />
         </View>
         <ThemedText
-          type="h3"
-          style={[styles.profileName, { color: theme.text }]}
+          type="h4"
+          style={[styles.identityName, { color: theme.text }]}
           numberOfLines={2}
           ellipsizeMode="tail"
         >
@@ -77,7 +109,7 @@ export default function ProfileScreen() {
         </ThemedText>
         <ThemedText
           type="body"
-          style={[styles.profilePhone, { color: theme.textSecondary }]}
+          style={[styles.identityIdentifier, { color: theme.textSecondary }]}
           numberOfLines={1}
           ellipsizeMode="tail"
         >
@@ -85,52 +117,50 @@ export default function ProfileScreen() {
         </ThemedText>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.section}>
-        <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-          DETAILS
-        </ThemedText>
-        <View style={[styles.detailCard, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconWrap}>
-              <Feather name="user" size={20} color={theme.primary} />
-            </View>
-            <View style={styles.detailLabelValue}>
-              <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>Name</ThemedText>
-              <ThemedText type="body" style={[styles.detailValue, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">
-                {displayName}
-              </ThemedText>
-            </View>
+      {/* Details: only additional/editable info (role, hub) — no name, no phone */}
+      {hasDetails && (
+        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.section}>
+          <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+            DETAILS
+          </ThemedText>
+          <View style={[styles.detailCard, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
+            {detailItems.map((item, index) => (
+              <View key={item.label}>
+                {index > 0 && <View style={[styles.detailDivider, { backgroundColor: theme.border }]} />}
+                <View style={styles.detailRow}>
+                  <View style={styles.detailIconWrap}>
+                    <Feather name={item.icon} size={18} color={theme.primary} />
+                  </View>
+                  <View style={styles.detailLabelValue}>
+                    <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                      {item.label}
+                    </ThemedText>
+                    <ThemedText type="body" style={[styles.detailValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
+                      {item.value}
+                    </ThemedText>
+                  </View>
+                </View>
+              </View>
+            ))}
           </View>
-          <View style={[styles.detailDivider, { backgroundColor: theme.border }]} />
-          <View style={styles.detailRow}>
-            <View style={styles.detailIconWrap}>
-              <Feather name="phone" size={20} color={theme.primary} />
-            </View>
-            <View style={styles.detailLabelValue}>
-              <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>Mobile</ThemedText>
-              <ThemedText type="body" style={[styles.detailValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
-                {displayPhone}
-              </ThemedText>
-            </View>
-          </View>
-        </View>
-      </Animated.View>
+        </Animated.View>
+      )}
 
-      <Animated.View entering={FadeInDown.delay(120).springify()} style={styles.logoutWrap}>
+      {/* Logout: bottom, subtle background, red text/icon */}
+      <Animated.View entering={FadeInDown.delay(hasDetails ? 120 : 60).springify()} style={styles.logoutWrap}>
         <Pressable
           onPress={handleLogout}
           style={({ pressed }) => [
             styles.logoutButton,
             {
-              backgroundColor: theme.backgroundTertiary ?? theme.backgroundSecondary,
-              borderWidth: 1,
+              backgroundColor: theme.backgroundSecondary,
               borderColor: theme.border,
-              opacity: pressed ? 0.85 : 1,
+              opacity: pressed ? 0.9 : 1,
             },
           ]}
         >
-          <Feather name="log-out" size={20} color={theme.error} style={{ marginRight: Spacing.sm }} />
-          <ThemedText type="body" style={{ color: theme.error, fontWeight: "600" }}>
+          <Feather name="log-out" size={18} color={theme.error} style={styles.logoutIcon} />
+          <ThemedText type="body" style={[styles.logoutText, { color: theme.error }]}>
             Log out
           </ThemedText>
         </Pressable>
@@ -143,54 +173,54 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  profileCard: {
+  identityCard: {
     alignItems: "center",
-    marginBottom: Spacing["2xl"],
-    paddingVertical: Spacing["2xl"],
-    paddingHorizontal: Spacing.xl,
-    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.xl,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
   },
   avatarWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
-  profileName: {
+  identityName: {
     marginBottom: Spacing.xs,
     textAlign: "center",
     paddingHorizontal: Spacing.sm,
     maxWidth: "100%",
   },
-  profilePhone: {
+  identityIdentifier: {
     letterSpacing: 0.2,
     textAlign: "center",
     paddingHorizontal: Spacing.sm,
   },
   section: {
-    marginBottom: Spacing["2xl"],
+    marginBottom: Spacing.xl,
   },
   sectionLabel: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     letterSpacing: 0.5,
     fontWeight: "600",
   },
   detailCard: {
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
     overflow: "hidden",
   },
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
   },
   detailIconWrap: {
-    width: 40,
+    width: 36,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -203,20 +233,29 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   detailValue: {
-    flexWrap: "wrap",
+    lineHeight: 22,
   },
   detailDivider: {
     height: 1,
-    marginLeft: 40 + Spacing.sm + Spacing.lg,
+    marginLeft: 36 + Spacing.sm + Spacing.lg,
   },
   logoutWrap: {
-    marginTop: Spacing.lg,
+    marginTop: "auto",
+    paddingTop: Spacing.lg,
   },
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  logoutIcon: {
+    marginRight: Spacing.sm,
+  },
+  logoutText: {
+    fontWeight: "500",
   },
 });

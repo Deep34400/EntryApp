@@ -12,7 +12,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { fetchDriverDetails } from "@/lib/query-client";
 import { RootStackParamList, EntryType, EntryFormData } from "@/navigation/RootStackNavigator";
 import { normalizePhoneInput, isPhoneValid, PHONE_MAX_DIGITS } from "@/utils/validation";
@@ -243,7 +243,7 @@ export default function EntryFormScreen() {
                 style={[
                   styles.inputRow,
                   {
-                    backgroundColor: theme.backgroundSecondary ?? theme.backgroundRoot,
+                    backgroundColor: theme.backgroundSecondary,
                     borderColor: theme.border,
                   },
                 ]}
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Layout.horizontalScreenPadding,
     flexGrow: 1,
   },
   visitorCard: {
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Layout.horizontalScreenPadding,
     paddingTop: Spacing.lg,
   },
   errorText: {

@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing } from "@/constants/theme";
+import { Layout, Spacing } from "@/constants/theme";
 
 export default function ModalScreen() {
   const insets = useSafeAreaInsets();
@@ -16,7 +16,7 @@ export default function ModalScreen() {
       contentContainerStyle={{
         paddingTop: headerHeight + Spacing.xl,
         paddingBottom: insets.bottom + Spacing.xl,
-        paddingHorizontal: Spacing.lg,
+        paddingHorizontal: Layout.horizontalScreenPadding,
       }}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
     />

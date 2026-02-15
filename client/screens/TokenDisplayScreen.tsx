@@ -9,7 +9,7 @@ import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius, Typography } from "@/constants/theme";
+import { Layout, Spacing, BorderRadius, Typography } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type TokenDisplayRouteProp = RouteProp<RootStackParamList, "TokenDisplay">;
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Layout.horizontalScreenPadding,
     justifyContent: "space-between",
   },
   tokenSection: {

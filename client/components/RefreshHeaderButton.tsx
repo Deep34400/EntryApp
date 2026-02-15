@@ -4,7 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing } from "@/constants/theme";
+import { Layout, Spacing } from "@/constants/theme";
 
 type Props = {
   onRefresh: () => void;
@@ -36,7 +36,11 @@ export function RefreshHeaderButton({ onRefresh }: Props) {
 
 const styles = StyleSheet.create({
   button: {
+    minWidth: Layout.backButtonTouchTarget,
+    minHeight: Layout.backButtonTouchTarget,
     padding: Spacing.sm,
     marginRight: Spacing.xs,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -6,14 +6,13 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing } from "@/constants/theme";
+import { Layout, Spacing } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, keyof RootStackParamList>;
 
-const MIN_TOUCH_SIZE = 48;
-const HIT_SLOP_EXTRA = { top: 16, bottom: 16, left: 16, right: 16 };
+const HIT_SLOP_EXTRA = { top: 12, bottom: 12, left: 12, right: 12 };
 
 /** Header button that resets the stack and goes to main (VisitorType) screen. Large touch target for mobile. */
 export function HomeHeaderButton() {
@@ -49,8 +48,8 @@ export function HomeHeaderButton() {
 
 const styles = StyleSheet.create({
   wrapper: {
-    minWidth: MIN_TOUCH_SIZE,
-    minHeight: MIN_TOUCH_SIZE,
+    minWidth: Layout.backButtonTouchTarget,
+    minHeight: Layout.backButtonTouchTarget,
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.xs,
