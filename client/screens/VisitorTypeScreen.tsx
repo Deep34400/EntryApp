@@ -17,7 +17,6 @@ import { useNavigation, CommonActions } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
-import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from "react-native-svg";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -89,11 +88,13 @@ function VisitorTypeCard({
           styles.entryCard,
           {
             backgroundColor: cardBg,
+            borderWidth: 1,
+            borderColor: theme.border,
             shadowColor: theme.shadowColor,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: isDark ? 0.15 : 0.06,
-            shadowRadius: 8,
-            elevation: 3,
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: isDark ? 0.12 : 0.04,
+            shadowRadius: 4,
+            elevation: 2,
           },
           animatedStyle,
         ]}
@@ -198,8 +199,7 @@ export default function VisitorTypeScreen() {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  const screenWidth = Dimensions.get("window").width;
-  const drawerWidth = Math.min(screenWidth * 0.82, 320);
+  const drawerWidth = Math.min(Dimensions.get("window").width * 0.82, 320);
   const pageBg = theme.backgroundRoot;
 
   const visitorTypes = [
@@ -221,83 +221,52 @@ export default function VisitorTypeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: pageBg }]}>
-      {/* Custom gradient header with curved bottom — safe-area aware, flexible height */}
-      <View style={styles.headerOuter} pointerEvents="box-none">
-        <View
-          style={[
-            styles.headerGradientWrap,
-            {
-              borderBottomLeftRadius: Layout.headerCurveRadius,
-              borderBottomRightRadius: Layout.headerCurveRadius,
-              overflow: "hidden",
-              minHeight: Layout.compactHeaderContentHeight + Layout.headerCurveRadius + Spacing.sm + (insets.top + Spacing.xs),
-            },
-          ]}
-        >
-          <Svg
-            width={screenWidth}
-            height={insets.top + Layout.compactHeaderContentHeight + Layout.headerCurveRadius + Spacing.md}
-            style={StyleSheet.absoluteFill}
-          >
-            <Defs>
-              <SvgLinearGradient
-                id="headerGrad"
-                x1="0%"
-                y1="0%"
-                x2="0%"
-                y2="100%"
-              >
-                <Stop offset="0%" stopColor={theme.primary} stopOpacity={1} />
-                <Stop offset="100%" stopColor={theme.primaryDark} stopOpacity={1} />
-              </SvgLinearGradient>
-            </Defs>
-            <Rect x={0} y={0} width={screenWidth} height={insets.top + Layout.compactHeaderContentHeight + Layout.headerCurveRadius + Spacing.md} fill="url(#headerGrad)" />
-          </Svg>
-          <View
-            style={[
-              styles.headerInner,
-              {
-                paddingTop: insets.top + Spacing.xs,
-                paddingBottom: Layout.headerCurveRadius + Spacing.sm,
-                paddingHorizontal: Layout.horizontalScreenPadding,
-                minHeight: Layout.compactHeaderContentHeight,
-              },
-            ]}
-          >
-            <View style={styles.headerRow}>
-              <View style={styles.headerLeft}>
-                <View style={[styles.headerAvatarWrap, { backgroundColor: theme.backgroundTertiary }]}>
-                  <Image
-                    source={require("../../assets/images/logo.png")}
-                    style={styles.headerAvatar}
-                    resizeMode="contain"
-                  />
-                </View>
-                <View style={styles.headerWelcomeBlock}>
-                  <ThemedText type="small" style={[styles.headerWelcomeLabel, { color: theme.onPrimary }]}>
-                    Welcome
-                  </ThemedText>
-                  <ThemedText
-                    type="h6"
-                    style={[styles.headerUserName, { color: theme.onPrimary }]}
-                    numberOfLines={2}
-                    ellipsizeMode="tail"
-                  >
-                    {user?.name?.trim() || "Sumit"}
-                  </ThemedText>
-                </View>
-              </View>
-              <View style={styles.headerRight}>
-                <Pressable
-                  onPress={openDrawer}
-                  style={({ pressed }) => [styles.headerIconBtn, { opacity: pressed ? 0.8 : 1 }]}
-                  hitSlop={16}
-                  accessibilityLabel="Menu"
-                >
-                  <Feather name="menu" size={22} color={theme.onPrimary} />
-                </Pressable>
-              </View>
+      {/* Flat compact header — enterprise style, safe-area aware */}
+      <View
+        style={[
+          styles.headerBar,
+          {
+            paddingTop: insets.top + Spacing.xs,
+            paddingBottom: Spacing.sm,
+            paddingHorizontal: Layout.horizontalScreenPadding,
+            backgroundColor: theme.surface,
+            borderBottomColor: theme.border,
+          },
+        ]}
+        pointerEvents="box-none"
+      >
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft}>
+            <View style={[styles.headerAvatarWrap, { backgroundColor: theme.backgroundTertiary }]}>
+              <Image
+                source={require("../../assets/images/logo.png")}
+                style={styles.headerAvatar}
+                resizeMode="contain"
+              />
             </View>
+            <View style={styles.headerWelcomeBlock}>
+              <ThemedText type="small" style={[styles.headerWelcomeLabel, { color: theme.textSecondary }]}>
+                Welcome
+              </ThemedText>
+              <ThemedText
+                type="h6"
+                style={[styles.headerUserName, { color: theme.text }]}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                {user?.name?.trim() || "Sumit"}
+              </ThemedText>
+            </View>
+          </View>
+          <View style={styles.headerRight}>
+            <Pressable
+              onPress={openDrawer}
+              style={({ pressed }) => [styles.headerIconBtn, { opacity: pressed ? 0.8 : 1 }]}
+              hitSlop={16}
+              accessibilityLabel="Menu"
+            >
+              <Feather name="menu" size={22} color={theme.text} />
+            </Pressable>
           </View>
         </View>
       </View>
@@ -355,13 +324,15 @@ export default function VisitorTypeScreen() {
               style={({ pressed }) => [
                 styles.statCard,
                 {
-                  backgroundColor: theme.backgroundSecondary,
+                  backgroundColor: theme.surface,
                   opacity: pressed ? 0.92 : 1,
+                  borderWidth: 1,
+                  borderColor: theme.border,
                   shadowColor: theme.shadowColor,
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: isDark ? 0.3 : 0.06,
-                  shadowRadius: 8,
-                  elevation: 3,
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: isDark ? 0.15 : 0.04,
+                  shadowRadius: 4,
+                  elevation: 2,
                 },
               ]}
               accessibilityLabel={`CLOSED: ${closedCount}`}
@@ -385,11 +356,10 @@ export default function VisitorTypeScreen() {
           </View>
         </Animated.View>
 
-        {/* Select Entry Purpose */}
+        {/* Entry purpose */}
         <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.sectionHeader}>
-          <Feather name="shield" size={18} color={theme.primary} />
-          <ThemedText type="h4" style={[styles.sectionTitle, { color: theme.text }]}>
-            Select Entry Purpose
+          <ThemedText type="label" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+            Entry purpose
           </ThemedText>
         </Animated.View>
 
@@ -499,20 +469,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerOuter: {
-    paddingBottom: 0,
-  },
-  headerGradientWrap: {
-    minHeight: Layout.compactHeaderContentHeight + Layout.headerCurveRadius + Spacing.sm,
-  },
-  headerInner: {
-    flex: 1,
-    justifyContent: "flex-end",
+  headerBar: {
+    minHeight: Layout.compactBarHeight,
+    borderBottomWidth: 1,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    minHeight: Layout.compactBarHeight,
   },
   headerLeft: {
     flexDirection: "row",
@@ -581,10 +546,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   statCardOpen: {
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statCardTop: {
     flexDirection: "row",

@@ -139,6 +139,8 @@ export const Layout = {
   statCardMinHeight: 80,
   /** Avatar size in compact headers (px). */
   headerAvatarSize: 36,
+  /** Single-row header content height for flat enterprise headers (px). */
+  compactBarHeight: 44,
 } as const;
 
 export const BorderRadius = {
