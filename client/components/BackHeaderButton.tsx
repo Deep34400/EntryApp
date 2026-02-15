@@ -5,8 +5,10 @@ import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/hooks/useTheme";
 
-const MIN_SIZE = 56;
-const HIT_SLOP = { top: 24, bottom: 24, left: 24, right: 32 };
+const MIN_SIZE = 48;
+const ICON_SIZE = 24;
+const HIT_SLOP = { top: 16, bottom: 16, left: 16, right: 24 };
+const PADDING_LEFT = 8;
 
 type Props = {
   onPress: () => void;
@@ -14,9 +16,8 @@ type Props = {
 };
 
 /**
- * Header back button that responds on first tap.
- * Uses TouchableOpacity (no nested touchables) and a single icon
- * so taps register immediately like in standard apps.
+ * Header back button that fits on all screen sizes.
+ * No negative margin so it never overflows; padding keeps it inside layout.
  */
 export function BackHeaderButton({ onPress, canGoBack }: Props) {
   const { theme } = useTheme();
@@ -38,7 +39,7 @@ export function BackHeaderButton({ onPress, canGoBack }: Props) {
       accessibilityRole="button"
     >
       <View style={styles.inner} pointerEvents="none">
-        <Feather name="chevron-left" size={28} color={theme.text} />
+        <Feather name="chevron-left" size={ICON_SIZE} color={theme.text} />
       </View>
     </TouchableOpacity>
   );
@@ -49,8 +50,9 @@ const styles = StyleSheet.create({
     minWidth: MIN_SIZE,
     minHeight: MIN_SIZE,
     justifyContent: "center",
-    alignItems: "flex-start",
-    marginLeft: -8,
+    alignItems: "center",
+    marginLeft: 0,
+    paddingLeft: PADDING_LEFT,
   },
   inner: {
     justifyContent: "center",

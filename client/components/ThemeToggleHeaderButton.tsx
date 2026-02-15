@@ -10,8 +10,9 @@ const MIN_TOUCH_SIZE = 48;
 const HIT_SLOP_EXTRA = { top: 16, bottom: 16, left: 16, right: 16 };
 
 /** Header button to toggle dark/light mode. Large touch target for mobile. */
-export function ThemeToggleHeaderButton() {
+export function ThemeToggleHeaderButton({ iconColor }: { iconColor?: string } = {}) {
   const { theme, isDark, themeContext } = useTheme();
+  const color = iconColor ?? theme.text;
 
   const toggle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -34,7 +35,7 @@ export function ThemeToggleHeaderButton() {
         <Feather
           name={isDark ? "sun" : "moon"}
           size={22}
-          color={theme.text}
+          color={color}
         />
       </View>
     </Pressable>

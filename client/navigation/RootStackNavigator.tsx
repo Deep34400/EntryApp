@@ -56,6 +56,7 @@ export default function RootStackNavigator() {
                   canGoBack={!!props.canGoBack}
                 />
               ),
+              headerLeftContainerStyle: { minWidth: 56 },
             }
           : {}),
       })}
@@ -73,14 +74,7 @@ export default function RootStackNavigator() {
       <Stack.Screen
         name="VisitorType"
         component={VisitorTypeScreen}
-        options={{
-          headerTitle: "Gate ",
-          headerTitleStyle: {
-            fontSize: 24,
-            fontWeight: "700",
-          },
-          headerRight: () => <ThemeToggleHeaderButton />,
-        }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="EntryForm"

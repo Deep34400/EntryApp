@@ -1,26 +1,38 @@
-import React from "react";
+import React, { useLayoutEffect } from "react";
 import {
   View,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
-import { useRoute, RouteProp } from "@react-navigation/native";
+import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
+import { CommonActions } from "@react-navigation/native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
-import { Button } from "@/components/Button";
-import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { fetchWithAuthRetry, apiRequestWithAuthRetry } from "@/lib/query-client";
 import { getEntryAppDetailPath, getEntryAppUpdatePath } from "@/lib/api-endpoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+
+// Dark premium palette (Gate Entry)
+const PALETTE = {
+  background: "#0F1115",
+  card: "#1A1D24",
+  primaryRed: "#E53935",
+  successGreen: "#2ECC71",
+  textPrimary: "#FFFFFF",
+  textSecondary: "#A0A4AB",
+  divider: "#2A2E36",
+} as const;
+
+const CARD_RADIUS = 18;
 
 type TicketDetailRouteProp = RouteProp<RootStackParamList, "TicketDetail">;
 
@@ -38,7 +50,7 @@ export interface TicketDetailResult {
   created_at?: string;
   updated_at?: string;
   assignee?: string;
-  desk_location?: string
+  desk_location?: string;
   purpose?: string;
 }
 
@@ -55,29 +67,7 @@ function formatDateTime(iso?: string | null): string {
   }
 }
 
-function DetailRow({
-  label,
-  value,
-  theme,
-}: {
-  label: string;
-  value: string | undefined | null;
-  theme: { text: string; textSecondary: string };
-}) {
-  const display = value != null && value !== "" ? value : "—";
-  return (
-    <View style={styles.detailRow}>
-      <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-        {label}
-      </ThemedText>
-      <ThemedText type="body" style={{ color: theme.text }} numberOfLines={2}>
-        {display}
-      </ThemedText>
-    </View>
-  );
-}
-
-/** GET /api/v1/entry-app/:id → { success, data: { id, tokenNo, ... } }. On 401 tries refresh then retries. */
+/** GET /api/v1/entry-app/:id → { success, data }. On 401 tries refresh then retries. */
 async function fetchTicketDetail(
   ticketId: string,
   _hubId?: string,
@@ -123,12 +113,38 @@ async function fetchTicketDetail(
 const isClosed = (status: string | undefined) =>
   status != null && (status.toUpperCase() === "CLOSED" || status === "closed");
 
+function DetailRowWithIcon({
+  icon,
+  label,
+  value,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  value: string | undefined | null;
+}) {
+  const display = value != null && value !== "" ? value : "—";
+  return (
+    <View style={styles.detailRowWithIcon}>
+      <View style={styles.detailIconWrap}>
+        <Feather name={icon} size={18} color={PALETTE.textSecondary} />
+      </View>
+      <View style={styles.detailContent}>
+        <ThemedText type="small" style={styles.detailLabel}>
+          {label}
+        </ThemedText>
+        <ThemedText type="body" style={styles.detailValue} numberOfLines={2}>
+          {display}
+        </ThemedText>
+      </View>
+    </View>
+  );
+}
+
 export default function TicketDetailScreen() {
   const route = useRoute<TicketDetailRouteProp>();
+  const navigation = useNavigation();
   const { ticketId } = route.params;
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
-  const { theme } = useTheme();
   const queryClient = useQueryClient();
   const auth = useAuth();
 
@@ -164,131 +180,229 @@ export default function TicketDetailScreen() {
     },
   });
 
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  const goHome = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.dispatch(
+      CommonActions.reset({ index: 0, routes: [{ name: "VisitorType" }] })
+    );
+  };
+
+  const statusLabel = ticket?.status
+    ? ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1).toLowerCase()
+    : "Created";
+  const closed = ticket ? isClosed(ticket.status) : false;
+
   if (isLoading || !ticket) {
     return (
-      <View
-        style={[
-          styles.container,
-          {
-            backgroundColor: theme.backgroundRoot,
-            paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: insets.bottom,
-          },
-        ]}
-      >
-        {isLoading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={theme.primary} />
-            <ThemedText
-              type="body"
-              style={[styles.loadingText, { color: theme.textSecondary }]}
-            >
-              Loading ticket…
-            </ThemedText>
-          </View>
-        ) : (
-          <View style={styles.center}>
-            <Feather name="alert-circle" size={48} color={theme.textSecondary} />
-            <ThemedText
-              type="h4"
-              style={[styles.errorTitle, { color: theme.text }]}
-            >
-              Ticket not found
-            </ThemedText>
-            <ThemedText
-              type="body"
-              style={[styles.errorSubtitle, { color: theme.textSecondary }]}
-            >
-              The ticket may have been removed or the link is invalid.
-            </ThemedText>
-          </View>
-        )}
+      <View style={[styles.container, { backgroundColor: PALETTE.background }]}>
+        <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+            style={({ pressed }) => [styles.headerBack, { opacity: pressed ? 0.7 : 1 }]}
+            hitSlop={16}
+          >
+            <Feather name="chevron-left" size={24} color={PALETTE.textPrimary} />
+          </Pressable>
+          <ThemedText type="h3" style={styles.headerTitle}>
+            Ticket Details
+          </ThemedText>
+          <Pressable
+            onPress={goHome}
+            style={({ pressed }) => [styles.headerHome, { opacity: pressed ? 0.7 : 1 }]}
+            hitSlop={12}
+          >
+            <Feather name="home" size={22} color={PALETTE.textPrimary} />
+          </Pressable>
+        </View>
+        <View style={[styles.center, { paddingBottom: insets.bottom + Spacing.xl }]}>
+          {isLoading ? (
+            <>
+              <ActivityIndicator size="large" color={PALETTE.primaryRed} />
+              <ThemedText type="body" style={[styles.loadingText, { color: PALETTE.textSecondary }]}>
+                Loading ticket…
+              </ThemedText>
+            </>
+          ) : (
+            <>
+              <Feather name="alert-circle" size={48} color={PALETTE.textSecondary} />
+              <ThemedText type="h4" style={[styles.errorTitle, { color: PALETTE.textPrimary }]}>
+                Ticket not found
+              </ThemedText>
+              <ThemedText type="body" style={[styles.errorSubtitle, { color: PALETTE.textSecondary }]}>
+                The ticket may have been removed or the link is invalid.
+              </ThemedText>
+            </>
+          )}
+        </View>
       </View>
     );
   }
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
-      contentContainerStyle={[
-        styles.scrollContent,
-        {
-          paddingTop: headerHeight + Spacing.lg,
-          paddingBottom: insets.bottom + Spacing.xl,
-        },
-      ]}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefetching}
-          onRefresh={() => refetch()}
-          tintColor={theme.primary}
-        />
-      }
-    >
-      <View style={[styles.tokenCard, { backgroundColor: theme.primary }]}>
-        <ThemedText style={styles.tokenLabel}>TOKEN</ThemedText>
-        <ThemedText style={styles.tokenNumber}>#{ticket.token_no}</ThemedText>
-        {ticket.status != null && ticket.status !== "" && (
-          <View style={[styles.statusBadge, { backgroundColor: "rgba(255,255,255,0.3)" }]}>
-            <ThemedText type="small" style={styles.statusText}>
-              {ticket.status}
+    <View style={[styles.container, { backgroundColor: PALETTE.background }]}>
+      {/* Custom header */}
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            navigation.goBack();
+          }}
+          style={({ pressed }) => [styles.headerBack, { opacity: pressed ? 0.7 : 1 }]}
+          hitSlop={16}
+          accessibilityLabel="Go back"
+        >
+          <Feather name="chevron-left" size={24} color={PALETTE.textPrimary} />
+        </Pressable>
+        <ThemedText type="h3" style={styles.headerTitle}>
+          Ticket Details
+        </ThemedText>
+        <Pressable
+          onPress={goHome}
+          style={({ pressed }) => [styles.headerHome, { opacity: pressed ? 0.7 : 1 }]}
+          hitSlop={12}
+          accessibilityLabel="Home"
+        >
+          <Feather name="home" size={22} color={PALETTE.textPrimary} />
+        </Pressable>
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + Spacing.xl },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => refetch()}
+            tintColor={PALETTE.primaryRed}
+          />
+        }
+      >
+        {/* Token + status */}
+        <View style={styles.tokenBlock}>
+          <ThemedText type="h1" style={styles.tokenNumber}>
+            #{ticket.token_no}
+          </ThemedText>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: closed ? `${PALETTE.successGreen}30` : `${PALETTE.primaryRed}30` },
+            ]}
+          >
+            <ThemedText
+              type="small"
+              style={[
+                styles.statusText,
+                { color: closed ? PALETTE.successGreen : PALETTE.primaryRed },
+              ]}
+            >
+              {statusLabel}
+            </ThemedText>
+          </View>
+        </View>
+
+        {/* Visitor section */}
+        <View style={styles.section}>
+          <ThemedText type="small" style={styles.sectionTitle}>
+            Visitor
+          </ThemedText>
+          <DetailRowWithIcon icon="user" label="Name" value={ticket.name} />
+          <DetailRowWithIcon icon="phone" label="Phone" value={ticket.phone} />
+          <DetailRowWithIcon icon="file-text" label="Purpose" value={ticket.purpose} />
+        </View>
+
+        {/* Assignment section */}
+        <View style={styles.section}>
+          <ThemedText type="small" style={styles.sectionTitle}>
+            Assignment
+          </ThemedText>
+          {ticket.assignee != null && ticket.assignee !== "" && (
+            <View style={styles.assigneeBadge}>
+              <ThemedText type="small" style={styles.assigneeBadgeText}>
+                {ticket.assignee}
+              </ThemedText>
+            </View>
+          )}
+          {ticket.desk_location != null && ticket.desk_location !== "" && (
+            <View style={styles.locationRow}>
+              <Feather name="map-pin" size={16} color={PALETTE.textSecondary} />
+              <ThemedText type="body" style={styles.locationText} numberOfLines={2}>
+                {ticket.desk_location}
+              </ThemedText>
+            </View>
+          )}
+          {(!ticket.assignee || ticket.assignee === "") && (!ticket.desk_location || ticket.desk_location === "") && (
+            <ThemedText type="body" style={styles.detailValue}>—</ThemedText>
+          )}
+        </View>
+
+        {/* Timings timeline */}
+        <View style={styles.section}>
+          <ThemedText type="small" style={styles.sectionTitle}>
+            Timings
+          </ThemedText>
+          <View style={styles.timeline}>
+            <View style={styles.timelineRow}>
+              <View style={[styles.timelineDot, styles.timelineDotFilled]} />
+              <View style={styles.timelineContent}>
+                <ThemedText type="small" style={styles.detailLabel}>Entry</ThemedText>
+                <ThemedText type="body" style={styles.detailValue}>
+                  {ticket.entry_time ? formatDateTime(ticket.entry_time) : "—"}
+                </ThemedText>
+              </View>
+            </View>
+            <View style={styles.timelineLine} />
+            <View style={styles.timelineRow}>
+              <View style={[styles.timelineDot, styles.timelineDotEmpty]} />
+              <View style={styles.timelineContent}>
+                <ThemedText type="small" style={styles.detailLabel}>Exit</ThemedText>
+                <ThemedText type="body" style={styles.detailValue}>
+                  {ticket.exit_time ? formatDateTime(ticket.exit_time) : "—"}
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Mark as Exit (open tickets only) */}
+        {!closed && (
+          <View style={styles.closeSection}>
+            <Pressable
+              onPress={() => closeMutation.mutate()}
+              disabled={closeMutation.isPending}
+              style={({ pressed }) => [
+                styles.closeButton,
+                { opacity: pressed ? 0.9 : 1 },
+              ]}
+            >
+              {closeMutation.isPending ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Feather name="log-out" size={20} color="#FFFFFF" style={styles.closeButtonIcon} />
+                  <ThemedText type="body" style={styles.closeButtonText}>
+                    Mark as Exit
+                  </ThemedText>
+                </>
+              )}
+            </Pressable>
+            <ThemedText type="small" style={styles.closeHint}>
+              This action will close the ticket
             </ThemedText>
           </View>
         )}
-      </View>
-
-      <View style={[styles.section, { backgroundColor: theme.backgroundDefault }]}>
-        <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-          Visitor
-        </ThemedText>
-        <DetailRow label="Name" value={ticket.name} theme={theme} />
-        <DetailRow label="Phone" value={ticket.phone} theme={theme} />
-        <DetailRow label="Purpose" value={ticket.purpose} theme={theme} />
-      </View>
-
-      <View style={[styles.section, { backgroundColor: theme.backgroundDefault }]}>
-        <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-          Assignment
-        </ThemedText>
-        <DetailRow label="Assignee" value={ticket.assignee} theme={theme} />
-        <DetailRow label="Desk / Location" value={ticket.desk_location} theme={theme} />
-      </View>
-
-      <View style={[styles.section, { backgroundColor: theme.backgroundDefault }]}>
-        <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-          Timings
-        </ThemedText>
-        <DetailRow label="Entry time" value={ticket.entry_time ? formatDateTime(ticket.entry_time) : undefined} theme={theme} />
-        <DetailRow label="Exit time" value={ticket.exit_time ? formatDateTime(ticket.exit_time) : "—"} theme={theme} />
-      </View>
-
-      {!isClosed(ticket.status) && (
-        <View
-          style={[
-            styles.closeSection,
-            { paddingBottom: insets.bottom + Spacing.xl },
-          ]}
-        >
-          <Button
-            onPress={() => closeMutation.mutate()}
-            disabled={closeMutation.isPending}
-            style={[styles.closeButton, { backgroundColor: theme.primary }]}
-          >
-            {closeMutation.isPending ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              "Close ticket"
-            )}
-          </Button>
-          <ThemedText
-            type="small"
-            style={[styles.closeHint, { color: theme.textSecondary }]}
-          >
-            Mark this ticket as closed (exit)
-          </ThemedText>
-        </View>
-      )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -296,8 +410,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: PALETTE.divider,
+  },
+  headerBack: {
+    minWidth: 48,
+    minHeight: 48,
+    justifyContent: "center",
+  },
+  headerTitle: {
+    color: PALETTE.textPrimary,
+    fontWeight: "700",
+  },
+  headerHome: {
+    minWidth: 48,
+    minHeight: 48,
+    justifyContent: "center",
+    alignItems: "flex-end",
+  },
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: 20,
+    paddingTop: Spacing.xl,
   },
   center: {
     flex: 1,
@@ -315,62 +457,140 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: Spacing.xl,
   },
-  tokenCard: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: Spacing["3xl"],
-    paddingHorizontal: Spacing.xl,
-    borderRadius: BorderRadius.lg,
+  tokenBlock: {
     marginBottom: Spacing.xl,
   },
-  tokenLabel: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 14,
-    fontWeight: "600",
-    letterSpacing: 2,
+  tokenNumber: {
+    color: PALETTE.textPrimary,
+    fontWeight: "700",
     marginBottom: Spacing.sm,
   },
-  tokenNumber: {
-    color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "700",
-  },
   statusBadge: {
-    marginTop: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.xs,
+    alignSelf: "flex-start",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
   },
   statusText: {
-    color: "#FFFFFF",
     fontWeight: "600",
   },
   section: {
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
+    backgroundColor: PALETTE.card,
+    borderRadius: CARD_RADIUS,
+    padding: 20,
     marginBottom: Spacing.lg,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
   },
   sectionTitle: {
+    color: PALETTE.textSecondary,
     fontWeight: "600",
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  detailRow: {
+  detailRowWithIcon: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: Spacing.lg,
+  },
+  detailIconWrap: {
+    width: 32,
+    marginRight: Spacing.md,
+    marginTop: 2,
+  },
+  detailContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  detailLabel: {
+    color: PALETTE.textSecondary,
+    marginBottom: 2,
+  },
+  detailValue: {
+    color: PALETTE.textPrimary,
+  },
+  assigneeBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: `${PALETTE.primaryRed}20`,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
     marginBottom: Spacing.md,
   },
-  label: {
-    marginBottom: Spacing.xs,
+  assigneeBadgeText: {
+    color: PALETTE.textPrimary,
+    fontWeight: "600",
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  locationText: {
+    color: PALETTE.textPrimary,
+    flex: 1,
+  },
+  timeline: {
+    gap: 0,
+  },
+  timelineRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: Spacing.lg,
+    marginTop: 6,
+  },
+  timelineDotFilled: {
+    backgroundColor: PALETTE.primaryRed,
+  },
+  timelineDotEmpty: {
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    borderColor: PALETTE.divider,
+  },
+  timelineLine: {
+    width: 2,
+    height: 24,
+    backgroundColor: PALETTE.divider,
+    marginLeft: 5,
+    marginVertical: 0,
+  },
+  timelineContent: {
+    flex: 1,
+    minWidth: 0,
+    paddingBottom: Spacing.lg,
   },
   closeSection: {
     marginTop: Spacing.lg,
-    paddingHorizontal: 0,
+    marginBottom: Spacing.xl,
   },
   closeButton: {
-    borderRadius: BorderRadius.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: PALETTE.primaryRed,
+    paddingVertical: 16,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: CARD_RADIUS,
     marginBottom: Spacing.sm,
   },
+  closeButtonIcon: {
+    marginRight: Spacing.sm,
+  },
+  closeButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
   closeHint: {
+    color: PALETTE.textSecondary,
     textAlign: "center",
   },
 });
