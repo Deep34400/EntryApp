@@ -10,10 +10,10 @@ Use this to create an **APK file** you can install on Android devices or upload 
 
 You **do not need to build a new APK every time** you change the app.
 
-| What you changed | What to do |
-|------------------|------------|
-| **JS/TS, UI, styles, text, assets** | **Push an update** (see [Update the app without rebuilding](#update-the-app-without-rebuilding)) — users get it when they open the app. |
-| **Native code, new permissions, `app.json` version, new Expo SDK** | **Create a new build** (steps below) and share the new APK. |
+| What you changed                                                   | What to do                                                                                                                              |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **JS/TS, UI, styles, text, assets**                                | **Push an update** (see [Update the app without rebuilding](#update-the-app-without-rebuilding)) — users get it when they open the app. |
+| **Native code, new permissions, `app.json` version, new Expo SDK** | **Create a new build** (steps below) and share the new APK.                                                                             |
 
 Build the APK **once** (or when you bump version / change native config). For day-to-day fixes and features, use **EAS Update** so the same installed app gets updates without reinstalling.
 
@@ -24,14 +24,17 @@ Build the APK **once** (or when you bump version / change native config). For da
 The app is set to use the **`tech3440`** Expo account (`app.json` → `expo.owner`). If you want to use a **different Expo account** (new email/team):
 
 1. **Log out of the current account**
+
    ```bash
    eas logout
    ```
 
 2. **Log in with the new account**
+
    ```bash
    eas login
    ```
+
    Use the new account’s email and password.
 
 3. **Link this app to the new account’s project**
@@ -124,10 +127,10 @@ You only need a **new build** when you change native code, permissions, or app v
 
 ## Build profiles (in `eas.json`)
 
-| Profile     | Use case              | Output   |
-|------------|------------------------|----------|
-| `preview`  | Testing / sharing APK  | `.apk`   |
-| `production` | Release APK         | `.apk`   |
+| Profile      | Use case              | Output |
+| ------------ | --------------------- | ------ |
+| `preview`    | Testing / sharing APK | `.apk` |
+| `production` | Release APK           | `.apk` |
 
 Always use **`--profile preview`** (or **`production`**) so the build is an **APK**. Without that, EAS builds an AAB (Play Store format), which you can’t install directly as a single file.
 

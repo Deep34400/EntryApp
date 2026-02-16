@@ -73,6 +73,23 @@ export const DesignTokens = {
     dark: "rgba(21, 24, 29, 0.4)",
     light: "rgba(0, 0, 0, 0.08)",
   },
+
+  /** Login / OTP screen — single place to change login UI colors. */
+  login: {
+    headerRed: "#B31D38",
+    resendGreen: "#388E3C",
+    inputBorder: "#D7D7D7",
+    inputBorderFocused: "#1C1917",
+    placeholder: "#A2ACB1",
+    termsText: "#3F4C52",
+    termsLink: "#0D9488",
+    onHeader: "#FFFFFF",
+    otpBoxBorder: "#E5E7EB",
+    otpBoxBorderActive: "#1C1917",
+    otpText: "#1C1917",
+    otpSub: "#4B5563",
+    cardBg: "#FFFFFF",
+  },
 } as const;
 
 export type DesignTokensType = typeof DesignTokens;

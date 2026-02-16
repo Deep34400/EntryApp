@@ -11,7 +11,7 @@ import {
   Pressable,
   Linking,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
@@ -22,6 +22,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
+import { DesignTokens } from "@/constants/designTokens";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -34,19 +35,8 @@ type Step = "phone" | "otp";
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SECONDS = 30;
-/** Figma: Rectangle 4736 background */
-const PRIMARY_RED = "#B31D38";
-const RESEND_GREEN = "#388E3C";
-/** Figma: red header height exactly 401px */
-const HEADER_HEIGHT = 401;
-/** Figma: white card overlaps red by 75px (401 + 474 - 800) */
-const WHITE_CARD_OVERLAP = 75;
-/** Figma: content top offset inside white card (358 - 326) */
-const CONTENT_TOP_OFFSET = 32;
-/** Figma: content width 328px, horizontal padding 16 each side */
-const CONTENT_WIDTH = 328;
-const SCREEN_PADDING_H = 16;
 
+const loginTokens = DesignTokens.login;
 
 export default function LoginOtpScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -171,7 +161,7 @@ export default function LoginOtpScreen() {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.backgroundRoot }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <ThemedText type="body" style={{ color: theme.textSecondary, marginTop: Spacing.lg }}>
+        <ThemedText type="body" numberOfLines={1} style={{ color: theme.textSecondary, marginTop: Spacing.lg }}>
           Loading…
         </ThemedText>
       </View>
@@ -182,7 +172,7 @@ export default function LoginOtpScreen() {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.backgroundRoot }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <ThemedText type="body" style={{ color: theme.textSecondary, marginTop: Spacing.lg }}>
+        <ThemedText type="body" numberOfLines={1} style={{ color: theme.textSecondary, marginTop: Spacing.lg }}>
           Preparing…
         </ThemedText>
       </View>
@@ -192,7 +182,7 @@ export default function LoginOtpScreen() {
   if (auth.authError) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.backgroundRoot }]}>
-        <ThemedText type="body" style={{ color: theme.error, marginBottom: Spacing.lg, textAlign: "center" }}>
+        <ThemedText type="body" numberOfLines={3} style={{ color: theme.error, marginBottom: Spacing.lg, textAlign: "center" }}>
           {auth.authError}
         </ThemedText>
         <Button onPress={() => auth.ensureGuestToken()}>Retry</Button>
@@ -200,34 +190,46 @@ export default function LoginOtpScreen() {
     );
   }
 
-  const inputBorderColor = phoneFocused ? theme.primary : "#D7D7D7";
+  const inputBorderColor = phoneFocused ? theme.primary : loginTokens.inputBorder;
 
   if (step === "otp") {
     return (
-      <View style={[styles.container, { backgroundColor: "#FFFFFF" }]}>
-        <View style={[styles.otpTopBar, { paddingTop: insets.top }]}>
-          <Pressable
-            onPress={goBackToPhone}
-            style={({ pressed }) => [styles.backArrowAbsolute, { opacity: pressed ? 0.7 : 1 }]}
-            hitSlop={16}
-            accessibilityLabel="Back to phone number"
-          >
-            <Feather name="chevron-left" size={26} color="#1C1917" />
-          </Pressable>
-        </View>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboardView} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
+      <SafeAreaView style={[styles.container, { backgroundColor: loginTokens.cardBg }]} edges={["top"]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.keyboardView}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        >
           <ScrollView
             style={styles.scrollView}
-            contentContainerStyle={[styles.scrollContentPhone, styles.otpScrollContent, { paddingTop: Spacing.xl, paddingBottom: insets.bottom + Spacing["2xl"] }]}
+            contentContainerStyle={[
+              styles.scrollContent,
+              styles.otpScrollContent,
+              { paddingTop: Spacing.xl, paddingBottom: insets.bottom + Spacing["2xl"] },
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
+            <View style={[styles.otpTopBar, { paddingTop: 0 }]}>
+              <Pressable
+                onPress={goBackToPhone}
+                style={({ pressed }) => [styles.backArrowAbsolute, { opacity: pressed ? 0.7 : 1 }]}
+                hitSlop={16}
+                accessibilityLabel="Back to phone number"
+              >
+                <Feather name="chevron-left" size={26} color={loginTokens.otpText} />
+              </Pressable>
+            </View>
             <Animated.View entering={FadeIn.duration(260)} style={styles.otpContent}>
-              <ThemedText type="h3" style={styles.otpTitle}>Enter OTP</ThemedText>
-              <ThemedText type="body" style={styles.otpSubtitle}>OTP sent to {phoneTrimmed || "..."}</ThemedText>
+              <ThemedText type="h3" style={styles.otpTitle} numberOfLines={1}>
+                Enter OTP
+              </ThemedText>
+              <ThemedText type="body" style={styles.otpSubtitle} numberOfLines={1}>
+                OTP sent to {phoneTrimmed || "..."}
+              </ThemedText>
               {error ? (
-                <View style={[styles.errorBanner, { backgroundColor: theme.backgroundTertiary, borderColor: theme.border, marginTop: Spacing.lg, marginBottom: Spacing.md }]}>
-                  <ThemedText type="small" style={{ color: theme.error }}>{error}</ThemedText>
+                <View style={[styles.errorBanner, { backgroundColor: theme.backgroundTertiary, borderColor: theme.border, marginTop: Spacing.lg, marginBottom: Layout.contentGap }]}>
+                  <ThemedText type="small" numberOfLines={3} style={{ color: theme.error }}>{error}</ThemedText>
                 </View>
               ) : null}
               <Pressable onPress={() => otpInputRef.current?.focus()} style={styles.otpRowWrap}>
@@ -236,19 +238,19 @@ export default function LoginOtpScreen() {
                   const digit = otp[i] ?? "";
                   const isActive = i === otp.length;
                   return (
-                    <View key={i} style={[styles.otpBox, { borderColor: isActive ? "#1C1917" : "#E5E7EB", borderWidth: isActive ? 2 : 1 }]}>
-                      <ThemedText type="h5" style={[styles.otpBoxDigit, { color: "#1C1917", opacity: digit ? 1 : 0.4 }]}>{digit}</ThemedText>
+                    <View key={i} style={[styles.otpBox, { borderColor: isActive ? loginTokens.otpBoxBorderActive : loginTokens.otpBoxBorder, borderWidth: isActive ? 2 : 1 }]}>
+                      <ThemedText type="h5" style={[styles.otpBoxDigit, { color: loginTokens.otpText, opacity: digit ? 1 : 0.4 }]} numberOfLines={1}>{digit}</ThemedText>
                     </View>
                   );
                 })}
               </Pressable>
               <View style={styles.resendRowOtp}>
-                <ThemedText type="body" style={styles.resendLabel}>Didn&apos;t receive the code? </ThemedText>
+                <ThemedText type="body" style={styles.resendLabel} numberOfLines={1}>Didn&apos;t receive the code? </ThemedText>
                 {resendCooldown > 0 ? (
-                  <ThemedText type="body" style={styles.resendCooldown}>Resend in {resendCooldown}s</ThemedText>
+                  <ThemedText type="body" style={styles.resendCooldown} numberOfLines={1}>Resend in {resendCooldown}s</ThemedText>
                 ) : (
                   <Pressable onPress={handleResendOtp} disabled={loading} hitSlop={12} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-                    <ThemedText type="body" style={[styles.resendLink, { color: RESEND_GREEN }]}>Resend</ThemedText>
+                    <ThemedText type="body" style={[styles.resendLink, { color: loginTokens.resendGreen }]} numberOfLines={1}>Resend</ThemedText>
                   </Pressable>
                 )}
               </View>
@@ -256,7 +258,7 @@ export default function LoginOtpScreen() {
                 <Button
                   onPress={handleVerifyOtp}
                   disabled={!isOtpComplete || loading}
-                  style={[styles.primaryButton, styles.pillButton, { backgroundColor: isOtpComplete ? PRIMARY_RED : theme.backgroundSecondary, opacity: isOtpComplete && !loading ? 1 : 0.8, borderWidth: 0 }]}
+                  style={[styles.primaryButton, styles.pillButton, { backgroundColor: isOtpComplete ? loginTokens.headerRed : theme.backgroundSecondary, opacity: isOtpComplete && !loading ? 1 : 0.8, borderWidth: 0 }]}
                 >
                   {loading ? "Verifying…" : "Verify & Continue"}
                 </Button>
@@ -264,92 +266,100 @@ export default function LoginOtpScreen() {
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: "#FFFFFF" }]}>
-      {/* Figma: Rectangle 4736 — red header 360×401, bottom radius 24px */}
-      <View style={[styles.loginHeader, { height: HEADER_HEIGHT, paddingTop: insets.top, backgroundColor: PRIMARY_RED }]}>
-        <Animated.View entering={FadeIn.duration(280)} style={styles.hero}>
-          <Image
-            source={require("../../assets/images/latestLogo.png")}
-            style={styles.heroLogoOnRed}
-            resizeMode="contain"
-          />
-          <ThemedText type="h4" style={[styles.heroTitle, { color: "#FFFFFF" }]}>carrum</ThemedText>
-          <ThemedText type="small" style={[styles.heroSubtitle, { color: "#FFFFFF" }]}>MOBILITY SOLUTIONS</ThemedText>
-        </Animated.View>
-      </View>
-      {/* Figma: Rectangle 2 — white card overlaps by 75px, top radius 20px, no shadow */}
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboardView} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
-        <ScrollView
-          style={[styles.scrollView, styles.whiteCard]}
-          contentContainerStyle={[styles.scrollContentPhone, { paddingTop: CONTENT_TOP_OFFSET, paddingBottom: insets.bottom + 24 + 44 + 24 }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={[styles.container, { backgroundColor: loginTokens.cardBg }]} edges={["top"]}>
+      <View style={styles.phoneStepWrapper}>
+        <View
+          style={[
+            styles.loginHeader,
+            {
+              minHeight: Layout.loginHeaderMinHeight,
+              maxHeight: Layout.loginHeaderMaxHeight,
+              paddingTop: insets.top,
+              backgroundColor: loginTokens.headerRed,
+            },
+          ]}
         >
-          {/* Figma: Frame 1000002192 — 328px content, gap 24px */}
-          <Animated.View
-            entering={FadeIn.delay(120).duration(260)}
-            style={styles.contentBlock}
-          >
-            {/* Figma: Frame 1000002186 / 1000002185 — Welcome + Entry/ Exit, gap 4px */}
-            <View style={styles.welcomeBlock}>
-              <ThemedText style={styles.welcomeTitle}>Welcome</ThemedText>
-              <ThemedText style={styles.welcomeSubtitle}>Entry/ Exit Application</ThemedText>
-            </View>
-            {error ? (
-              <View style={[styles.errorBanner, { backgroundColor: theme.backgroundTertiary, borderColor: theme.border }]}>
-                <ThemedText type="small" style={{ color: theme.error }}>{error}</ThemedText>
-              </View>
-            ) : null}
-            {/* Figma: Frame 36809 — input 328×56, padding 13×16, gap 10, border #D7D7D7, radius 12 */}
-            <View style={[styles.phoneInputWrap, { borderColor: inputBorderColor }]}>
-              <ThemedText style={styles.phonePrefix}>+91</ThemedText>
-              <TextInput
-                style={styles.phoneInput}
-                placeholder="Enter mobile number"
-                placeholderTextColor="#A2ACB1"
-                selectionColor={PRIMARY_RED}
-                value={phone}
-                onChangeText={(v) => setPhone(normalizePhoneInput(v))}
-                onFocus={() => setPhoneFocused(true)}
-                onBlur={() => setPhoneFocused(false)}
-                keyboardType="phone-pad"
-                maxLength={PHONE_MAX_DIGITS}
-                editable={!loading}
-                testID="input-phone"
-              />
-            </View>
-            {/* Figma: Frame 1000002156 — button 328×46, radius 22, Sent OTP 14px 600 */}
-            <View style={styles.primaryButtonWrap}>
-              <Button
-                onPress={handleSendOtp}
-                disabled={!isPhoneValid || loading}
-                style={[styles.sentOtpButton, { backgroundColor: isPhoneValid ? PRIMARY_RED : theme.backgroundSecondary, opacity: isPhoneValid && !loading ? 1 : 0.8, borderWidth: 0 }]}
-              >
-                {loading ? "Sending…" : "Sent OTP"}
-              </Button>
-            </View>
+          <Animated.View entering={FadeIn.duration(280)} style={styles.hero}>
+            <Image source={require("../../assets/images/latestLogo.png")} style={styles.heroLogoOnRed} resizeMode="contain" />
+            <ThemedText type="h4" style={[styles.heroTitle, { color: loginTokens.onHeader }]} numberOfLines={1}>carrum</ThemedText>
+            <ThemedText type="small" style={[styles.heroSubtitle, { color: loginTokens.onHeader }]} numberOfLines={1}>MOBILITY SOLUTIONS</ThemedText>
           </Animated.View>
-        </ScrollView>
-        {/* Figma: terms — absolute bottom 24px, 327×44, 14px 400, color #3F4C52 */}
-        <View style={[styles.termsWrap, { bottom: 24 + insets.bottom }]}>
-          <View style={styles.termsRow}>
-            <ThemedText style={styles.termsText}>By continuing, I agree to the </ThemedText>
-            <Pressable onPress={() => Linking.openURL("https://example.com/terms").catch(() => {})} hitSlop={8}>
-              <ThemedText style={[styles.termsText, styles.termsLink]}>terms & conditions</ThemedText>
-            </Pressable>
-            <ThemedText style={styles.termsText}> and </ThemedText>
-            <Pressable onPress={() => Linking.openURL("https://example.com/privacy").catch(() => {})} hitSlop={8}>
-              <ThemedText style={[styles.termsText, styles.termsLink]}>privacy policy</ThemedText>
-            </Pressable>
-          </View>
         </View>
-      </KeyboardAvoidingView>
-    </View>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.keyboardView}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        >
+          <ScrollView
+            style={[styles.scrollView, styles.whiteCard]}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                paddingTop: Layout.contentGap + 20,
+                paddingBottom: insets.bottom + Spacing["2xl"] + 44 + Spacing["2xl"],
+              },
+            ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Animated.View entering={FadeIn.delay(120).duration(260)} style={styles.contentBlock}>
+              <View style={styles.welcomeBlock}>
+                <ThemedText style={styles.welcomeTitle} numberOfLines={1}>Welcome</ThemedText>
+                <ThemedText style={styles.welcomeSubtitle} numberOfLines={1}>Entry/ Exit Application</ThemedText>
+              </View>
+              {error ? (
+                <View style={[styles.errorBanner, { backgroundColor: theme.backgroundTertiary, borderColor: theme.border }]}>
+                  <ThemedText type="small" numberOfLines={3} style={{ color: theme.error }}>{error}</ThemedText>
+                </View>
+              ) : null}
+              <View style={[styles.phoneInputWrap, { borderColor: inputBorderColor }]}>
+                <ThemedText style={styles.phonePrefix} numberOfLines={1}>+91</ThemedText>
+                <TextInput
+                  style={styles.phoneInput}
+                  placeholder="Enter mobile number"
+                  placeholderTextColor={loginTokens.placeholder}
+                  selectionColor={loginTokens.headerRed}
+                  value={phone}
+                  onChangeText={(v) => setPhone(normalizePhoneInput(v))}
+                  onFocus={() => setPhoneFocused(true)}
+                  onBlur={() => setPhoneFocused(false)}
+                  keyboardType="phone-pad"
+                  maxLength={PHONE_MAX_DIGITS}
+                  editable={!loading}
+                  testID="input-phone"
+                />
+              </View>
+              <View style={styles.primaryButtonWrap}>
+                <Button
+                  onPress={handleSendOtp}
+                  disabled={!isPhoneValid || loading}
+                  style={[styles.sentOtpButton, { backgroundColor: isPhoneValid ? loginTokens.headerRed : theme.backgroundSecondary, opacity: isPhoneValid && !loading ? 1 : 0.8, borderWidth: 0 }]}
+                >
+                  {loading ? "Sending…" : "Sent OTP"}
+                </Button>
+              </View>
+
+              <View style={styles.termsRow}>
+                <ThemedText style={styles.termsText}>By continuing, I agree to the </ThemedText>
+                <Pressable onPress={() => Linking.openURL("https://example.com/terms").catch(() => {})} hitSlop={8}>
+                  <ThemedText style={[styles.termsText, styles.termsLink]}>terms & conditions</ThemedText>
+                </Pressable>
+                <ThemedText style={styles.termsText}> and </ThemedText>
+                <Pressable onPress={() => Linking.openURL("https://example.com/privacy").catch(() => {})} hitSlop={8}>
+                  <ThemedText style={[styles.termsText, styles.termsLink]}>privacy policy</ThemedText>
+                </Pressable>
+              </View>
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -361,35 +371,39 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  phoneStepWrapper: {
+    flex: 1,
+  },
   keyboardView: {
     flex: 1,
   },
   scrollView: {
     flex: 1,
   },
-  scrollContentPhone: {
+  scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: SCREEN_PADDING_H,
-    maxWidth: CONTENT_WIDTH + SCREEN_PADDING_H * 2,
+    paddingHorizontal: Layout.horizontalScreenPadding,
     width: "100%",
+    maxWidth: Layout.contentMaxWidth + Layout.horizontalScreenPadding * 2,
     alignSelf: "center",
   },
-  // --- Login (phone) step: Figma Rectangle 4736 ---
   loginHeader: {
     width: "100%",
     alignItems: "center",
+    justifyContent: "center",
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     overflow: "hidden",
   },
   hero: {
-    paddingTop: 108,
+    paddingVertical: Spacing.lg,
     alignItems: "center",
     justifyContent: "flex-start",
   },
   heroLogoOnRed: {
-    width: 206,
-    height: 139.15,
+    width: "100%",
+    maxWidth: 206,
+    aspectRatio: 206 / 139.15,
     marginBottom: Spacing.lg,
   },
   heroTitle: {
@@ -407,11 +421,10 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     fontSize: 12,
   },
-  // --- Figma Rectangle 2: white card, overlap 75px, top radius 20px ---
   whiteCard: {
     flex: 1,
-    marginTop: -WHITE_CARD_OVERLAP,
-    backgroundColor: "#FFFFFF",
+    marginTop: -Layout.loginWhiteCardOverlap,
+    backgroundColor: DesignTokens.login.cardBg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: "hidden",
@@ -419,11 +432,11 @@ const styles = StyleSheet.create({
   contentBlock: {
     flexDirection: "column",
     width: "100%",
-    maxWidth: CONTENT_WIDTH,
+    maxWidth: Layout.contentMaxWidth,
     alignSelf: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: DesignTokens.login.cardBg,
     paddingHorizontal: 0,
-    gap: 24,
+    gap: Layout.contentGap,
   },
   welcomeBlock: {
     alignSelf: "center",
@@ -445,17 +458,17 @@ const styles = StyleSheet.create({
     color: "#000000",
   },
   phoneInputWrap: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: DesignTokens.login.cardBg,
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
-    maxWidth: CONTENT_WIDTH,
-    height: 56,
+    maxWidth: Layout.contentMaxWidth,
+    minHeight: 56,
     paddingVertical: 13,
-    paddingHorizontal: 16,
+    paddingHorizontal: Layout.cardPadding,
     gap: 10,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: BorderRadius.sm,
   },
   phonePrefix: {
     fontFamily: "Poppins",
@@ -467,6 +480,7 @@ const styles = StyleSheet.create({
   },
   phoneInput: {
     flex: 1,
+    minWidth: 0,
     fontFamily: "Poppins",
     fontWeight: "500",
     fontSize: 16,
@@ -477,8 +491,8 @@ const styles = StyleSheet.create({
   },
   sentOtpButton: {
     width: "100%",
-    maxWidth: CONTENT_WIDTH,
-    height: 46,
+    maxWidth: Layout.contentMaxWidth,
+    minHeight: 46,
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
@@ -494,42 +508,33 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   errorBanner: {
-    padding: Spacing.md,
+    padding: Layout.cardPadding,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
-  },
-  // --- Figma: terms absolute bottom 24px, 14px 400, #3F4C52 ---
-  termsWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: SCREEN_PADDING_H,
   },
   termsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
     alignItems: "center",
-    maxWidth: 327,
+    marginTop: Spacing.lg,
+    paddingVertical: Spacing.sm,
   },
   termsText: {
     fontFamily: "Poppins",
     fontWeight: "400",
     fontSize: 14,
     lineHeight: 22,
-    color: "#3F4C52",
+    color: DesignTokens.login.termsText,
     textAlign: "center",
   },
   termsLink: {
-    color: "#0D9488",
+    color: DesignTokens.login.termsLink,
     fontWeight: "600",
   },
-  // --- OTP step ---
   otpTopBar: {
-    paddingHorizontal: SCREEN_PADDING_H,
-    paddingBottom: Spacing.sm,
+    paddingHorizontal: Layout.horizontalScreenPadding,
+    paddingBottom: Layout.contentGap,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -544,24 +549,24 @@ const styles = StyleSheet.create({
   },
   otpTitle: {
     fontFamily: "Poppins",
-    color: "#1C1917",
+    color: DesignTokens.login.otpText,
     fontSize: 28,
     fontWeight: "700",
     marginBottom: Spacing.xs,
   },
   otpSubtitle: {
     fontFamily: "Poppins",
-    color: "#4B5563",
+    color: DesignTokens.login.otpSub,
     fontSize: 16,
     marginBottom: Spacing.xl,
   },
   resendLabel: {
     fontFamily: "Poppins",
-    color: "#4B5563",
+    color: DesignTokens.login.otpSub,
   },
   resendCooldown: {
     fontFamily: "Poppins",
-    color: "#4B5563",
+    color: DesignTokens.login.otpSub,
   },
   resendLink: {
     fontFamily: "Poppins",
@@ -569,14 +574,14 @@ const styles = StyleSheet.create({
   },
   otpScrollContent: {
     flexGrow: 1,
-    maxWidth: 440,
     width: "100%",
+    maxWidth: 440,
     alignSelf: "center",
   },
   otpRowWrap: {
     flexDirection: "row",
     justifyContent: "flex-start",
-    gap: Spacing.sm,
+    gap: Layout.contentGap,
     position: "relative",
     minHeight: 56,
     marginBottom: Spacing.lg,
@@ -592,8 +597,8 @@ const styles = StyleSheet.create({
   otpBox: {
     width: 56,
     height: 56,
-    borderRadius: 12,
-    backgroundColor: "#FFFFFF",
+    borderRadius: BorderRadius.sm,
+    backgroundColor: DesignTokens.login.cardBg,
     alignItems: "center",
     justifyContent: "center",
   },

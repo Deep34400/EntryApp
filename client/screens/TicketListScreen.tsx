@@ -16,6 +16,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 
 import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
+import { Layout, Spacing, BorderRadius } from "@/constants/theme";
+import { DesignTokens } from "@/constants/designTokens";
 import { fetchWithAuthRetry } from "@/lib/query-client";
 import { getEntryAppListPath } from "@/lib/api-endpoints";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,22 +35,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, "TicketList"
 type TicketListRouteProp = RouteProp<RootStackParamList, "TicketList">;
 
 const FONT_POPPINS = "Poppins";
-
-const HEADER_HEIGHT_TOTAL = 100;
-const HEADER_TITLE_PADDING_VERTICAL = 15;
-const HEADER_TITLE_PADDING_HORIZONTAL = 16;
-const TAB_BAR_HEIGHT = 40;
-const CARD_MAX_WIDTH = 328;
-const CARD_PADDING = 16;
-const CARD_GAP = 20;
-const CARD_BORDER_RADIUS = 12;
-const CARD_MARGIN_BOTTOM = 16;
-const TIME_BADGE_PADDING_V = 6;
-const TIME_BADGE_PADDING_H = 12;
-const TIME_BADGE_RADIUS = 8;
-const AVATAR_SIZE = 40;
-const VIEW_DETAIL_BUTTON_HEIGHT = 40;
-const VIEW_DETAIL_BUTTON_RADIUS = 22;
+const primaryRed = DesignTokens.login.headerRed;
 
 async function fetchTicketList(
   filter: "open" | "closed",
@@ -129,8 +116,8 @@ function TicketCard({
               </Text>
             </View>
             <View style={styles.driverInfo}>
-              <Text style={styles.driverName}>{driverName}</Text>
-              <Text style={styles.driverRole}>{role}</Text>
+              <Text style={styles.driverName} numberOfLines={1}>{driverName}</Text>
+              <Text style={styles.driverRole} numberOfLines={1}>{role}</Text>
             </View>
           </View>
 
@@ -215,7 +202,7 @@ export default function TicketListScreen() {
     { id: "Closed", label: "Closed", count: closedCount },
   ];
 
-  const listContentPaddingBottom = APP_FOOTER_HEIGHT + insets.bottom + 24;
+  const listContentPaddingBottom = APP_FOOTER_HEIGHT + insets.bottom + Spacing["2xl"];
 
   return (
     <View style={styles.screen}>
@@ -251,11 +238,12 @@ export default function TicketListScreen() {
 
       {isLoading ? (
         <View style={[styles.centered, { paddingBottom: listContentPaddingBottom }]}>
-          <ActivityIndicator size="large" color="#B31D38" />
-          <Text style={styles.loadingText}>Loading tickets…</Text>
+          <ActivityIndicator size="large" color={primaryRed} />
+          <Text style={styles.loadingText} numberOfLines={1}>Loading tickets…</Text>
         </View>
       ) : (
         <FlatList
+          style={styles.list}
           data={currentList}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
@@ -271,7 +259,7 @@ export default function TicketListScreen() {
           ]}
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyText}>
+              <Text style={styles.emptyText} numberOfLines={1}>
                 No {activeTab.toLowerCase()} tickets
               </Text>
             </View>
@@ -280,7 +268,7 @@ export default function TicketListScreen() {
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refetch}
-              tintColor="#B31D38"
+              tintColor={primaryRed}
             />
           }
         />
@@ -294,14 +282,17 @@ export default function TicketListScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: DesignTokens.login.cardBg,
+  },
+  list: {
+    flex: 1,
   },
   headerSection: {
     paddingTop: 0,
-    paddingHorizontal: HEADER_TITLE_PADDING_HORIZONTAL,
+    paddingHorizontal: Layout.horizontalScreenPadding,
     paddingBottom: 0,
-    minHeight: HEADER_HEIGHT_TOTAL,
-    backgroundColor: "#FFFFFF",
+    minHeight: Layout.headerMinHeight + 36,
+    backgroundColor: DesignTokens.login.cardBg,
     justifyContent: "flex-start",
     ...Platform.select({
       ios: {
@@ -316,18 +307,18 @@ const styles = StyleSheet.create({
     }),
   },
   headerTitleRow: {
-    paddingVertical: HEADER_TITLE_PADDING_VERTICAL,
+    paddingVertical: Spacing.md + 3,
     paddingHorizontal: 0,
   },
   headerTitle: {
     fontFamily: FONT_POPPINS,
     fontSize: 18,
     fontWeight: "600",
-    color: "#161B1D",
+    color: DesignTokens.login.otpText,
   },
   tabBar: {
     flexDirection: "row",
-    height: TAB_BAR_HEIGHT,
+    minHeight: Layout.minTouchTarget,
     alignItems: "stretch",
   },
   tab: {
@@ -337,59 +328,60 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     borderBottomWidth: 3,
-    borderBottomColor: "#B31D38",
+    borderBottomColor: primaryRed,
   },
   tabLabel: {
     fontFamily: FONT_POPPINS,
     fontSize: 14,
   },
   tabLabelActive: {
-    color: "#B31D38",
+    color: primaryRed,
     fontWeight: "600",
   },
   tabLabelInactive: {
-    color: "#161B1D",
+    color: DesignTokens.login.otpText,
     fontWeight: "400",
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 12,
+    gap: Layout.contentGap,
   },
   loadingText: {
     fontFamily: FONT_POPPINS,
     fontSize: 14,
-    color: "#3F4C52",
+    color: DesignTokens.login.termsText,
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    flexGrow: 1,
+    paddingHorizontal: Layout.horizontalScreenPadding,
+    paddingTop: Spacing.lg,
     alignSelf: "center",
-    maxWidth: CARD_MAX_WIDTH + 32,
+    maxWidth: Layout.contentMaxWidth + Layout.horizontalScreenPadding * 2,
     width: "100%",
   },
   emptyWrap: {
-    paddingVertical: 32,
+    paddingVertical: Spacing["3xl"],
     alignItems: "center",
   },
   emptyText: {
     fontFamily: FONT_POPPINS,
     fontSize: 14,
-    color: "#3F4C52",
+    color: DesignTokens.login.termsText,
   },
   cardWrapper: {
-    marginBottom: CARD_MARGIN_BOTTOM,
-    maxWidth: CARD_MAX_WIDTH,
+    marginBottom: Spacing.lg,
+    maxWidth: Layout.contentMaxWidth,
     width: "100%",
     alignSelf: "center",
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: DesignTokens.login.cardBg,
     borderWidth: 1,
     borderColor: "#E8EBEC",
-    borderRadius: CARD_BORDER_RADIUS,
-    padding: CARD_PADDING,
+    borderRadius: BorderRadius.sm,
+    padding: Layout.cardPadding,
     ...Platform.select({
       ios: {
         shadowColor: "#000000",
@@ -406,7 +398,7 @@ const styles = StyleSheet.create({
     opacity: 0.92,
   },
   cardInner: {
-    gap: CARD_GAP,
+    gap: Spacing.lg,
   },
   cardTopRow: {
     flexDirection: "row",
@@ -421,19 +413,19 @@ const styles = StyleSheet.create({
     fontFamily: FONT_POPPINS,
     fontSize: 18,
     fontWeight: "600",
-    color: "#161B1D",
+    color: DesignTokens.login.otpText,
   },
   cardDate: {
     fontFamily: FONT_POPPINS,
     fontSize: 14,
     fontWeight: "400",
-    color: "#3F4C52",
-    marginTop: 4,
+    color: DesignTokens.login.termsText,
+    marginTop: Spacing.xs,
   },
   timeBadge: {
-    paddingVertical: TIME_BADGE_PADDING_V,
-    paddingHorizontal: TIME_BADGE_PADDING_H,
-    borderRadius: TIME_BADGE_RADIUS,
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.xs,
   },
   timeBadgeValue: {
     fontFamily: FONT_POPPINS,
@@ -447,12 +439,12 @@ const styles = StyleSheet.create({
   driverRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: Layout.contentGap,
   },
   avatarPlaceholder: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#E8EBEC",
     justifyContent: "center",
     alignItems: "center",
@@ -461,7 +453,7 @@ const styles = StyleSheet.create({
     fontFamily: FONT_POPPINS,
     fontSize: 18,
     fontWeight: "600",
-    color: "#161B1D",
+    color: DesignTokens.login.otpText,
   },
   driverInfo: {
     flex: 1,
@@ -471,19 +463,19 @@ const styles = StyleSheet.create({
     fontFamily: FONT_POPPINS,
     fontSize: 14,
     fontWeight: "500",
-    color: "#161B1D",
+    color: DesignTokens.login.otpText,
   },
   driverRole: {
     fontFamily: FONT_POPPINS,
     fontSize: 12,
     fontWeight: "400",
-    color: "#3F4C52",
+    color: DesignTokens.login.termsText,
     marginTop: 2,
   },
   viewDetailBtn: {
-    height: VIEW_DETAIL_BUTTON_HEIGHT,
+    minHeight: Layout.minTouchTarget,
     backgroundColor: "#1DB398",
-    borderRadius: VIEW_DETAIL_BUTTON_RADIUS,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
   },

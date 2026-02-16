@@ -85,6 +85,7 @@ export default function ProfileScreen() {
     <ScrollView
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={{
+        flexGrow: 1,
         paddingTop: headerHeight + Spacing.md,
         paddingBottom: insets.bottom + Spacing.xl,
         paddingHorizontal: Layout.horizontalScreenPadding,

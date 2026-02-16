@@ -301,10 +301,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerBar: {
-    height: 56,
+    minHeight: Layout.minTouchTarget + 12,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: Layout.horizontalScreenPadding,
   },
   headerCenterBlock: {
     alignItems: "center",
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     fontFamily: FONT_POPPINS,
     fontSize: 18,
     fontWeight: "600",
-    color: "#161B1D",
+    color: "#1C1917",
     marginTop: 2,
     textAlign: "center",
   },
@@ -328,6 +328,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    flexGrow: 1,
     paddingHorizontal: Layout.horizontalScreenPadding,
     paddingTop: Spacing.sm,
   },

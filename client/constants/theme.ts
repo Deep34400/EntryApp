@@ -125,6 +125,10 @@ export const Spacing = {
 export const Layout = {
   /** Horizontal screen padding on all screens (px). */
   horizontalScreenPadding: 16,
+  /** Card / form content horizontal padding (px). */
+  cardPadding: 16,
+  /** Gap between content blocks (e.g. form fields, sections). Use 12 for dense, 16/24 for relaxed. */
+  contentGap: 12,
   /** Minimum header height (px); flexible above this. */
   headerMinHeight: 64,
   /** Compact header content height (e.g. curved gradient header). */
@@ -141,6 +145,18 @@ export const Layout = {
   headerAvatarSize: 36,
   /** Single-row header content height for flat enterprise headers (px). */
   compactBarHeight: 44,
+  /** Login: red header min height (responsive; no fixed large height). */
+  loginHeaderMinHeight: 220,
+  /** Login: red header max height so it doesn't dominate on tablets. */
+  loginHeaderMaxHeight: 380,
+  /** Login: white card overlap over red header (px). */
+  loginWhiteCardOverlap: 75,
+  /** Max content width for forms/cards (centered on large screens). */
+  contentMaxWidth: 328,
+  /** Token display screen: green header min height (responsive). */
+  tokenGreenHeaderMinHeight: 220,
+  /** Token display screen: green header max height. */
+  tokenGreenHeaderMaxHeight: 320,
 } as const;
 
 export const BorderRadius = {
