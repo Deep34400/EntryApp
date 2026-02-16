@@ -23,11 +23,19 @@ export const DesignTokens = {
     successBackground: "#E6F4EA",
     /** Dark green text on success cards — readable, not neon. */
     successText: "#166534",
+    /** Entry card icon — default state: light brand tint (inactive but available). */
+    entryIconBgDefault: "#F5D8DA",
+    /** Entry card icon — default state: icon color on light tint (clear, readable). */
+    entryIconColorDefault: "#A82D34",
   },
   /** Dark theme success card — light green tint on dark. */
   semanticDark: {
     successBackground: "#1E3A2F",
     successText: "#4ADE80",
+    /** Entry card icon default bg (dark mode). */
+    entryIconBgDefault: "#3D2023",
+    /** Entry card icon default color (dark mode). */
+    entryIconColorDefault: "#E8B4B8",
   },
 
   /** Light theme — warm neutrals. */
