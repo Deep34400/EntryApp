@@ -138,3 +138,4 @@ Always use **`--profile preview`** (or **`production`**) so the build is an **AP
 - **Build fails** → Check the build log on expo.dev for errors (e.g. missing env vars). Your API URL is in `.env` (`EXPO_PUBLIC_API_URL`); for the built app it’s baked in at build time.
 - **App crashes on open** → Ensure `EXPO_PUBLIC_API_URL` in `.env` points to a URL reachable from the phone (use a public URL, not `localhost`).
 - **Update not showing** → Make sure the installed app was built with the same channel (`preview` or `production`) you use in `eas update --channel …`. Force close the app and open it again once or twice.
+- **`AAPT: error: file failed to compile` on an image** → The asset is likely a JPEG (or other format) with a `.png` extension. Android needs real PNG data. Convert it: e.g. on macOS `sips -s format png image.png.bak --out image.png`, or re-export as PNG from your image editor.
