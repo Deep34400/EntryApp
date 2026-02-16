@@ -8,8 +8,9 @@
     "scheme": "gateentry",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "runtimeVersion": { "policy": "appVersion" },
-    "updates": { "url": "https://u.expo.dev/585b0730-0c52-4bd1-9f00-339f6bb69f52" },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.gateentry.app"
@@ -49,9 +50,12 @@
     },
     "extra": {
       "eas": {
-        "projectId": "585b0730-0c52-4bd1-9f00-339f6bb69f52"
+        "projectId": "09511a6a-5a9e-46b1-9c05-4b25b5d190e5"
       }
     },
-    "owner": "deepak3440"
+    "owner": "tech3440",
+    "updates": {
+      "url": "https://u.expo.dev/09511a6a-5a9e-46b1-9c05-4b25b5d190e5"
+    }
   }
 }
