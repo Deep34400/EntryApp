@@ -32,7 +32,13 @@ export type RootStackParamList = {
   VisitorType: undefined;
   EntryForm: { entryType: EntryType };
   VisitorPurpose: { entryType: EntryType; formData: EntryFormData };
-  TokenDisplay: { token: string; assignee: string; desk_location: string };
+  TokenDisplay: {
+    token: string;
+    assignee: string;
+    desk_location: string;
+    driverName?: string;
+    driverPhone?: string;
+  };
   ExitConfirmation: { token: string };
   TicketList: { filter: "open" | "closed" };
   TicketDetail: { ticketId: string };

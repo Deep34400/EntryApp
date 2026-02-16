@@ -1,204 +1,315 @@
-import React from "react";
-import { View, StyleSheet, Share, Pressable } from "react-native";
+import React, { useLayoutEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Share,
+  Platform,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
-import { useRoute, RouteProp } from "@react-navigation/native";
+import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
-import Animated, { FadeInDown, FadeInUp, ZoomIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
-import { ThemedText } from "@/components/ThemedText";
-import { useTheme } from "@/hooks/useTheme";
-import { Layout, Spacing, BorderRadius, Typography } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+
+const FONT_POPPINS = "Poppins";
+
+const GREEN_SECTION_HEIGHT = 283;
+const CARD_MAX_WIDTH = 328;
+const CARD_PADDING = 16;
+const CARD_BORDER_RADIUS = 12;
+const CARD_GAP = 16;
+const AVATAR_SIZE = 40;
+const SHARE_BUTTON_HEIGHT = 48;
+const SHARE_BUTTON_RADIUS = 22;
+const BOTTOM_PADDING_H = 26;
+const BOTTOM_PADDING_V = 16;
 
 type TokenDisplayRouteProp = RouteProp<RootStackParamList, "TokenDisplay">;
 
-// Token card uses theme primary (brand color from logo)
-
 export default function TokenDisplayScreen() {
   const route = useRoute<TokenDisplayRouteProp>();
-  const { token, assignee, desk_location } = route.params;
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
-  const { theme } = useTheme();
+  const {
+    token,
+    assignee,
+    desk_location,
+    driverName,
+    driverPhone,
+  } = route.params;
 
-  const handlePrintShare = async () => {
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  const displayToken = token.startsWith("#") ? token : `#${token}`;
+  const name = driverName?.trim() || "—";
+  const phone = driverPhone?.trim() || "—";
+
+  const handleShareReceipt = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const message = [
-      `Token: ${token}`,
+      `Token: ${displayToken}`,
       `Proceed to: ${assignee}`,
-      `Desk / Location: ${desk_location}`,
+      `Entry Gate: ${desk_location}`,
     ].join("\n");
-    try {
-      await Share.share({
-        message,
-        title: "Entry Token",
-      });
-    } catch {
-      // User cancelled or share not available
-    }
+    Share.share({ message, title: "Entry Token" }).catch(() => {});
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
-      <View
-        style={[
-          styles.content,
-          {
-            paddingTop: headerHeight + Spacing["3xl"],
-            paddingBottom: insets.bottom + Spacing.xl,
-          },
-        ]}
-      >
-        <View style={styles.tokenSection}>
-          {/* Main token card — no QR */}
-          <Animated.View
-            entering={ZoomIn.delay(200).springify()}
-            style={[styles.tokenCard, { backgroundColor: theme.primary }]}
-          >
-            <View style={styles.tokenCardGradient}>
-              <ThemedText style={[styles.tokenLabel, { color: theme.textSecondary }]}>TOKEN NUMBER</ThemedText>
-              <ThemedText style={[styles.tokenNumber, Typography.token, { color: theme.text }]}>
-                {token}
-              </ThemedText>
-              <ThemedText style={[styles.validityText, { color: theme.textSecondary }]}>
-                Valid for 24 hours at all gates
-              </ThemedText>
-            </View>
-          </Animated.View>
+    <View style={styles.screen}>
+      {/* Top green section — absolute */}
+      <View style={[styles.greenSection, { paddingTop: insets.top }]}>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            navigation.goBack();
+          }}
+          style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.8 : 1 }]}
+          hitSlop={16}
+          accessibilityLabel="Go back"
+        >
+          <Feather name="chevron-left" size={24} color="#FFFFFF" />
+        </Pressable>
+        <View style={styles.greenCenter}>
+          <Text style={styles.tokenNumberLabel}>Token Number</Text>
+          <Text style={styles.tokenNumberValue}>{displayToken}</Text>
+        </View>
+      </View>
 
-          {/* Proceed To & Gate Location — two separate cards */}
-          <Animated.View
-            entering={FadeInUp.delay(350).springify()}
-            style={styles.detailCards}
-          >
-            <View
-              style={[
-                styles.detailCard,
-                { backgroundColor: theme.backgroundDefault },
-              ]}
-            >
-              <Feather name="user" size={22} color={theme.primary} style={styles.detailCardIcon} />
-              <View style={styles.detailCardContent}>
-                <ThemedText type="small" style={[styles.detailCardLabel, { color: theme.textSecondary }]}>
-                  PROCEED TO
-                </ThemedText>
-                <ThemedText type="h3" style={{ color: theme.text }}>
-                  {assignee}
-                </ThemedText>
-              </View>
+      {/* Content: cards + button — no scroll */}
+      <View style={[styles.content, { paddingBottom: insets.bottom + BOTTOM_PADDING_V }]}>
+        {/* User Info Card — overlaps green slightly */}
+        <View style={styles.userCard}>
+          <View style={styles.userCardLeft}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarLetter}>
+                {name !== "—" ? name.charAt(0).toUpperCase() : "?"}
+              </Text>
             </View>
-            <View
-              style={[
-                styles.detailCard,
-                { backgroundColor: theme.backgroundDefault },
-              ]}
-            >
-              <Feather name="map-pin" size={22} color={theme.primary} style={styles.detailCardIcon} />
-              <View style={styles.detailCardContent}>
-                <ThemedText type="small" style={[styles.detailCardLabel, { color: theme.textSecondary }]}>
-                  GATE LOCATION
-                </ThemedText>
-                <ThemedText type="h3" style={{ color: theme.text }}>
-                  {desk_location}
-                </ThemedText>
-              </View>
+            <View style={styles.userCardInfo}>
+              <Text style={styles.userName}>{name}</Text>
+              <Text style={styles.userRole}>Driver Partner</Text>
             </View>
-          </Animated.View>
+          </View>
+          <Text style={styles.userPhone} numberOfLines={1}>
+            {phone}
+          </Text>
         </View>
 
-        <Animated.View
-          entering={FadeInDown.delay(500).springify()}
-          style={styles.buttonSection}
-        >
+        {/* Proceed / Gate Card */}
+        <View style={styles.gateCard}>
+          <View style={styles.gateCardLeft}>
+            <Text style={styles.gateLabel}>Proceed to</Text>
+            <Text style={styles.gateValue}>{assignee}</Text>
+          </View>
+          <View style={styles.gateCardRight}>
+            <Text style={styles.gateLabel}>Entry Gate</Text>
+            <Text style={styles.gateValueRight}>{desk_location}</Text>
+          </View>
+        </View>
+
+        {/* Bottom: single Share Receipt button */}
+        <View style={styles.buttonWrap}>
           <Pressable
-            onPress={handlePrintShare}
-            style={({ pressed }) => [
-              styles.printButton,
-              { borderColor: theme.primary, opacity: pressed ? 0.8 : 1 },
-            ]}
+            onPress={handleShareReceipt}
+            style={({ pressed }) => [styles.shareButton, pressed && styles.shareButtonPressed]}
           >
-            <Feather name="printer" size={20} color={theme.primary} />
-            <ThemedText type="body" style={{ color: theme.primary, marginLeft: Spacing.sm, fontWeight: "600" }}>
-              Print / Share token
-            </ThemedText>
+            <Text style={styles.shareButtonText}>Share Receipt</Text>
           </Pressable>
-        </Animated.View>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  greenSection: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: GREEN_SECTION_HEIGHT,
+    backgroundColor: "#199881",
+    paddingHorizontal: 16,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+  },
+  greenCenter: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: 24,
+  },
+  tokenNumberLabel: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginBottom: 8,
+  },
+  tokenNumberValue: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 32,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   content: {
     flex: 1,
-    paddingHorizontal: Layout.horizontalScreenPadding,
-    justifyContent: "space-between",
-  },
-  tokenSection: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  tokenCard: {
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.xl,
-    overflow: "hidden",
-  },
-  tokenCardGradient: {
+    paddingHorizontal: BOTTOM_PADDING_H,
+    paddingTop: GREEN_SECTION_HEIGHT - 24,
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: Spacing["4xl"],
-    paddingHorizontal: Spacing["3xl"],
-    backgroundColor: "transparent",
   },
-  tokenLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.5,
-    marginBottom: Spacing.sm,
-  },
-  tokenNumber: {
-    fontWeight: "800",
-  },
-  validityText: {
-    marginTop: Spacing.xl,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  detailCards: {
-    gap: Spacing.lg,
-  },
-  detailCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: Spacing.xl,
-    borderRadius: BorderRadius.md,
-  },
-  detailCardIcon: {
-    marginRight: Spacing.lg,
-  },
-  detailCardContent: {
-    flex: 1,
-  },
-  detailCardLabel: {
-    letterSpacing: 1,
-    marginBottom: Spacing.xs,
-  },
-  buttonSection: {
-    alignItems: "center",
-    gap: Spacing.lg,
-  },
-  printButton: {
+  userCard: {
     width: "100%",
+    maxWidth: CARD_MAX_WIDTH,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E8EBEC",
+    borderRadius: CARD_BORDER_RADIUS,
+    padding: CARD_PADDING,
+    marginBottom: CARD_GAP,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  userCardLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    minWidth: 0,
+  },
+  avatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: "#E8EBEC",
     justifyContent: "center",
-    borderRadius: BorderRadius.sm,
-    borderWidth: 2,
-    paddingVertical: Spacing.md,
+    alignItems: "center",
+    marginRight: 12,
+  },
+  avatarLetter: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#161B1D",
+  },
+  userCardInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  userName: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#161B1D",
+  },
+  userRole: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 12,
+    fontWeight: "400",
+    color: "#3F4C52",
+    marginTop: 2,
+  },
+  userPhone: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#161B1D",
+    marginLeft: 12,
+  },
+  gateCard: {
+    width: "100%",
+    maxWidth: CARD_MAX_WIDTH,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E8EBEC",
+    borderRadius: CARD_BORDER_RADIUS,
+    padding: CARD_PADDING,
+    marginBottom: CARD_GAP,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  gateCardLeft: {
+    flex: 1,
+    minWidth: 0,
+  },
+  gateCardRight: {
+    alignItems: "flex-end",
+  },
+  gateLabel: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 12,
+    fontWeight: "400",
+    color: "#3F4C52",
+  },
+  gateValue: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#161B1D",
+    marginTop: 4,
+  },
+  gateValueRight: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#161B1D",
+    marginTop: 4,
+    textAlign: "right",
+  },
+  buttonWrap: {
+    marginTop: "auto",
+    paddingTop: BOTTOM_PADDING_V,
+    width: "100%",
+    maxWidth: 308,
+    alignSelf: "center",
+  },
+  shareButton: {
+    height: SHARE_BUTTON_HEIGHT,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#B31D38",
+    borderRadius: SHARE_BUTTON_RADIUS,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  shareButtonPressed: {
+    opacity: 0.9,
+  },
+  shareButtonText: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#B31D38",
   },
 });

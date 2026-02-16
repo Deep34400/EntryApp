@@ -16,7 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
-import { formatDateTime, formatDurationHours } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { getWaitingMinutes } from "@/lib/ticket-utils";
 import { fetchWithAuthRetry, apiRequestWithAuthRetry } from "@/lib/query-client";
 import { getEntryAppDetailPath, getEntryAppUpdatePath } from "@/lib/api-endpoints";
@@ -243,10 +243,14 @@ export default function TicketDetailScreen() {
               <Text style={styles.tokenLabel}>Token</Text>
               <Text style={styles.tokenValue}>#{ticket.token_no}</Text>
             </View>
-            {!closed && (
+            {!closed ? (
               <View style={styles.timeBadge}>
                 <Text style={styles.timeBadgeHours}>{waitingHours}</Text>
                 <Text style={styles.timeBadgeHrs}>hrs</Text>
+              </View>
+            ) : (
+              <View style={styles.closedBadge}>
+                <Text style={styles.closedBadgeText}>Closed</Text>
               </View>
             )}
           </View>
@@ -255,19 +259,13 @@ export default function TicketDetailScreen() {
             <Text style={styles.entryTimeLabel}>Entry Time</Text>
             <Text style={styles.entryTimeValue}>{formatDateTime(ticket.entry_time)}</Text>
           </View>
-          {closed && ticket.exit_time != null && ticket.exit_time !== "" && (
-            <>
-              <View style={styles.entryTimeRow}>
-                <Text style={styles.entryTimeLabel}>Exit Time</Text>
-                <Text style={styles.entryTimeValue}>{formatDateTime(ticket.exit_time)}</Text>
-              </View>
-              <View style={styles.entryTimeRow}>
-                <Text style={styles.entryTimeLabel}>Duration</Text>
-                <Text style={styles.entryTimeValue}>
-                  {formatDurationHours(ticket.entry_time, ticket.exit_time)}
-                </Text>
-              </View>
-            </>
+          {closed && (
+            <View style={styles.entryTimeRow}>
+              <Text style={styles.entryTimeLabel}>Exit Time</Text>
+              <Text style={styles.entryTimeValue}>
+                {ticket.exit_time ? formatDateTime(ticket.exit_time) : "—"}
+              </Text>
+            </View>
           )}
         </View>
 
@@ -449,6 +447,18 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#D33636",
     marginLeft: 2,
+  },
+  closedBadge: {
+    backgroundColor: "#E8F7F5",
+    borderRadius: TIME_BADGE_RADIUS,
+    paddingVertical: TIME_BADGE_PADDING_V,
+    paddingHorizontal: TIME_BADGE_PADDING_H,
+  },
+  closedBadgeText: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#147D6A",
   },
   divider: {
     height: 1,

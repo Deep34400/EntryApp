@@ -310,6 +310,8 @@ export default function VisitorPurposeScreen() {
         token: String(token),
         assignee: String(assignee),
         desk_location: String(desk_location),
+        driverName: formData.name?.trim() || undefined,
+        driverPhone: formData.phone?.trim() || undefined,
       });
     },
     onError: (error: Error) => {
