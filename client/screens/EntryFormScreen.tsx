@@ -1,18 +1,22 @@
 import React, { useState, useMemo, useLayoutEffect, useCallback } from "react";
-import { View, StyleSheet, TextInput, ActivityIndicator } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Text,
+  TextInput,
+  ActivityIndicator,
+  Image,
+  Pressable,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeInDown } from "react-native-reanimated";
 
-import { ThemedText } from "@/components/ThemedText";
-import { Button } from "@/components/Button";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
-import { useTheme } from "@/hooks/useTheme";
-import { Layout, Spacing, BorderRadius } from "@/constants/theme";
+import { HomeHeaderButton } from "@/components/HomeHeaderButton";
+import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
 import { fetchDriverDetails } from "@/lib/query-client";
 import { RootStackParamList, EntryType, EntryFormData } from "@/navigation/RootStackNavigator";
 import { normalizePhoneInput, isPhoneValid, PHONE_MAX_DIGITS } from "@/utils/validation";
@@ -20,37 +24,34 @@ import { normalizePhoneInput, isPhoneValid, PHONE_MAX_DIGITS } from "@/utils/val
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "EntryForm">;
 type EntryFormRouteProp = RouteProp<RootStackParamList, "EntryForm">;
 
-interface FormField {
+const FONT_POPPINS = "Poppins";
+
+interface FormFieldConfig {
   key: keyof EntryFormData;
   label: string;
   placeholder: string;
   keyboardType: "default" | "phone-pad" | "numeric";
   optional?: boolean;
-  icon: keyof typeof Feather.glyphMap;
 }
 
-// Phone (10 digits, mandatory), Driver name (mandatory), Vehicle/Reg No (optional).
-function getFormFields(entryType: EntryType): FormField[] {
-  const phoneField: FormField = {
+function getFormFields(entryType: EntryType): FormFieldConfig[] {
+  const phoneField: FormFieldConfig = {
     key: "phone",
     label: "Mobile Number",
     placeholder: `${PHONE_MAX_DIGITS}-digit number`,
     keyboardType: "phone-pad",
-    icon: "phone",
   };
-  const nameField: FormField = {
+  const nameField: FormFieldConfig = {
     key: "name",
-    label: "Driver Name",
-    placeholder: "Enter full name",
+    label: "Name",
+    placeholder: "Enter name",
     keyboardType: "default",
-    icon: "user",
   };
-  const vehicleOptional: FormField = {
+  const vehicleOptional: FormFieldConfig = {
     key: "vehicle_reg_number",
-    label: "Vehicle No (optional)",
-    placeholder: "e.g. MH 01 AB 1234",
+    label: "Vehicle Number (optional)",
+    placeholder: "Enter vehicle number",
     keyboardType: "default",
-    icon: "truck",
     optional: true,
   };
   if (entryType === "old_dp") {
@@ -68,7 +69,6 @@ export default function EntryFormScreen() {
   const { entryType } = route.params;
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
-  const { theme } = useTheme();
 
   const fields = useMemo(() => getFormFields(entryType), [entryType]);
   const initialFormData = useMemo((): EntryFormData => {
@@ -85,19 +85,16 @@ export default function EntryFormScreen() {
   const isFormValid = useMemo(() => {
     const phoneOk = isPhoneValid(formData.phone ?? "");
     const nameOk = (formData.name ?? "").trim().length > 0;
-    const vehicleOk = true;
-    return phoneOk && nameOk && vehicleOk;
+    return phoneOk && nameOk;
   }, [formData]);
 
   const handleNext = () => {
     if (!isFormValid) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // For unified "dp" form: if vehicle number provided → old_dp flow, else new_dp flow
     const effectiveType: "new_dp" | "old_dp" | "non_dp" =
       entryType === "dp"
         ? (formData.vehicle_reg_number?.trim() ? "old_dp" : "new_dp")
         : entryType;
-    // Use push so after "Back" and form edit, Next always opens a fresh screen with current formData
     navigation.push("VisitorPurpose", { entryType: effectiveType, formData: { ...formData } });
   };
 
@@ -155,149 +152,108 @@ export default function EntryFormScreen() {
     if (entryType === "dp" || entryType === "old_dp") fetchDriverByPhone();
   }, [entryType, fetchDriverByPhone]);
 
-  const headerTitle =
-    entryType === "dp"
-      ? "DP Entry"
-      : entryType === "new_dp"
-        ? "New DP Entry"
-        : entryType === "old_dp"
-          ? "Old DP Entry"
-          : "Staff Entry";
-
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerTitle: () => (
-        <View>
-          {/* <ThemedText type="h3" style={{ fontWeight: "700", color: theme.text }}>
-            {headerTitle}
-          </ThemedText> */}
-          {/* <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
-            <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: theme.primary, marginRight: Spacing.xs }} />
-            <ThemedText type="small" style={{ color: theme.textSecondary, letterSpacing: 0.5 }}>
-              VISITOR DETAILS
-            </ThemedText>
-          </View> */}
-        </View>
-      ),
+      headerTitle: "Create Visitor Entry",
+      headerTitleAlign: "center",
+      headerLeft: () => null,
+      headerRight: () => <HomeHeaderButton />,
+      headerStyle: {
+        backgroundColor: "#FFFFFF",
+      },
+      headerTitleStyle: {
+        fontFamily: FONT_POPPINS,
+        fontSize: 18,
+        fontWeight: "600" as const,
+        color: "#161B1D",
+      },
+      headerShadowVisible: false,
     });
-  }, [navigation, headerTitle, theme.primary, theme.textSecondary, theme.text]);
+  }, [navigation]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
+    <View style={styles.container}>
       <KeyboardAwareScrollViewCompat
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: headerHeight + Spacing.md,
-            paddingBottom: insets.bottom + Spacing.buttonHeight + Spacing.md,
+            paddingTop: headerHeight,
+            paddingBottom: APP_FOOTER_HEIGHT + insets.bottom + 24,
           },
         ]}
       >
-        {/* Visitor Details card — reference style: rounded, shield icon */}
-        <Animated.View
-          entering={FadeInDown.delay(0).springify()}
-          style={[
-            styles.visitorCard,
-            {
-              backgroundColor: theme.backgroundDefault,
-              borderColor: theme.border,
-              shadowColor: theme.shadowColor,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.06,
-              shadowRadius: 8,
-              elevation: 3,
-            },
-          ]}
-        >
-          <View style={styles.visitorCardHeader}>
-            <View style={[styles.shieldIconWrap, { backgroundColor: theme.primary }]}>
-              <Feather name="shield" size={20} color={theme.onPrimary} />
-            </View>
-            <ThemedText type="h4" style={[styles.visitorCardTitle, { color: theme.text }]}>
-              Visitor Details
-            </ThemedText>
-          </View>
-          <ThemedText type="body" style={[styles.visitorCardDesc, { color: theme.textSecondary }]}>
-            Please fill in the information below to generate a secure gate pass.
-          </ThemedText>
+        <View style={styles.illustrationWrap}>
+          <Image
+            source={require("../../assets/images/car.png")}
+            style={styles.illustration}
+            resizeMode="contain"
+          />
+        </View>
 
-          {fields.map((field, index) => (
-            <Animated.View
-              key={field.key}
-              entering={FadeInDown.delay(80 + index * 80).springify()}
-              style={styles.fieldContainer}
-            >
-              <View style={styles.labelRow}>
-                <ThemedText type="small" style={[styles.label, { color: theme.text }]}>
-                  {field.label}
-                </ThemedText>
-                {!field.optional ? (
-                  <ThemedText type="small" style={[styles.label, { color: theme.error }]}> *</ThemedText>
-                ) : null}
-                {(field.key === "vehicle_reg_number" || field.key === "phone") && fetchingDriver && (
-                  <ActivityIndicator size="small" color={theme.primary} style={styles.fetchIndicator} />
-                )}
-              </View>
-              <View
-                style={[
-                  styles.inputRow,
-                  {
-                    backgroundColor: theme.backgroundSecondary,
-                    borderColor: theme.border,
-                  },
-                ]}
-              >
-                <Feather name={field.icon} size={20} color={theme.primary} style={styles.inputIcon} />
+        <View style={styles.formContainer}>
+          <Text style={styles.formTitle}>Create Visitor Entry</Text>
+          <Text style={styles.formSubtitle}>
+            Please enter the phone number of the visitor
+          </Text>
+
+          <View style={styles.phoneInputRow}>
+            <Text style={styles.phonePrefix}>+91 </Text>
+            <TextInput
+              style={styles.phoneInput}
+              placeholder="Enter phone number"
+              placeholderTextColor="#A2ACB1"
+              value={formData.phone ?? ""}
+              onChangeText={(value) => updateField("phone", value)}
+              maxLength={PHONE_MAX_DIGITS}
+              onBlur={handlePhoneBlur}
+              keyboardType="phone-pad"
+              testID="input-phone"
+            />
+            {(fields.some((f) => f.key === "phone") && fetchingDriver) && (
+              <ActivityIndicator size="small" color="#B31D38" style={styles.fetchIndicator} />
+            )}
+          </View>
+
+          {fields.map((field) => {
+            if (field.key === "phone") return null;
+            return (
+              <View key={field.key} style={styles.fieldContainer}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>{field.label}</Text>
+                  {!field.optional && <Text style={styles.labelRequired}> *</Text>}
+                  {field.key === "vehicle_reg_number" && fetchingDriver && (
+                    <ActivityIndicator size="small" color="#B31D38" style={styles.fetchIndicator} />
+                  )}
+                </View>
                 <TextInput
-                  style={[styles.input, { color: theme.text }]}
+                  style={styles.input}
                   placeholder={field.placeholder}
-                  placeholderTextColor={theme.textSecondary}
+                  placeholderTextColor="#A2ACB1"
                   value={formData[field.key] ?? ""}
                   onChangeText={(value) => updateField(field.key, value)}
-                  maxLength={field.key === "phone" ? PHONE_MAX_DIGITS : undefined}
                   onBlur={
-                    field.key === "vehicle_reg_number"
-                      ? handleRegNumberBlur
-                      : field.key === "phone"
-                        ? handlePhoneBlur
-                        : undefined
+                    field.key === "vehicle_reg_number" ? handleRegNumberBlur : undefined
                   }
                   keyboardType={field.keyboardType}
                   autoCapitalize={field.key === "name" ? "words" : "none"}
                   testID={`input-${field.key}`}
                 />
               </View>
-            </Animated.View>
-          ))}
-        </Animated.View>
+            );
+          })}
 
-        <ThemedText type="small" style={[styles.footerText, { color: theme.textSecondary }]}>
-          Secure check-in powered by Carrum™
-        </ThemedText>
+          <Pressable
+            onPress={handleNext}
+            disabled={!isFormValid}
+            style={[styles.nextButton, !isFormValid && styles.nextButtonDisabled]}
+          >
+            <Text style={styles.nextButtonText}>Next</Text>
+          </Pressable>
+        </View>
       </KeyboardAwareScrollViewCompat>
 
-      <View
-        style={[
-          styles.buttonContainer,
-          {
-            paddingBottom: Math.max(insets.bottom, Spacing.sm) + Spacing.sm,
-            paddingTop: Spacing.md,
-            backgroundColor: theme.backgroundRoot,
-          },
-        ]}
-      >
-        <Button
-          onPress={handleNext}
-          disabled={!isFormValid}
-          style={[
-            styles.submitButton,
-            { backgroundColor: isFormValid ? theme.primary : theme.backgroundSecondary },
-          ]}
-        >
-          Next
-        </Button>
-      </View>
+      <AppFooter activeTab="Entry" />
     </View>
   );
 }
@@ -305,93 +261,119 @@ export default function EntryFormScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "flex-start",
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Layout.horizontalScreenPadding,
-    flexGrow: 1,
+    paddingHorizontal: 16,
+    justifyContent: "flex-start",
+    alignItems: "center",
   },
-  visitorCard: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
+  illustrationWrap: {
+    marginTop: 16,
+    alignSelf: "center",
   },
-  visitorCardHeader: {
+  illustration: {
+    width: 218,
+    height: 70,
+    alignSelf: "center",
+  },
+  formContainer: {
+    width: "100%",
+    maxWidth: 328,
+    alignSelf: "center",
+    marginTop: 24,
+    gap: 24,
+  },
+  formTitle: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#161B1D",
+    textAlign: "center",
+  },
+  formSubtitle: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 12,
+    fontWeight: "400",
+    color: "#161B1D",
+    textAlign: "center",
+  },
+  phoneInputRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: Spacing.sm,
-    gap: Spacing.md,
+    height: 48,
+    borderWidth: 1,
+    borderColor: "#D4D8DA",
+    borderRadius: 12,
+    paddingHorizontal: 16,
   },
-  shieldIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.sm,
-    alignItems: "center",
-    justifyContent: "center",
+  phonePrefix: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 16,
+    fontWeight: "400",
+    color: "#161B1D",
   },
-  visitorCardTitle: {
-    fontWeight: "600",
-  },
-  visitorCardDesc: {
-    marginBottom: Spacing.lg,
-    lineHeight: 22,
+  phoneInput: {
+    flex: 1,
+    fontFamily: FONT_POPPINS,
+    fontSize: 16,
+    color: "#161B1D",
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
   fieldContainer: {
-    marginBottom: Spacing.md,
+    gap: 8,
   },
   labelRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: Spacing.sm,
-    gap: Spacing.sm,
   },
   label: {
-    fontWeight: "600",
-    letterSpacing: 0.2,
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#161B1D",
+  },
+  labelRequired: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#161B1D",
   },
   fetchIndicator: {
-    marginLeft: Spacing.xs,
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    minHeight: Layout.minTouchTarget,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    paddingLeft: Spacing.md,
-  },
-  inputIcon: {
-    marginRight: Spacing.md,
+    marginLeft: 4,
   },
   input: {
-    flex: 1,
-    height: "100%",
-    paddingHorizontal: Spacing.md,
+    height: 48,
+    borderWidth: 1,
+    borderColor: "#D4D8DA",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontFamily: FONT_POPPINS,
     fontSize: 16,
+    color: "#161B1D",
   },
-  footerText: {
-    textAlign: "center",
-    marginBottom: Spacing.md,
-    letterSpacing: 0.3,
+  nextButton: {
+    height: 48,
+    backgroundColor: "#B31D38",
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 24,
+    width: "100%",
   },
-  buttonContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: Layout.horizontalScreenPadding,
-    paddingTop: Spacing.lg,
+  nextButtonDisabled: {
+    backgroundColor: "#D4D8DA",
+    opacity: 0.7,
   },
-  errorText: {
-    marginBottom: Spacing.sm,
-    textAlign: "center",
-  },
-  submitButton: {
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.lg,
-    minHeight: 56,
+  nextButtonText: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });

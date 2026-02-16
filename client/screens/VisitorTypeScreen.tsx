@@ -1,19 +1,15 @@
-import React, { useLayoutEffect, useState } from "react";
+import React, { useLayoutEffect } from "react";
 import {
   View,
   StyleSheet,
+  Text,
   Pressable,
   ActivityIndicator,
   ScrollView,
-  Image,
   RefreshControl,
-  Alert,
-  Dimensions,
-  Modal,
-  TouchableWithoutFeedback,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation, CommonActions } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
@@ -26,12 +22,15 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
+import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { fetchTicketCountsSafe } from "@/lib/query-client";
 import { useUser } from "@/contexts/UserContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList, EntryType } from "@/navigation/RootStackNavigator";
+
+const FONT_POPPINS = "Poppins";
 
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
@@ -122,10 +121,9 @@ function VisitorTypeCard({
 export default function VisitorTypeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const { theme, isDark, themeContext } = useTheme();
+  const { theme, isDark } = useTheme();
   const { user } = useUser();
   const auth = useAuth();
-  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const { data: counts, isFetching, isRefetching, refetch } = useQuery({
     queryKey: ["ticket-counts", auth.accessToken],
@@ -149,57 +147,10 @@ export default function VisitorTypeScreen() {
     navigation.navigate("TicketList", { filter: "closed" as const });
   };
 
-  const { clearUser } = useUser();
-  const { clearAuth } = useAuth();
-
-  const handleLogout = () => {
-    setDrawerOpen(false);
-    Alert.alert(
-      "Log out",
-      "Are you sure you want to log out? You will need to sign in again with OTP.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Log out",
-          style: "destructive",
-          onPress: () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            clearAuth();
-            clearUser();
-            setTimeout(() => {
-              navigation.dispatch(
-                CommonActions.reset({ index: 0, routes: [{ name: "LoginOtp" }] })
-              );
-            }, 0);
-          },
-        },
-      ]
-    );
-  };
-
-  const openDrawer = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setDrawerOpen(true);
-  };
-
-  const closeDrawer = () => setDrawerOpen(false);
-
-  const handleToggleTheme = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    themeContext?.toggleTheme();
-  };
-
-  const handleViewProfile = () => {
-    closeDrawer();
-    navigation.navigate("Profile");
-  };
-
-  // Hide default header so we use custom gradient header
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  const drawerWidth = Math.min(Dimensions.get("window").width * 0.82, 320);
   const pageBg = theme.backgroundRoot;
 
   const visitorTypes = [
@@ -221,53 +172,13 @@ export default function VisitorTypeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: pageBg }]}>
-      {/* Flat compact header — enterprise style, safe-area aware */}
-      <View
-        style={[
-          styles.headerBar,
-          {
-            paddingTop: insets.top + Spacing.xs,
-            paddingBottom: Spacing.sm,
-            paddingHorizontal: Layout.horizontalScreenPadding,
-            backgroundColor: theme.surface,
-            borderBottomColor: theme.border,
-          },
-        ]}
-        pointerEvents="box-none"
-      >
-        <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <View style={[styles.headerAvatarWrap, { backgroundColor: theme.backgroundTertiary }]}>
-              <Image
-                source={require("../../assets/images/logo.png")}
-                style={styles.headerAvatar}
-                resizeMode="contain"
-              />
-            </View>
-            <View style={styles.headerWelcomeBlock}>
-              <ThemedText type="small" style={[styles.headerWelcomeLabel, { color: theme.textSecondary }]}>
-                Welcome
-              </ThemedText>
-              <ThemedText
-                type="h6"
-                style={[styles.headerUserName, { color: theme.text }]}
-                numberOfLines={2}
-                ellipsizeMode="tail"
-              >
-                {user?.name?.trim() || "Sumit"}
-              </ThemedText>
-            </View>
-          </View>
-          <View style={styles.headerRight}>
-            <Pressable
-              onPress={openDrawer}
-              style={({ pressed }) => [styles.headerIconBtn, { opacity: pressed ? 0.8 : 1 }]}
-              hitSlop={16}
-              accessibilityLabel="Menu"
-            >
-              <Feather name="menu" size={22} color={theme.text} />
-            </Pressable>
-          </View>
+      {/* Simple header: Welcome + user name, no logo or menu */}
+      <View style={[styles.headerBar, { paddingTop: insets.top, backgroundColor: "#FFFFFF" }]}>
+        <View style={styles.headerCenterBlock}>
+          <Text style={styles.headerWelcomeLabelNew}>Welcome</Text>
+          <Text style={styles.headerUserNameNew} numberOfLines={2} ellipsizeMode="tail">
+            {user?.name?.trim() || "Deepak Singh Chauhan"}
+          </Text>
         </View>
       </View>
 
@@ -275,7 +186,7 @@ export default function VisitorTypeScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: Math.max(insets.bottom, Spacing.sm) + Spacing.xl },
+          { paddingBottom: APP_FOOTER_HEIGHT + insets.bottom + Spacing.xl },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -325,7 +236,7 @@ export default function VisitorTypeScreen() {
                 styles.statCard,
                 styles.statCardClosed,
                 {
-                  backgroundColor: theme.successBackground,
+                  backgroundColor: `${theme.success}20`,
                   opacity: pressed ? 0.92 : 1,
                   borderWidth: 1,
                   borderColor: theme.success,
@@ -339,18 +250,18 @@ export default function VisitorTypeScreen() {
               accessibilityLabel={`CLOSED: ${closedCount}`}
             >
               <View style={styles.statCardTop}>
-                <ThemedText type="small" style={[styles.statCardSubtitle, { color: theme.successText }]}>
+                <ThemedText type="small" style={[styles.statCardSubtitle, { color: theme.success }]}>
                   Today Completed
                 </ThemedText>
               </View>
               {isFetching ? (
-                <ActivityIndicator size="small" color={theme.successText} />
+                <ActivityIndicator size="small" color={theme.success} />
               ) : (
-                <ThemedText type="h1" style={[styles.statCardNumber, { color: theme.successText }]}>
+                <ThemedText type="h1" style={[styles.statCardNumber, { color: theme.success }]}>
                   {closedCount}
                 </ThemedText>
               )}
-              <ThemedText type="small" style={[styles.statCardLabel, { color: theme.successText }]}>
+              <ThemedText type="small" style={[styles.statCardLabel, { color: theme.success }]}>
                 CLOSED
               </ThemedText>
             </Pressable>
@@ -380,88 +291,7 @@ export default function VisitorTypeScreen() {
         </View>
       </ScrollView>
 
-      {/* Side drawer */}
-      <Modal
-        visible={drawerOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={closeDrawer}
-      >
-        <TouchableWithoutFeedback onPress={closeDrawer}>
-          <View style={[styles.drawerBackdrop, { backgroundColor: theme.overlayBackdrop }]} />
-        </TouchableWithoutFeedback>
-        <View style={[styles.drawerWrap, { width: drawerWidth }]} pointerEvents="box-none">
-            <View
-              style={[
-                styles.drawerPanel,
-                {
-                  backgroundColor: theme.surface,
-                  paddingTop: insets.top,
-                  paddingBottom: insets.bottom + Spacing.md,
-                },
-              ]}
-            >
-            {/* Compact header: title and close vertically centered */}
-            <View style={[styles.drawerHeader, { borderBottomColor: theme.border }]}>
-              <ThemedText type="h4" style={{ color: theme.text }}>Menu</ThemedText>
-              <Pressable
-                onPress={closeDrawer}
-                style={({ pressed }) => [styles.drawerCloseBtn, { opacity: pressed ? 0.7 : 1 }]}
-                hitSlop={16}
-                accessibilityLabel="Close menu"
-              >
-                <Feather name="x" size={24} color={theme.text} />
-              </Pressable>
-            </View>
-            {/* Profile: tight spacing, immediately after header */}
-            <View style={styles.drawerProfile}>
-              <View style={[styles.drawerAvatar, { backgroundColor: theme.primary }]}>
-                <ThemedText type="h3" style={{ color: theme.onPrimary }}>
-                  {(user?.name?.trim() || "S").charAt(0).toUpperCase()}
-                </ThemedText>
-              </View>
-              <ThemedText
-                type="h4"
-                style={[styles.drawerProfileName, { color: theme.text }]}
-                numberOfLines={2}
-                ellipsizeMode="tail"
-              >
-                {user?.name?.trim() || "Sumit"}
-              </ThemedText>
-            </View>
-            {/* Menu items + logout near bottom with natural spacing */}
-            <View style={styles.drawerMenu}>
-              <View style={styles.drawerMenuItems}>
-                <Pressable
-                  onPress={handleViewProfile}
-                  style={({ pressed }) => [styles.drawerItem, { opacity: pressed ? 0.7 : 1 }]}
-                >
-                  <Feather name="user" size={22} color={theme.text} />
-                  <ThemedText type="body" style={{ color: theme.text }}>View Profile</ThemedText>
-                </Pressable>
-                {themeContext && (
-                  <Pressable
-                    onPress={handleToggleTheme}
-                    style={({ pressed }) => [styles.drawerItem, { opacity: pressed ? 0.7 : 1 }]}
-                  >
-                    <Feather name={isDark ? "sun" : "moon"} size={22} color={theme.text} />
-                    <ThemedText type="body" style={{ color: theme.text }}>
-                      {isDark ? "Light mode" : "Dark mode"}
-                    </ThemedText>
-                  </Pressable>
-                )}
-              </View>
-              <Pressable
-                onPress={handleLogout}
-                style={({ pressed }) => [styles.drawerItem, styles.drawerItemDanger, styles.drawerItemLogout, { opacity: pressed ? 0.7 : 1 }]}
-              >
-                <Feather name="power" size={22} color={theme.error} />
-                <ThemedText type="body" style={[styles.drawerItemDangerText, { color: theme.error }]}>Logout</ThemedText>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <AppFooter activeTab="Entry" />
     </View>
   );
 }
@@ -471,59 +301,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerBar: {
-    minHeight: Layout.compactBarHeight,
-    borderBottomWidth: 1,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    minHeight: Layout.compactBarHeight,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    minWidth: 0,
-    gap: Spacing.sm,
-  },
-  headerWelcomeBlock: {
-    flex: 1,
-    minWidth: 0,
+    height: 56,
     justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
   },
-  headerWelcomeLabel: {
-    marginBottom: 0,
-    letterSpacing: 0.3,
-    lineHeight: 18,
-  },
-  headerAvatarWrap: {
-    width: Layout.headerAvatarSize,
-    height: Layout.headerAvatarSize,
-    borderRadius: Layout.headerAvatarSize / 2,
-    overflow: "hidden",
+  headerCenterBlock: {
     alignItems: "center",
     justifyContent: "center",
   },
-  headerAvatar: {
-    width: Layout.headerAvatarSize - 4,
-    height: Layout.headerAvatarSize - 4,
+  headerWelcomeLabelNew: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "400",
+    color: "#6B7280",
   },
-  headerUserName: {
-    fontWeight: "700",
-    flex: 1,
-    lineHeight: 24,
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.xs,
-  },
-  headerIconBtn: {
-    minWidth: Layout.backButtonTouchTarget,
-    minHeight: Layout.backButtonTouchTarget,
-    justifyContent: "center",
-    alignItems: "center",
+  headerUserNameNew: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#161B1D",
+    marginTop: 2,
+    textAlign: "center",
   },
   scrollView: {
     flex: 1,
@@ -607,77 +406,5 @@ const styles = StyleSheet.create({
   },
   entryCardArrow: {
     marginLeft: Spacing.sm,
-  },
-  drawerBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  drawerWrap: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: "flex-end",
-  },
-  drawerPanel: {
-    flex: 1,
-    width: "100%",
-    paddingHorizontal: Spacing.lg,
-  },
-  drawerHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    minHeight: Layout.minTouchTarget,
-    paddingVertical: 0,
-    paddingBottom: Spacing.sm,
-    marginBottom: Spacing.md,
-    borderBottomWidth: 1,
-  },
-  drawerCloseBtn: {
-    minWidth: Layout.backButtonTouchTarget,
-    minHeight: Layout.backButtonTouchTarget,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  drawerProfile: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  drawerProfileName: {
-    flex: 1,
-    textAlign: "left",
-    lineHeight: 22,
-  },
-  drawerAvatar: {
-    width: Layout.headerAvatarSize + 8,
-    height: Layout.headerAvatarSize + 8,
-    borderRadius: (Layout.headerAvatarSize + 8) / 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  drawerMenu: {
-    flex: 1,
-    justifyContent: "space-between",
-  },
-  drawerMenuItems: {
-    gap: Spacing.xs,
-  },
-  drawerItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
-    minHeight: Layout.minTouchTarget,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
-  },
-  drawerItemLogout: {
-    marginTop: Spacing.sm,
-  },
-  drawerItemDanger: {},
-  drawerItemDangerText: {
-    fontWeight: "600",
   },
 });

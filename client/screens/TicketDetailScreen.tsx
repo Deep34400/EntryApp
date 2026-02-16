@@ -1,31 +1,44 @@
 import React, { useLayoutEffect } from "react";
 import {
   View,
+  Text,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
   RefreshControl,
   Pressable,
+  Platform,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
-import { CommonActions } from "@react-navigation/native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
-import { ThemedText } from "@/components/ThemedText";
-import { useTheme } from "@/hooks/useTheme";
-import { Layout, Spacing } from "@/constants/theme";
-import { getScreenPalette } from "@/constants/screenPalette";
-import type { ScreenPaletteType } from "@/constants/screenPalette";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatDurationHours } from "@/lib/format";
+import { getWaitingMinutes } from "@/lib/ticket-utils";
 import { fetchWithAuthRetry, apiRequestWithAuthRetry } from "@/lib/query-client";
 import { getEntryAppDetailPath, getEntryAppUpdatePath } from "@/lib/api-endpoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
-const CARD_RADIUS = 18;
+const FONT_POPPINS = "Poppins";
+
+const HEADER_HEIGHT = 54;
+const HEADER_TOP_OFFSET = 24;
+const CARD_MAX_WIDTH = 328;
+const CARD_PADDING = 16;
+const CARD_GAP = 16;
+const CARD_BORDER_RADIUS = 12;
+const TIME_BADGE_PADDING_V = 6;
+const TIME_BADGE_PADDING_H = 12;
+const TIME_BADGE_RADIUS = 8;
+const AVATAR_SIZE = 40;
+const CALL_BUTTON_HEIGHT = 40;
+const CALL_BUTTON_RADIUS = 22;
+const CLOSE_BUTTON_HEIGHT = 48;
+const CLOSE_BUTTON_RADIUS = 22;
 
 type TicketDetailRouteProp = RouteProp<RootStackParamList, "TicketDetail">;
 
@@ -47,7 +60,6 @@ export interface TicketDetailResult {
   purpose?: string;
 }
 
-/** GET /api/v1/entry-app/:id → { success, data }. On 401 tries refresh then retries. */
 async function fetchTicketDetail(
   ticketId: string,
   _hubId?: string,
@@ -93,33 +105,12 @@ async function fetchTicketDetail(
 const isClosed = (status: string | undefined) =>
   status != null && (status.toUpperCase() === "CLOSED" || status === "closed");
 
-function DetailRowWithIcon({
-  icon,
-  label,
-  value,
-  palette,
-}: {
-  icon: keyof typeof Feather.glyphMap;
-  label: string;
-  value: string | undefined | null;
-  palette: ScreenPaletteType;
-}) {
-  const display = value != null && value !== "" ? value : "—";
-  return (
-    <View style={styles.detailRowWithIcon}>
-      <View style={styles.detailIconWrap}>
-        <Feather name={icon} size={18} color={palette.textSecondary} />
-      </View>
-      <View style={styles.detailContent}>
-        <ThemedText type="small" variant="secondary" style={styles.detailLabel}>
-          {label}
-        </ThemedText>
-        <ThemedText type="body" style={[styles.detailValue, { color: palette.textPrimary }]} numberOfLines={2} ellipsizeMode="tail">
-          {display}
-        </ThemedText>
-      </View>
-    </View>
-  );
+/** Format waiting time as "3.5" (hours with one decimal) for open tickets. */
+function formatWaitingHoursDecimal(entryTime?: string | null): string {
+  const mins = getWaitingMinutes(entryTime);
+  if (mins == null) return "—";
+  const hours = mins / 60;
+  return hours >= 1 ? (Math.round(hours * 10) / 10).toFixed(1) : "0";
 }
 
 export default function TicketDetailScreen() {
@@ -127,8 +118,6 @@ export default function TicketDetailScreen() {
   const navigation = useNavigation();
   const { ticketId } = route.params;
   const insets = useSafeAreaInsets();
-  const { theme } = useTheme();
-  const palette = getScreenPalette(theme);
   const queryClient = useQueryClient();
   const auth = useAuth();
 
@@ -158,6 +147,7 @@ export default function TicketDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["ticket-list"] });
       queryClient.invalidateQueries({ queryKey: ["ticket-counts"] });
       refetch();
+      navigation.goBack();
     },
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -168,22 +158,23 @@ export default function TicketDetailScreen() {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  const goHome = () => {
+  const closed = ticket ? isClosed(ticket.status) : false;
+  const waitingHours = formatWaitingHoursDecimal(ticket?.entry_time);
+
+  const handleCall = () => {
+    if (!ticket?.phone?.trim()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.dispatch(
-      CommonActions.reset({ index: 0, routes: [{ name: "VisitorType" }] })
-    );
+    Linking.openURL(`tel:${ticket.phone.trim()}`);
   };
 
-  const statusLabel = ticket?.status
-    ? ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1).toLowerCase()
-    : "Created";
-  const closed = ticket ? isClosed(ticket.status) : false;
+  const handleCloseTicket = () => {
+    closeMutation.mutate();
+  };
 
   if (isLoading || !ticket) {
     return (
-      <View style={[styles.container, { backgroundColor: palette.background }]}>
-        <View style={[styles.header, { paddingTop: insets.top + Spacing.md, paddingBottom: Spacing.lg, borderBottomColor: palette.divider }]}>
+      <View style={styles.screen}>
+        <View style={[styles.header, { paddingTop: insets.top + HEADER_TOP_OFFSET }]}>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -192,36 +183,22 @@ export default function TicketDetailScreen() {
             style={({ pressed }) => [styles.headerBack, { opacity: pressed ? 0.7 : 1 }]}
             hitSlop={16}
           >
-            <Feather name="chevron-left" size={24} color={palette.textPrimary} />
-          </Pressable>
-          <ThemedText type="h3" style={[styles.headerTitle, { color: palette.textPrimary }]}>
-            Ticket Details
-          </ThemedText>
-          <Pressable
-            onPress={goHome}
-            style={({ pressed }) => [styles.headerHome, { opacity: pressed ? 0.7 : 1 }]}
-            hitSlop={12}
-          >
-            <Feather name="home" size={22} color={palette.textPrimary} />
+            <Feather name="chevron-left" size={24} color="#161B1D" />
           </Pressable>
         </View>
-        <View style={[styles.center, { paddingBottom: insets.bottom + Spacing.xl }]}>
+        <View style={[styles.centered, { paddingBottom: insets.bottom + 24 }]}>
           {isLoading ? (
             <>
-              <ActivityIndicator size="large" color={palette.primaryRed} />
-              <ThemedText type="body" variant="secondary" style={styles.loadingText}>
-                Loading ticket…
-              </ThemedText>
+              <ActivityIndicator size="large" color="#B31D38" />
+              <Text style={styles.loadingText}>Loading ticket…</Text>
             </>
           ) : (
             <>
-              <Feather name="alert-circle" size={48} color={palette.textSecondary} />
-              <ThemedText type="h4" style={[styles.errorTitle, { color: palette.textPrimary }]}>
-                Ticket not found
-              </ThemedText>
-              <ThemedText type="body" variant="secondary" style={styles.errorSubtitle}>
+              <Feather name="alert-circle" size={48} color="#3F4C52" />
+              <Text style={styles.errorTitle}>Ticket not found</Text>
+              <Text style={styles.errorSubtitle}>
                 The ticket may have been removed or the link is invalid.
-              </ThemedText>
+              </Text>
             </>
           )}
         </View>
@@ -229,10 +206,11 @@ export default function TicketDetailScreen() {
     );
   }
 
+  const scrollPaddingBottom = closed ? insets.bottom + 24 : insets.bottom + CLOSE_BUTTON_HEIGHT + 24 + 24;
+
   return (
-    <View style={[styles.container, { backgroundColor: palette.background }]}>
-      {/* Custom header: safe-area aware, flexible min height */}
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.md, paddingBottom: Spacing.lg, borderBottomColor: palette.divider }]}>
+    <View style={styles.screen}>
+      <View style={[styles.header, { paddingTop: insets.top + HEADER_TOP_OFFSET }]}>
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -242,323 +220,367 @@ export default function TicketDetailScreen() {
           hitSlop={16}
           accessibilityLabel="Go back"
         >
-          <Feather name="chevron-left" size={24} color={palette.textPrimary} />
-        </Pressable>
-        <ThemedText type="h3" style={[styles.headerTitle, { color: palette.textPrimary }]}>
-          Ticket Details
-        </ThemedText>
-        <Pressable
-          onPress={goHome}
-          style={({ pressed }) => [styles.headerHome, { opacity: pressed ? 0.7 : 1 }]}
-          hitSlop={12}
-          accessibilityLabel="Home"
-        >
-          <Feather name="home" size={22} color={palette.textPrimary} />
+          <Feather name="chevron-left" size={24} color="#161B1D" />
         </Pressable>
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: insets.bottom + Spacing.xl },
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollPaddingBottom }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={() => refetch()}
-            tintColor={palette.primaryRed}
+            tintColor="#B31D38"
           />
         }
       >
-        {/* Token + status */}
-        <View style={styles.tokenBlock}>
-          <ThemedText type="h1" style={[styles.tokenNumber, { color: palette.textPrimary }]}>
-            #{ticket.token_no}
-          </ThemedText>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: closed ? `${palette.successGreen}30` : `${palette.primaryRed}30` },
+        {/* Card 1 — Token Info */}
+        <View style={styles.card}>
+          <View style={styles.tokenCardTopRow}>
+            <View style={styles.tokenCardLeft}>
+              <Text style={styles.tokenLabel}>Token</Text>
+              <Text style={styles.tokenValue}>#{ticket.token_no}</Text>
+            </View>
+            {!closed && (
+              <View style={styles.timeBadge}>
+                <Text style={styles.timeBadgeHours}>{waitingHours}</Text>
+                <Text style={styles.timeBadgeHrs}>hrs</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.entryTimeRow}>
+            <Text style={styles.entryTimeLabel}>Entry Time</Text>
+            <Text style={styles.entryTimeValue}>{formatDateTime(ticket.entry_time)}</Text>
+          </View>
+          {closed && ticket.exit_time != null && ticket.exit_time !== "" && (
+            <>
+              <View style={styles.entryTimeRow}>
+                <Text style={styles.entryTimeLabel}>Exit Time</Text>
+                <Text style={styles.entryTimeValue}>{formatDateTime(ticket.exit_time)}</Text>
+              </View>
+              <View style={styles.entryTimeRow}>
+                <Text style={styles.entryTimeLabel}>Duration</Text>
+                <Text style={styles.entryTimeValue}>
+                  {formatDurationHours(ticket.entry_time, ticket.exit_time)}
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Card 2 — Driver Info */}
+        <View style={styles.card}>
+          <View style={styles.driverRow}>
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarLetter}>
+                {ticket.name?.trim() ? ticket.name.trim().charAt(0).toUpperCase() : "?"}
+              </Text>
+            </View>
+            <View style={styles.driverInfo}>
+              <Text style={styles.driverName}>{ticket.name ?? "—"}</Text>
+              <Text style={styles.driverRole}>Driver Partner</Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={handleCall}
+            style={({ pressed }) => [styles.callButton, pressed && styles.callButtonPressed]}
+          >
+            <Feather name="phone" size={20} color="#B31D38" style={styles.callButtonIcon} />
+            <Text style={styles.callButtonText}>Call</Text>
+          </Pressable>
+        </View>
+
+        {/* Card 3 — Assignment */}
+        <View style={styles.card}>
+          <Text style={styles.assignmentTitle}>Assignment</Text>
+          <View style={styles.divider} />
+          <View style={styles.assignmentRow}>
+            <Text style={styles.assignmentLabel}>Ticket</Text>
+            <Text style={styles.assignmentValue}>{ticket.purpose ?? "Settlement"}</Text>
+          </View>
+          <View style={styles.assignmentRow}>
+            <Text style={styles.assignmentLabel}>Agent</Text>
+            <Text style={styles.assignmentValue}>{ticket.assignee ?? "—"}</Text>
+          </View>
+          <View style={styles.assignmentRow}>
+            <Text style={styles.assignmentLabel}>Desk/Location</Text>
+            <Text style={styles.assignmentValue}>{ticket.desk_location ?? "—"}</Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      {!closed && (
+        <View style={[styles.closeButtonWrap, { paddingBottom: insets.bottom + 24 }]}>
+          <Pressable
+            onPress={handleCloseTicket}
+            disabled={closeMutation.isPending}
+            style={({ pressed }) => [
+              styles.closeButton,
+              pressed && styles.closeButtonPressed,
             ]}
           >
-            <ThemedText
-              type="small"
-              style={[
-                styles.statusText,
-                { color: closed ? palette.successGreen : palette.primaryRed },
-              ]}
-            >
-              {statusLabel}
-            </ThemedText>
-          </View>
+            {closeMutation.isPending ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.closeButtonText}>Close Ticket (Mark Exit)</Text>
+            )}
+          </Pressable>
         </View>
-
-        {/* Visitor section */}
-        <View style={[styles.section, { backgroundColor: palette.card, shadowColor: theme.shadowColor }]}>
-          <ThemedText type="small" variant="secondary" style={styles.sectionTitle}>
-            Visitor
-          </ThemedText>
-          <DetailRowWithIcon icon="user" label="Name" value={ticket.name} palette={palette} />
-          <DetailRowWithIcon icon="phone" label="Phone" value={ticket.phone} palette={palette} />
-          <DetailRowWithIcon icon="file-text" label="Purpose" value={ticket.purpose} palette={palette} />
-        </View>
-
-        {/* Assignment section */}
-        <View style={[styles.section, { backgroundColor: palette.card, shadowColor: theme.shadowColor }]}>
-          <ThemedText type="small" variant="secondary" style={styles.sectionTitle}>
-            Assignment
-          </ThemedText>
-          {ticket.assignee != null && ticket.assignee !== "" && (
-            <View style={[styles.assigneeBadge, { backgroundColor: `${palette.primaryRed}20` }]}>
-              <ThemedText type="small" style={[styles.assigneeBadgeText, { color: palette.textPrimary }]}>
-                {ticket.assignee}
-              </ThemedText>
-            </View>
-          )}
-          {ticket.desk_location != null && ticket.desk_location !== "" && (
-            <View style={styles.locationRow}>
-              <Feather name="map-pin" size={16} color={palette.textSecondary} />
-              <ThemedText type="body" style={[styles.locationText, { color: palette.textPrimary }]} numberOfLines={2}>
-                {ticket.desk_location}
-              </ThemedText>
-            </View>
-          )}
-          {(!ticket.assignee || ticket.assignee === "") && (!ticket.desk_location || ticket.desk_location === "") && (
-            <ThemedText type="body" style={[styles.detailValue, { color: palette.textPrimary }]}>—</ThemedText>
-          )}
-        </View>
-
-        {/* Timings timeline */}
-        <View style={[styles.section, { backgroundColor: palette.card, shadowColor: theme.shadowColor }]}>
-          <ThemedText type="small" variant="secondary" style={styles.sectionTitle}>
-            Timings
-          </ThemedText>
-          <View style={styles.timeline}>
-            <View style={styles.timelineRow}>
-              <View style={[styles.timelineDot, styles.timelineDotFilled, { backgroundColor: palette.primaryRed }]} />
-              <View style={styles.timelineContent}>
-                <ThemedText type="small" variant="secondary" style={styles.detailLabel}>Entry</ThemedText>
-                <ThemedText type="body" style={[styles.detailValue, { color: palette.textPrimary }]}>
-                  {ticket.entry_time ? formatDateTime(ticket.entry_time) : "—"}
-                </ThemedText>
-              </View>
-            </View>
-            <View style={[styles.timelineLine, { backgroundColor: palette.divider }]} />
-            <View style={styles.timelineRow}>
-              <View style={[styles.timelineDot, styles.timelineDotEmpty, { borderColor: palette.divider }]} />
-              <View style={styles.timelineContent}>
-                <ThemedText type="small" variant="secondary" style={styles.detailLabel}>Exit</ThemedText>
-                <ThemedText type="body" style={[styles.detailValue, { color: palette.textPrimary }]}>
-                  {ticket.exit_time ? formatDateTime(ticket.exit_time) : "—"}
-                </ThemedText>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Mark as Exit (open tickets only) */}
-        {!closed && (
-          <View style={styles.closeSection}>
-            <Pressable
-              onPress={() => closeMutation.mutate()}
-              disabled={closeMutation.isPending}
-              style={({ pressed }) => [
-                styles.closeButton,
-                { backgroundColor: palette.primaryRed, opacity: pressed ? 0.9 : 1 },
-              ]}
-            >
-              {closeMutation.isPending ? (
-                <ActivityIndicator color={theme.onPrimary} size="small" />
-              ) : (
-                <>
-                  <Feather name="log-out" size={20} color={theme.onPrimary} style={styles.closeButtonIcon} />
-                  <ThemedText type="body" style={[styles.closeButtonText, { color: theme.onPrimary }]}>
-                    Mark as Exit
-                  </ThemedText>
-                </>
-              )}
-            </Pressable>
-            <ThemedText type="small" variant="secondary" style={styles.closeHint}>
-              This action will close the ticket
-            </ThemedText>
-          </View>
-        )}
-      </ScrollView>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
+    backgroundColor: "#FFFFFF",
   },
   header: {
+    height: HEADER_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: Layout.horizontalScreenPadding,
-    borderBottomWidth: 1,
-    minHeight: Layout.headerMinHeight,
+    paddingHorizontal: 16,
+    backgroundColor: "#FFFFFF",
   },
   headerBack: {
-    minWidth: Layout.backButtonTouchTarget,
-    minHeight: Layout.backButtonTouchTarget,
+    width: 44,
+    height: 44,
     justifyContent: "center",
-  },
-  headerTitle: {
-    fontWeight: "700",
-    lineHeight: 32,
-  },
-  headerHome: {
-    minWidth: Layout.backButtonTouchTarget,
-    minHeight: Layout.backButtonTouchTarget,
-    justifyContent: "center",
-    alignItems: "flex-end",
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Layout.horizontalScreenPadding,
-    paddingTop: Spacing.xl,
+    paddingHorizontal: 16,
+    paddingTop: CARD_GAP,
+    maxWidth: CARD_MAX_WIDTH + 32,
+    width: "100%",
+    alignSelf: "center",
   },
-  center: {
+  centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: Spacing.md,
+    gap: 12,
   },
   loadingText: {
-    marginTop: Spacing.md,
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    color: "#3F4C52",
   },
   errorTitle: {
-    marginTop: Spacing.md,
+    fontFamily: FONT_POPPINS,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#161B1D",
   },
   errorSubtitle: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    color: "#3F4C52",
     textAlign: "center",
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: 24,
   },
-  tokenBlock: {
-    marginBottom: Spacing.xl,
+  card: {
+    width: "100%",
+    maxWidth: CARD_MAX_WIDTH,
+    alignSelf: "center",
+    marginBottom: CARD_GAP,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E8EBEC",
+    borderRadius: CARD_BORDER_RADIUS,
+    padding: CARD_PADDING,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
-  tokenNumber: {
-    fontWeight: "700",
-    marginBottom: Spacing.sm,
-  },
-  statusBadge: {
-    alignSelf: "flex-start",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-  },
-  statusText: {
-    fontWeight: "600",
-  },
-  section: {
-    borderRadius: CARD_RADIUS,
-    padding: Layout.horizontalScreenPadding,
-    marginBottom: Spacing.lg,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  sectionTitle: {
-    fontWeight: "600",
-    marginBottom: Spacing.lg,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  detailRowWithIcon: {
+  tokenCardTopRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: Spacing.lg,
+    justifyContent: "space-between",
   },
-  detailIconWrap: {
-    width: 32,
-    marginRight: Spacing.md,
-    marginTop: 2,
-  },
-  detailContent: {
+  tokenCardLeft: {
     flex: 1,
     minWidth: 0,
   },
-  detailLabel: {
-    marginBottom: 2,
+  tokenLabel: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "400",
+    color: "#3F4C52",
   },
-  detailValue: {
-    lineHeight: 24,
-  },
-  assigneeBadge: {
-    alignSelf: "flex-start",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    marginBottom: Spacing.md,
-  },
-  assigneeBadgeText: {
+  tokenValue: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 18,
     fontWeight: "600",
+    color: "#161B1D",
+    marginTop: 4,
   },
-  locationRow: {
+  timeBadge: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    backgroundColor: "#FBEBEB",
+    borderRadius: TIME_BADGE_RADIUS,
+    paddingVertical: TIME_BADGE_PADDING_V,
+    paddingHorizontal: TIME_BADGE_PADDING_H,
+  },
+  timeBadgeHours: {
+    fontFamily: "Inter",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#D33636",
+  },
+  timeBadgeHrs: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#D33636",
+    marginLeft: 2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#E8EBEC",
+    marginVertical: 16,
+  },
+  entryTimeRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
+    justifyContent: "space-between",
   },
-  locationText: {
-    flex: 1,
+  entryTimeLabel: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "400",
+    color: "#3F4C52",
   },
-  timeline: {
-    gap: 0,
+  entryTimeValue: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#161B1D",
   },
-  timelineRow: {
+  driverRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
+    gap: 12,
   },
-  timelineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: Spacing.lg,
-    marginTop: 6,
+  avatarPlaceholder: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: "#E8EBEC",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  timelineDotFilled: {},
-  timelineDotEmpty: {
-    backgroundColor: "transparent",
-    borderWidth: 2,
+  avatarLetter: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#161B1D",
   },
-  timelineLine: {
-    width: 2,
-    height: 24,
-    marginLeft: 5,
-    marginVertical: 0,
-  },
-  timelineContent: {
+  driverInfo: {
     flex: 1,
     minWidth: 0,
-    paddingBottom: Spacing.lg,
   },
-  closeSection: {
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.xl,
+  driverName: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#161B1D",
   },
-  closeButton: {
+  driverRole: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 12,
+    fontWeight: "400",
+    color: "#3F4C52",
+    marginTop: 2,
+  },
+  callButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: CARD_RADIUS,
-    marginBottom: Spacing.sm,
+    height: CALL_BUTTON_HEIGHT,
+    borderWidth: 1,
+    borderColor: "#B31D38",
+    borderRadius: CALL_BUTTON_RADIUS,
+    backgroundColor: "#FFFFFF",
+    marginTop: 16,
   },
-  closeButtonIcon: {
-    marginRight: Spacing.sm,
+  callButtonPressed: {
+    opacity: 0.9,
+  },
+  callButtonIcon: {
+    marginRight: 8,
+  },
+  callButtonText: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#B31D38",
+  },
+  assignmentTitle: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#161B1D",
+  },
+  assignmentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  assignmentLabel: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "400",
+    color: "#3F4C52",
+  },
+  assignmentValue: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#161B1D",
+  },
+  closeButtonWrap: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    backgroundColor: "#FFFFFF",
+  },
+  closeButton: {
+    height: CLOSE_BUTTON_HEIGHT,
+    backgroundColor: "#B31D38",
+    borderRadius: CLOSE_BUTTON_RADIUS,
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    maxWidth: CARD_MAX_WIDTH,
+    alignSelf: "center",
+  },
+  closeButtonPressed: {
+    opacity: 0.9,
   },
   closeButtonText: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
     fontWeight: "600",
-  },
-  closeHint: {
-    textAlign: "center",
+    color: "#FFFFFF",
   },
 });
