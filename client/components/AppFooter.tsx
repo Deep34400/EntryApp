@@ -52,7 +52,7 @@ export function AppFooter({ activeTab }: AppFooterProps) {
   const bottomInset = insets.bottom > 0 ? insets.bottom : 0;
 
   return (
-    <View style={[styles.footer, { bottom: bottomInset }]}>
+    <View style={[styles.footer, { paddingBottom: bottomInset }]}>
       <View style={styles.tabRow}>
         {TABS.map((tab) => {
           const isActive = activeTab === tab.id;
