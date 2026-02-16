@@ -6,33 +6,25 @@ import {
   Pressable,
   Share,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
+import { useRoute, useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 
-import { RootStackParamList } from "@/navigation/RootStackNavigator";
-
-const FONT_POPPINS = "Poppins";
-
-const GREEN_SECTION_HEIGHT = 283;
+const FONT = "Poppins";
+const GREEN_MIN_HEIGHT = 240;
+const CARD_OVERLAP = 40;
 const CARD_MAX_WIDTH = 328;
-const CARD_PADDING = 16;
-const CARD_BORDER_RADIUS = 12;
-const CARD_GAP = 16;
-const AVATAR_SIZE = 40;
-const SHARE_BUTTON_HEIGHT = 48;
-const SHARE_BUTTON_RADIUS = 22;
-const BOTTOM_PADDING_H = 26;
-const BOTTOM_PADDING_V = 16;
-
-type TokenDisplayRouteProp = RouteProp<RootStackParamList, "TokenDisplay">;
+const HORIZONTAL_PADDING = 20;
 
 export default function TokenDisplayScreen() {
-  const route = useRoute<TokenDisplayRouteProp>();
+  const route = useRoute<any>();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = Math.min(CARD_MAX_WIDTH, screenWidth - HORIZONTAL_PADDING * 2);
+
   const {
     token,
     assignee,
@@ -41,275 +33,269 @@ export default function TokenDisplayScreen() {
     driverPhone,
   } = route.params;
 
+  const displayToken = token.startsWith("#") ? token : `#${token}`;
+
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
-  }, [navigation]);
-
-  const displayToken = token.startsWith("#") ? token : `#${token}`;
-  const name = driverName?.trim() || "—";
-  const phone = driverPhone?.trim() || "—";
-
-  const handleShareReceipt = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const message = [
-      `Token: ${displayToken}`,
-      `Proceed to: ${assignee}`,
-      `Entry Gate: ${desk_location}`,
-    ].join("\n");
-    Share.share({ message, title: "Entry Token" }).catch(() => {});
-  };
+  }, []);
 
   return (
-    <View style={styles.screen}>
-      {/* Top green section — absolute */}
-      <View style={[styles.greenSection, { paddingTop: insets.top }]}>
+    <View style={styles.root}>
+      {/* GREEN HEADER — flow layout, minHeight */}
+      <View style={[styles.green, { paddingTop: insets.top }]}>
         <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            navigation.goBack();
-          }}
-          style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.8 : 1 }]}
-          hitSlop={16}
-          accessibilityLabel="Go back"
+          onPress={() => navigation.goBack()}
+          style={[styles.back, { top: insets.top }]}
         >
-          <Feather name="chevron-left" size={24} color="#FFFFFF" />
+          <Feather name="chevron-left" size={24} color="#FFF" />
         </Pressable>
-        <View style={styles.greenCenter}>
-          <Text style={styles.tokenNumberLabel}>Token Number</Text>
-          <Text style={styles.tokenNumberValue}>{displayToken}</Text>
+
+        <View style={styles.tokenWrap}>
+          <Text style={styles.tokenLabel}>Token Number</Text>
+          <Text style={styles.tokenValue}>{displayToken}</Text>
         </View>
       </View>
 
-      {/* Content: cards + button — no scroll */}
-      <View style={[styles.content, { paddingBottom: insets.bottom + BOTTOM_PADDING_V }]}>
-        {/* User Info Card — overlaps green slightly */}
+      {/* CARDS WRAPPER — negative marginTop for overlap, responsive width */}
+      <View style={[styles.cardWrapper, { width: cardWidth, marginTop: -CARD_OVERLAP }]}>
         <View style={styles.userCard}>
-          <View style={styles.userCardLeft}>
+          <View style={styles.userLeft}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarLetter}>
-                {name !== "—" ? name.charAt(0).toUpperCase() : "?"}
+              <Text style={styles.avatarText}>
+                {driverName?.[0]?.toUpperCase() || "?"}
               </Text>
             </View>
-            <View style={styles.userCardInfo}>
-              <Text style={styles.userName}>{name}</Text>
-              <Text style={styles.userRole}>Driver Partner</Text>
+
+            <View>
+              <Text style={styles.name}>{driverName}</Text>
+              <Text style={styles.role}>Driver Partner</Text>
             </View>
           </View>
-          <Text style={styles.userPhone} numberOfLines={1}>
-            {phone}
-          </Text>
+
+          <Text style={styles.phone}>{driverPhone}</Text>
         </View>
 
-        {/* Proceed / Gate Card */}
-        <View style={styles.gateCard}>
-          <View style={styles.gateCardLeft}>
-            <Text style={styles.gateLabel}>Proceed to</Text>
-            <Text style={styles.gateValue}>{assignee}</Text>
+        <View style={styles.proceedCard}>
+          <View>
+            <Text style={styles.small}>Proceed to</Text>
+            <Text style={styles.value}>{assignee}</Text>
           </View>
-          <View style={styles.gateCardRight}>
-            <Text style={styles.gateLabel}>Entry Gate</Text>
-            <Text style={styles.gateValueRight}>{desk_location}</Text>
-          </View>
-        </View>
 
-        {/* Bottom: single Share Receipt button */}
-        <View style={styles.buttonWrap}>
-          <Pressable
-            onPress={handleShareReceipt}
-            style={({ pressed }) => [styles.shareButton, pressed && styles.shareButtonPressed]}
-          >
-            <Text style={styles.shareButtonText}>Share Receipt</Text>
-          </Pressable>
+          <View style={styles.entryGateWrap}>
+            <Text style={styles.small}>Entry Gate</Text>
+            <Text style={styles.value}>{desk_location || "—"}</Text>
+          </View>
         </View>
+      </View>
+
+      {/* Spacer so buttons sit at bottom */}
+      <View style={styles.spacer} />
+
+      {/* BOTTOM BUTTONS — flow layout, no absolute */}
+      <View style={[styles.bottom, { paddingBottom: insets.bottom + 16 }]}>
+        <Pressable
+          onPress={() =>
+            Share.share({
+              message: `Token: ${displayToken}\nProceed to: ${assignee}`,
+            })
+          }
+          style={styles.shareBtn}
+        >
+          <Text style={styles.shareText}>Share Receipt</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => navigation.navigate("TrackTickets" as never)}
+          style={styles.trackBtn}
+        >
+          <Text style={styles.trackText}>Track Tickets</Text>
+        </Pressable>
       </View>
     </View>
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
-  screen: {
+  root: {
     flex: 1,
     backgroundColor: "#FFFFFF",
+    alignItems: "center",
   },
-  greenSection: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: GREEN_SECTION_HEIGHT,
+
+  green: {
+    width: "100%",
+    minHeight: GREEN_MIN_HEIGHT,
     backgroundColor: "#199881",
     paddingHorizontal: 16,
+    justifyContent: "flex-start",
+    alignItems: "center",
+    paddingBottom: 80
   },
-  backButton: {
-    width: 44,
+
+  back: {
+    position: "absolute",
+    left: 16,
     height: 44,
+    width: 44,
     justifyContent: "center",
+    zIndex: 1,
   },
-  greenCenter: {
-    flex: 1,
+
+  tokenWrap: {
+    marginTop: 28,
     justifyContent: "center",
     alignItems: "center",
-    paddingBottom: 24,
   },
-  tokenNumberLabel: {
-    fontFamily: FONT_POPPINS,
+
+  tokenLabel: {
+    fontFamily: FONT,
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFFFFF",
-    marginBottom: 8,
+    color: "#FFF",
+    marginBottom: 6,
   },
-  tokenNumberValue: {
-    fontFamily: FONT_POPPINS,
+
+  tokenValue: {
+    fontFamily: FONT,
     fontSize: 32,
     fontWeight: "600",
-    color: "#FFFFFF",
+    color: "#FFF",
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: BOTTOM_PADDING_H,
-    paddingTop: GREEN_SECTION_HEIGHT - 24,
-    alignItems: "center",
+
+  cardWrapper: {
+    alignSelf: "center",
   },
+
   userCard: {
     width: "100%",
-    maxWidth: CARD_MAX_WIDTH,
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 16,
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: "#E8EBEC",
-    borderRadius: CARD_BORDER_RADIUS,
-    padding: CARD_PADDING,
-    marginBottom: CARD_GAP,
     ...Platform.select({
       ios: {
-        shadowColor: "#000000",
-        shadowOffset: { width: 0, height: 2 },
+        shadowColor: "#000",
         shadowOpacity: 0.06,
         shadowRadius: 10,
+        shadowOffset: { width: 0, height: 2 },
       },
-      android: { elevation: 2 },
+      android: { elevation: 3 },
     }),
   },
-  userCardLeft: {
+
+  userLeft: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
-    minWidth: 0,
   },
+
   avatar: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
+    height: 40,
+    width: 40,
+    borderRadius: 20,
     backgroundColor: "#E8EBEC",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
   },
-  avatarLetter: {
-    fontFamily: FONT_POPPINS,
+
+  avatarText: {
+    fontFamily: FONT,
     fontSize: 18,
     fontWeight: "600",
-    color: "#161B1D",
   },
-  userCardInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  userName: {
-    fontFamily: FONT_POPPINS,
+
+  name: {
+    fontFamily: FONT,
     fontSize: 14,
     fontWeight: "500",
-    color: "#161B1D",
   },
-  userRole: {
-    fontFamily: FONT_POPPINS,
+
+  role: {
+    fontFamily: FONT,
     fontSize: 12,
-    fontWeight: "400",
     color: "#3F4C52",
-    marginTop: 2,
   },
-  userPhone: {
-    fontFamily: FONT_POPPINS,
+
+  phone: {
+    fontFamily: FONT,
     fontSize: 14,
     fontWeight: "500",
-    color: "#161B1D",
-    marginLeft: 12,
   },
-  gateCard: {
+
+  proceedCard: {
+    marginTop: 24,
     width: "100%",
-    maxWidth: CARD_MAX_WIDTH,
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 16,
     flexDirection: "row",
-    alignItems: "flex-start",
     justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E8EBEC",
-    borderRadius: CARD_BORDER_RADIUS,
-    padding: CARD_PADDING,
-    marginBottom: CARD_GAP,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 10,
-      },
-      android: { elevation: 2 },
-    }),
   },
-  gateCardLeft: {
-    flex: 1,
-    minWidth: 0,
-  },
-  gateCardRight: {
+
+  entryGateWrap: {
     alignItems: "flex-end",
   },
-  gateLabel: {
-    fontFamily: FONT_POPPINS,
+
+  small: {
+    fontFamily: FONT,
     fontSize: 12,
-    fontWeight: "400",
     color: "#3F4C52",
   },
-  gateValue: {
-    fontFamily: FONT_POPPINS,
+
+  value: {
+    fontFamily: FONT,
     fontSize: 14,
     fontWeight: "500",
-    color: "#161B1D",
     marginTop: 4,
   },
-  gateValueRight: {
-    fontFamily: FONT_POPPINS,
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#161B1D",
-    marginTop: 4,
-    textAlign: "right",
+
+  spacer: {
+    flex: 1,
   },
-  buttonWrap: {
-    marginTop: "auto",
-    paddingTop: BOTTOM_PADDING_V,
-    width: "100%",
-    maxWidth: 308,
-    alignSelf: "center",
-  },
-  shareButton: {
-    height: SHARE_BUTTON_HEIGHT,
+
+  bottom: {
+    alignSelf: "stretch",
+    paddingHorizontal: 26,
     backgroundColor: "#FFFFFF",
+  },
+
+  shareBtn: {
+    height: 48,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: "#B31D38",
-    borderRadius: SHARE_BUTTON_RADIUS,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 12,
   },
-  shareButtonPressed: {
-    opacity: 0.9,
-  },
-  shareButtonText: {
-    fontFamily: FONT_POPPINS,
+
+  shareText: {
+    fontFamily: FONT,
     fontSize: 14,
     fontWeight: "600",
     color: "#B31D38",
+  },
+
+  trackBtn: {
+    height: 48,
+    borderRadius: 22,
+    backgroundColor: "#B31D38",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  trackText: {
+    fontFamily: FONT,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFF",
   },
 });
