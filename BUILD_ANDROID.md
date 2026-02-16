@@ -2,6 +2,19 @@
 
 Use this to create an **APK file** you can install on Android devices or upload (e.g. to Google Drive) for others to download.
 
+## When to build vs when to update (OTA)
+
+You **do not need to build a new APK every time** you change the app.
+
+| What you changed | What to do |
+|------------------|------------|
+| **JS/TS, UI, styles, text, assets** | **Push an update** (see [Update the app without rebuilding](#update-the-app-without-rebuilding)) — users get it when they open the app. |
+| **Native code, new permissions, `app.json` version, new Expo SDK** | **Create a new build** (steps below) and share the new APK. |
+
+Build the APK **once** (or when you bump version / change native config). For day-to-day fixes and features, use **EAS Update** so the same installed app gets updates without reinstalling.
+
+---
+
 ## Prerequisites
 
 - [Expo account](https://expo.dev/signup) (free)
@@ -54,6 +67,23 @@ eas build --platform android --profile preview
 - On the Android device, open the APK file and allow “Install from unknown sources” if asked.
 - Install and open **Gate Entry**.
 
+## Update the app without rebuilding
+
+After you have **one APK installed** (from a `preview` or `production` build), you can push **over-the-air (OTA) updates** so users get your latest JS/UI changes without downloading a new APK. The project is already configured for EAS Update; your **next** build will support OTA. Existing APKs built before this setup will not receive updates (reinstall from a new build once).
+
+From the **EntryApp** folder:
+
+```bash
+cd EntryApp
+eas update --channel preview --message "Fix footer layout"
+```
+
+- Use `--channel preview` if the installed app was built with `--profile preview`.
+- Use `--channel production` if the installed app was built with `--profile production`.
+- Users get the update the next time they **open the app** (or after a restart).
+
+You only need a **new build** when you change native code, permissions, or app version.
+
 ## Build profiles (in `eas.json`)
 
 | Profile     | Use case              | Output   |
@@ -68,3 +98,4 @@ Always use **`--profile preview`** (or **`production`**) so the build is an **AP
 - **“Not logged in”** → Run `eas login`.
 - **Build fails** → Check the build log on expo.dev for errors (e.g. missing env vars). Your API URL is in `.env` (`EXPO_PUBLIC_API_URL`); for the built app it’s baked in at build time.
 - **App crashes on open** → Ensure `EXPO_PUBLIC_API_URL` in `.env` points to a URL reachable from the phone (use a public URL, not `localhost`).
+- **Update not showing** → Make sure the installed app was built with the same channel (`preview` or `production`) you use in `eas update --channel …`. Force close the app and open it again once or twice.
