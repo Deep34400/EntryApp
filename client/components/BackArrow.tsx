@@ -65,7 +65,7 @@ export function BackArrow({
         styles.absolute,
         {
           top: insets.top + 2, 
-          left: 16,         
+          left: 4,         
         },
         pressed && styles.pressed,
       ]}

@@ -238,6 +238,7 @@ export default function LoginOtpScreen() {
           <BackArrow
     onPress={goBackToPhone}
     color={loginTokens.otpText}
+    
     // topOffset={0} 
   />
         <KeyboardAvoidingView
@@ -624,6 +625,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     marginBottom: Spacing.xs,
+    marginTop: Spacing["4xl"],
   },
   otpSubtitle: {
     fontFamily: "Poppins",
@@ -668,6 +670,7 @@ const styles = StyleSheet.create({
     backgroundColor: DesignTokens.login.cardBg,
     alignItems: "center",
     justifyContent: "center",
+    marginTop: Spacing.xl,
   },
   otpBoxDigit: {
     fontFamily: "Poppins",
@@ -678,6 +681,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: Spacing.xl,
     flexWrap: "wrap",
+    
   },
   verifyingRow: {
     flexDirection: "row",
