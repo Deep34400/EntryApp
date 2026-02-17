@@ -17,10 +17,14 @@ import TicketListScreen from "../screens/TicketListScreen";
 import TicketDetailScreen from "../screens/TicketDetailScreen";
 import ProfileScreen from "@/screens/ProfileScreen";
 
-/** Entry type: dp = unified form (vehicle optional → old_dp if set, else new_dp); new_dp/old_dp/non_dp for downstream */
+/**
+ * Entry flow: VisitorType (Home) → VisitorPurpose → TokenDisplay.
+ * EntryForm is used by MaintenanceReasonScreen (old_dp form) → VisitorPurpose.
+ */
+/** Entry type: dp = unified (vehicle optional → old_dp else new_dp); new_dp/old_dp/non_dp for API. */
 export type EntryType = "new_dp" | "old_dp" | "non_dp" | "dp";
 
-/** Form data collected on second screen (mobile, name, reg no if Old DP) */
+/** Visitor form data (phone, name, optional vehicle reg). */
 export interface EntryFormData {
   phone: string;
   name: string;
@@ -39,6 +43,8 @@ export type RootStackParamList = {
     desk_location: string;
     driverName?: string;
     driverPhone?: string;
+    /** new_dp | old_dp | non_dp — used to show "Driver Partner" or "Staff" */
+    entryType?: string;
   };
   ExitConfirmation: { token: string };
   TicketList: { filter: "open" | "closed" };
@@ -106,17 +112,11 @@ export default function RootStackNavigator() {
           headerRight: () => <HomeHeaderButton />,
         })}
       />
-      {/* <Stack.Screen
+      <Stack.Screen
+        name="VisitorPurpose"
         component={VisitorPurposeScreen}
-      
-      /> */}
-          <Stack.Screen
-      name="VisitorPurpose"
-      component={VisitorPurposeScreen}
-      options={{
-        headerTitle: () => null,
-      }}
-    />
+        options={{ headerTitle: () => null }}
+      />
 
       <Stack.Screen
         name="TicketList"

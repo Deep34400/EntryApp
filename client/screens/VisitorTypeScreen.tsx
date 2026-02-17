@@ -1,297 +1,304 @@
-import React, { useLayoutEffect } from "react";
+/**
+ * Home / Create Entry screen: Staff vs Driver Partner toggle + visitor form.
+ * On Next → VisitorPurpose (purpose selection + API submit) → TokenDisplay.
+ */
+import React, { useLayoutEffect, useMemo, useState } from "react";
 import {
   View,
   StyleSheet,
   Text,
   Pressable,
-  ActivityIndicator,
   ScrollView,
-  RefreshControl,
+  TextInput,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useQuery } from "@tanstack/react-query";
-import { Feather } from "@expo/vector-icons";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  FadeInDown,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
-import { ThemedText } from "@/components/ThemedText";
 import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
-import { useTheme } from "@/hooks/useTheme";
-import { Layout, Spacing, BorderRadius } from "@/constants/theme";
-import { fetchTicketCountsSafe } from "@/lib/query-client";
-import { useUser } from "@/contexts/UserContext";
-import { useAuth } from "@/contexts/AuthContext";
-import { RootStackParamList, EntryType } from "@/navigation/RootStackNavigator";
+import {
+  RootStackParamList,
+  EntryType,
+  EntryFormData,
+} from "@/navigation/RootStackNavigator";
+import {
+  normalizePhoneInput,
+  isPhoneValid,
+  PHONE_MAX_DIGITS,
+} from "@/utils/validation";
 
 const FONT_POPPINS = "Poppins";
 
+// Design tokens from spec
+const TITLE_COLOR = "#161B1D";
+const TOGGLE_BG = "#EBEDF1";
+const TOGGLE_INACTIVE_COLOR = "#3F4C52";
+const TOGGLE_ACTIVE_COLOR = "#B31D38";
+const LABEL_COLOR = "#161B1D";
+const INPUT_BORDER = "#D4D8DA";
+const INPUT_TEXT = "#161B1D";
+const PREFIX_MUTED = "#77878E";
+const BUTTON_BG = "#B31D38";
+
+type TabId = "staff" | "driver_partner";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
 
-interface VisitorTypeCardProps {
-  title: string;
-  description: string;
-  icon: keyof typeof Feather.glyphMap;
-  type: EntryType;
-  delay: number;
-  iconBgColor: string;
-  onPress: (type: EntryType) => void;
-}
+const TOGGLE_HEIGHT = 52;
+const TOGGLE_RADIUS = 24;
+const PILL_RADIUS = 21;
+const INPUT_HEIGHT = 48;
+const INPUT_RADIUS = 12;
+const BUTTON_RADIUS = 22;
+const FIELD_GAP = 24;
+const HORIZONTAL_PADDING = 16;
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+function SegmentedToggle({
+  value,
+  onChange,
+}: {
+  value: TabId;
+  onChange: (tab: TabId) => void;
+}) {
+  const tabIndex = value === "staff" ? 0 : 1;
+  const translateX = useSharedValue(tabIndex);
+  const segmentWidth = useSharedValue(0);
+  const [segmentWidthPx, setSegmentWidthPx] = useState(0);
 
-function VisitorTypeCard({
-  title,
-  description,
-  icon,
-  type,
-  delay,
-  iconBgColor,
-  onPress,
-}: VisitorTypeCardProps) {
-  const { theme, isDark } = useTheme();
-  const scale = useSharedValue(1);
-  const cardBg = isDark ? theme.backgroundDefault : theme.surface;
+  React.useEffect(() => {
+    translateX.value = withSpring(tabIndex, {
+      damping: 20,
+      stiffness: 200,
+    });
+  }, [tabIndex]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  React.useEffect(() => {
+    if (segmentWidthPx > 0) segmentWidth.value = segmentWidthPx;
+  }, [segmentWidthPx]);
 
-  const handlePressIn = () => {
-    scale.value = withSpring(0.98, { damping: 15, stiffness: 150 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 150 });
-  };
-
-  const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onPress(type);
-  };
+  const pillStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: translateX.value * segmentWidth.value }],
+    };
+  });
 
   return (
-    <Animated.View entering={FadeInDown.delay(delay).springify()}>
-      <AnimatedPressable
-        onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        style={[
-          styles.entryCard,
-          {
-            backgroundColor: cardBg,
-            borderWidth: 1,
-            borderColor: theme.border,
-            shadowColor: theme.shadowColor,
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: isDark ? 0.12 : 0.04,
-            shadowRadius: 4,
-            elevation: 2,
-          },
-          animatedStyle,
-        ]}
-        testID={`card-${type}`}
-      >
-        <View style={[styles.entryCardIconWrap, { backgroundColor: iconBgColor }]}>
-          <Feather name={icon} size={20} color={theme.onPrimary} />
+    <View
+      style={styles.toggleContainer}
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w > 0) setSegmentWidthPx((w - 8) / 2);
+      }}
+    >
+      <View style={styles.toggleTrack}>
+        {/* Sliding white pill */}
+        <Animated.View
+          style={[
+            styles.togglePillSlider,
+            pillStyle,
+            segmentWidthPx > 0 ? { width: segmentWidthPx } : undefined,
+          ]}
+          pointerEvents="none"
+        />
+        <View style={styles.toggleTabsRow}>
+          <Pressable
+            style={styles.toggleTab}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onChange("staff");
+            }}
+          >
+            <Text
+              style={[
+                styles.toggleLabel,
+                value === "staff" && styles.toggleLabelActive,
+              ]}
+            >
+              Staff
+            </Text>
+          </Pressable>
+          <Pressable
+            style={styles.toggleTab}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onChange("driver_partner");
+            }}
+          >
+            <Text
+              style={[
+                styles.toggleLabel,
+                value === "driver_partner" && styles.toggleLabelActive,
+              ]}
+            >
+              Driver Partner
+            </Text>
+          </Pressable>
         </View>
-        <View style={styles.entryCardContent}>
-          <ThemedText type="h4" style={styles.entryCardTitle}>
-            {title}
-          </ThemedText>
-          <ThemedText type="small" variant="secondary" style={styles.entryCardDescription}>
-            {description}
-          </ThemedText>
-        </View>
-        <View style={styles.entryCardArrow}>
-          <Feather name="chevron-right" size={20} color={theme.textSecondary} />
-        </View>
-      </AnimatedPressable>
-    </Animated.View>
+      </View>
+    </View>
   );
 }
 
 export default function VisitorTypeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const { theme, isDark } = useTheme();
-  const { user } = useUser();
-  const auth = useAuth();
-
-  const { data: counts, isFetching, isRefetching, refetch } = useQuery({
-    queryKey: ["ticket-counts", auth.accessToken],
-    queryFn: () => fetchTicketCountsSafe(undefined, auth.accessToken),
-    staleTime: 30_000,
+  const [activeTab, setActiveTab] = useState<TabId>("driver_partner");
+  const [formData, setFormData] = useState<EntryFormData>({
+    phone: "",
+    name: "",
+    vehicle_reg_number: "",
   });
-  const openCount = counts?.open ?? 0;
-  const closedCount = counts?.closed ?? 0;
 
-  const handleSelectType = (type: EntryType) => {
-    navigation.navigate("EntryForm", { entryType: type });
+  const entryType: EntryType = activeTab === "staff" ? "non_dp" : "dp";
+
+  const isFormValid = useMemo(
+    () =>
+      isPhoneValid(formData.phone) && formData.name.trim().length > 0,
+    [formData]
+  );
+
+  const updateField = (key: keyof EntryFormData, value: string) => {
+    if (key === "phone") {
+      setFormData((p) => ({ ...p, phone: normalizePhoneInput(value) }));
+    } else {
+      setFormData((p) => ({ ...p, [key]: value }));
+    }
   };
 
-  const handleOpenTickets = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate("TicketList", { filter: "open" as const });
-  };
-
-  const handleClosedTickets = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate("TicketList", { filter: "closed" as const });
+  const handleNext = () => {
+    if (!isFormValid) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate("VisitorPurpose", {
+      entryType,
+      formData: {
+        ...formData,
+        vehicle_reg_number: formData.vehicle_reg_number || undefined,
+      },
+    });
   };
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  const pageBg = theme.backgroundRoot;
-
-  const visitorTypes = [
-    {
-      type: "dp" as EntryType,
-      title: "Delivery Partner Entry",
-      description: "Delivery partner – onboarding, settlement, vehicle optional.",
-      icon: "truck" as keyof typeof Feather.glyphMap,
-      iconBgColor: theme.primaryDark,
-    },
-    {
-      type: "non_dp" as EntryType,
-      title: "Staff Entry",
-      description: "Self recovery, testing, police, test drive, personal use.",
-      icon: "user" as keyof typeof Feather.glyphMap,
-      iconBgColor: theme.primary,
-    },
-  ];
-
   return (
-    <View style={[styles.container, { backgroundColor: pageBg }]}>
-      {/* Simple header: Welcome + user name, no logo or menu */}
-      <View style={[styles.headerBar, { paddingTop: insets.top, backgroundColor: "#FFFFFF" }]}>
-        <View style={styles.headerCenterBlock}>
-          <Text style={styles.headerWelcomeLabelNew}>Welcome</Text>
-          <Text style={styles.headerUserNameNew} numberOfLines={2} ellipsizeMode="tail">
-            {user?.name?.trim() || "Deepak Singh Chauhan"}
-          </Text>
-        </View>
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: APP_FOOTER_HEIGHT + insets.bottom + Spacing.xl },
-        ]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => refetch()}
-            tintColor={theme.primary}
-          />
-        }
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
       >
-        {/* Stats: OPEN | CLOSED */}
-        <Animated.View entering={FadeInDown.delay(0).springify()} style={styles.statsSection}>
-          <View style={styles.statsRow}>
-            <Pressable
-              onPress={handleOpenTickets}
-              style={({ pressed }) => [
-                styles.statCard,
-                styles.statCardOpen,
-                {
-                  opacity: pressed ? 0.92 : 1,
-                  backgroundColor: theme.primary,
-                  shadowColor: theme.primary,
-                },
-              ]}
-              accessibilityLabel={`OPEN: ${openCount}`}
-            >
-              <View style={styles.statCardTop}>
-                <Feather name="shield" size={20} color={theme.onPrimary} />
-                <ThemedText type="small" style={[styles.statCardSubtitle, { color: theme.onPrimary }]}>
-                  Active Inside
-                </ThemedText>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom: APP_FOOTER_HEIGHT + insets.bottom + 24,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Top: Illustration */}
+          <View style={[styles.illustrationWrap, { paddingTop: insets.top }]}>
+            <Image
+              source={require("../../assets/images/car.png")}
+              style={styles.illustration}
+              resizeMode="contain"
+            />
+          </View>
+
+          {/* Title */}
+          <Text style={styles.title}>Create Visitor Entry</Text>
+
+          {/* Segmented Toggle */}
+          <View style={styles.toggleWrap}>
+            <SegmentedToggle value={activeTab} onChange={setActiveTab} />
+          </View>
+
+          {/* Form */}
+          <View style={styles.formSection}>
+            {/* Phone Number */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Phone Number</Text>
+              <View style={styles.inputBox}>
+                <Text style={styles.prefix}>+91</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder=""
+                  placeholderTextColor={PREFIX_MUTED}
+                  keyboardType="phone-pad"
+                  value={formData.phone}
+                  onChangeText={(v) => updateField("phone", v)}
+                  maxLength={PHONE_MAX_DIGITS}
+                />
               </View>
-              {isFetching ? (
-                <ActivityIndicator size="small" color={theme.onPrimary} />
-              ) : (
-                <ThemedText type="h1" style={[styles.statCardNumber, { color: theme.onPrimary }]}>
-                  {openCount}
-                </ThemedText>
-              )}
-              <ThemedText type="small" style={[styles.statCardLabel, { color: theme.onPrimary }]}>
-                OPEN
-              </ThemedText>
-            </Pressable>
+            </View>
+
+            <View style={{ height: FIELD_GAP }} />
+
+            {/* Name */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Name</Text>
+              <TextInput
+                style={styles.inputBoxSingle}
+                placeholder="Enter name"
+                placeholderTextColor={PREFIX_MUTED}
+                value={formData.name}
+                onChangeText={(v) => updateField("name", v)}
+              />
+            </View>
+
+            <View style={{ height: FIELD_GAP }} />
+
+            {/* Vehicle Number (optional) */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Vehicle Number (optional)</Text>
+              <TextInput
+                style={styles.inputBoxSingle}
+                placeholder="e.g. HR55AB3849"
+                placeholderTextColor={PREFIX_MUTED}
+                value={formData.vehicle_reg_number ?? ""}
+                onChangeText={(v) => updateField("vehicle_reg_number", v)}
+                autoCapitalize="characters"
+              />
+            </View>
+
+            <View style={{ height: FIELD_GAP + 8 }} />
+
+            {/* Next CTA */}
             <Pressable
-              onPress={handleClosedTickets}
+              onPress={handleNext}
+              disabled={!isFormValid}
               style={({ pressed }) => [
-                styles.statCard,
-                styles.statCardClosed,
-                {
-                  backgroundColor: `${theme.success}20`,
-                  opacity: pressed ? 0.92 : 1,
-                  borderWidth: 1,
-                  borderColor: theme.success,
-                  shadowColor: theme.shadowColor,
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: isDark ? 0.15 : 0.04,
-                  shadowRadius: 4,
-                  elevation: 2,
-                },
+                styles.nextButton,
+                !isFormValid && styles.nextButtonDisabled,
+                pressed && isFormValid && styles.nextButtonPressed,
               ]}
-              accessibilityLabel={`CLOSED: ${closedCount}`}
             >
-              <View style={styles.statCardTop}>
-                <ThemedText type="small" style={[styles.statCardSubtitle, { color: theme.success }]}>
-                  Today Completed
-                </ThemedText>
-              </View>
-              {isFetching ? (
-                <ActivityIndicator size="small" color={theme.success} />
-              ) : (
-                <ThemedText type="h1" style={[styles.statCardNumber, { color: theme.success }]}>
-                  {closedCount}
-                </ThemedText>
-              )}
-              <ThemedText type="small" style={[styles.statCardLabel, { color: theme.success }]}>
-                CLOSED
-              </ThemedText>
+              <Text
+                style={[
+                  styles.nextButtonText,
+                  !isFormValid && styles.nextButtonTextDisabled,
+                ]}
+              >
+                Next
+              </Text>
             </Pressable>
           </View>
-        </Animated.View>
+        </ScrollView>
 
-        {/* Entry purpose */}
-        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.sectionHeader}>
-          <ThemedText type="label" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-            Entry purpose
-          </ThemedText>
-        </Animated.View>
-
-        <View style={styles.cardsContainer}>
-          {visitorTypes.map((item, index) => (
-            <VisitorTypeCard
-              key={item.type}
-              type={item.type}
-              title={item.title}
-              description={item.description}
-              icon={item.icon}
-              delay={80 + index * 80}
-              iconBgColor={item.iconBgColor}
-              onPress={handleSelectType}
-            />
-          ))}
-        </View>
-      </ScrollView>
-
-      <AppFooter activeTab="Entry" />
+        <AppFooter activeTab="Entry" />
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -299,113 +306,153 @@ export default function VisitorTypeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#FFFFFF",
   },
-  headerBar: {
-    minHeight: Layout.minTouchTarget + 12,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: Layout.horizontalScreenPadding,
-  },
-  headerCenterBlock: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerWelcomeLabelNew: {
-    fontFamily: FONT_POPPINS,
-    fontSize: 14,
-    fontWeight: "400",
-    color: "#6B7280",
-  },
-  headerUserNameNew: {
-    fontFamily: FONT_POPPINS,
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1C1917",
-    marginTop: 2,
-    textAlign: "center",
+  keyboardView: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
   },
-  content: {
+  scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: Layout.horizontalScreenPadding,
-    paddingTop: Spacing.sm,
+    paddingHorizontal: HORIZONTAL_PADDING,
+    paddingBottom: 24,
   },
-  statsSection: {
-    marginBottom: Spacing.sm,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: Spacing.md,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: BorderRadius.sm,
-    padding: Spacing.md,
-    minHeight: Layout.statCardMinHeight,
-    justifyContent: "space-between",
-  },
-  statCardOpen: {
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  statCardClosed: {},
-  statCardTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.xs,
-  },
-  statCardSubtitle: {
-    letterSpacing: 0.3,
-  },
-  statCardNumber: {
-    fontWeight: "700",
-  },
-  statCardLabel: {
-    letterSpacing: 0.5,
-    fontWeight: "600",
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  sectionTitle: {
-    fontWeight: "600",
-    letterSpacing: 0.2,
-  },
-  cardsContainer: {
-    gap: Spacing.sm,
-  },
-  entryCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: Spacing.md,
-    borderRadius: BorderRadius.sm,
-  },
-  entryCardIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.sm,
+  illustrationWrap: {
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.md,
+    paddingVertical: 16,
+    marginTop: 50,
   },
-  entryCardContent: {
+  illustration: {
+    width: 240,
+    height: 80,
+  },
+  title: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 18,
+    fontWeight: "600",
+    color: TITLE_COLOR,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  toggleWrap: {
+    marginBottom: 24,
+  },
+  toggleContainer: {
+    width: "100%",
+  },
+  toggleTrack: {
+    height: TOGGLE_HEIGHT,
+    borderRadius: TOGGLE_RADIUS,
+    backgroundColor: TOGGLE_BG,
+    justifyContent: "center",
+    padding: 4,
+  },
+  toggleTabsRow: {
+    flexDirection: "row",
     flex: 1,
-    minWidth: 0,
   },
-  entryCardTitle: {
-    marginBottom: Spacing.xs,
+  toggleTab: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  entryCardDescription: {
+  togglePillSlider: {
+    position: "absolute",
+    left: 4,
+    top: 4,
+    width: "48%",
+    height: TOGGLE_HEIGHT - 8,
+    borderRadius: PILL_RADIUS,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  toggleLabel: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "500",
+    color: TOGGLE_INACTIVE_COLOR,
+  },
+  toggleLabelActive: {
+    fontWeight: "600",
+    color: TOGGLE_ACTIVE_COLOR,
+  },
+  formSection: {
+    paddingHorizontal: 0,
+  },
+  field: {
+    gap: 8,
+  },
+  label: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "500",
+    color: LABEL_COLOR,
+  },
+  inputBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: INPUT_HEIGHT,
+    borderWidth: 1,
+    borderColor: INPUT_BORDER,
+    borderRadius: INPUT_RADIUS,
+    paddingHorizontal: 16,
+  },
+  prefix: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 16,
+    color: PREFIX_MUTED,
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    fontFamily: FONT_POPPINS,
+    fontSize: 16,
+    color: INPUT_TEXT,
+    paddingVertical: 0,
+  },
+  inputBoxSingle: {
+    height: INPUT_HEIGHT,
+    borderWidth: 1,
+    borderColor: INPUT_BORDER,
+    borderRadius: INPUT_RADIUS,
+    paddingHorizontal: 16,
+    fontFamily: FONT_POPPINS,
+    fontSize: 16,
+    color: INPUT_TEXT,
+  },
+  nextButton: {
+    height: 48,
+    borderRadius: BUTTON_RADIUS,
+    backgroundColor: BUTTON_BG,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  nextButtonDisabled: {
+    backgroundColor: "#D4D8DA",
+    opacity: 0.8,
+  },
+  nextButtonPressed: {
     opacity: 0.9,
   },
-  entryCardArrow: {
-    marginLeft: Spacing.sm,
+  nextButtonText: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  nextButtonTextDisabled: {
+    color: "#77878E",
   },
 });

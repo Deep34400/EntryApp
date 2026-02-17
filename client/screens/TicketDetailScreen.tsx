@@ -23,6 +23,7 @@ import { fetchWithAuthRetry, apiRequestWithAuthRetry } from "@/lib/query-client"
 import { getEntryAppDetailPath, getEntryAppUpdatePath } from "@/lib/api-endpoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { getEntryTypeDisplayLabel } from "@/utils/entryType";
 
 const FONT_POPPINS = "Poppins";
 
@@ -59,6 +60,8 @@ export interface TicketDetailResult {
   assignee?: string;
   desk_location?: string;
   purpose?: string;
+  /** new_dp | old_dp | non_dp — for "Driver Partner" / "Staff" label */
+  type?: string;
 }
 
 async function fetchTicketDetail(
@@ -81,6 +84,7 @@ async function fetchTicketDetail(
     const deskLocation = d.deskLocation ?? d.desk_location;
     const agentId = d.agentId ?? d.agent_id;
     const purpose = d.purpose != null ? String(d.purpose) : undefined;
+    const type = d.type ?? d.entry_type;
     return {
       id: String(d.id ?? ""),
       token_no: String(tokenNo ?? ""),
@@ -97,6 +101,7 @@ async function fetchTicketDetail(
       updated_at: updatedAt != null ? String(updatedAt) : undefined,
       assignee: assignee != null ? String(assignee) : undefined,
       desk_location: deskLocation != null ? String(deskLocation) : undefined,
+      type: type != null ? String(type) : undefined,
     };
   } catch {
     return null;
@@ -259,7 +264,7 @@ export default function TicketDetailScreen() {
             </View>
             <View style={styles.driverInfo}>
               <Text style={styles.driverName}>{ticket.name ?? "—"}</Text>
-              <Text style={styles.driverRole}>Driver Partner</Text>
+              <Text style={styles.driverRole}>{getEntryTypeDisplayLabel(ticket.type)}</Text>
             </View>
           </View>
           <Pressable

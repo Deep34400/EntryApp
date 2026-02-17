@@ -1,3 +1,8 @@
+/**
+ * Visitor Purpose screen: select visit reason and submit entry.
+ * Receives entryType + formData from VisitorType (Home) or EntryForm.
+ * On submit → TokenDisplay.
+ */
 import React, { useState } from "react";
 import {
   View,
@@ -35,8 +40,17 @@ import {
   EntryFormData,
 } from "@/navigation/RootStackNavigator";
 import { isPhoneValid, phoneForApi } from "@/utils/validation";
+import {
+  DP_ONBOARDING,
+  DP_SETTLEMENT,
+  DP_MAINTENANCE,
+  RUNNING_REPAIR_SUB_ITEMS,
+  NON_DP_PURPOSES,
+  PURPOSE_DISPLAY_LABELS,
+  PURPOSE_ICONS,
+} from "@/constants/entryPurpose";
 
-/** Figma dark-premium: screen grey, cards white, borders & typography per spec. No layout/logic changes. */
+/** Screen-specific design tokens (purpose selection UI). */
 const DESIGN = {
   screenBg: "#F6F7F9",
   cardBg: "#FFFFFF",
@@ -46,13 +60,11 @@ const DESIGN = {
   shadowRadius: 12,
   elevation: 5,
   brandRed: "#B31D38",
-  brandRedDisabled: "#E6A3AE",
   nameSize: 14,
   roleSize: 12,
   sectionTitleSize: 16,
   labelSize: 12,
   cardMinHeight: 80,
-  headerHeight: 56,
   buttonHeight: 48,
   buttonRadius: 24,
   avatarSize: 40,
@@ -70,83 +82,6 @@ const DESIGN = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorPurpose">;
 type VisitorPurposeRouteProp = RouteProp<RootStackParamList, "VisitorPurpose">;
-
-// ----- DP purposes: New DP gets only Onboarding; Old DP gets Settlement + Maintenance -----
-export const DP_ONBOARDING = {
-  title: "Onboarding",
-  items: ["Enquiry", "New Registration", "Training", "Documentation"],
-} as const;
-
-export const DP_SETTLEMENT = {
-  title: "Settlement",
-  items: [
-    "DM collection",
-    "Settlement",
-    "Car Drop",
-    "Car Exchange",
-    "Scheme Change",
-    "Rejoining",
-  ],
-} as const;
-
-export const DP_MAINTENANCE = {
-  title: "Maintenance",
-  items: ["Accident", "PMS", "Running Repair", "Washing"],
-} as const;
-
-/** Sub-options when user taps "Running Repair" — shown in a modal (per Figma: Part missing, Mechanical/electrical fault, Car bodyshop, Repair Parking) */
-export const RUNNING_REPAIR_SUB_ITEMS = [
-  "Part missing",
-  "Mechanical / electrical fault",
-  "Car bodyshop",
-  "Repair Parking",
-] as const;
-
-/** Categories to show for New DP only (Onboarding). */
-export const NEW_DP_CATEGORIES = [DP_ONBOARDING] as const;
-
-/** Categories to show for Old DP only (Settlement + Maintenance). */
-export const OLD_DP_CATEGORIES = [DP_SETTLEMENT, DP_MAINTENANCE] as const;
-
-/** Icons for purpose grid cards (Feather names) */
-const PURPOSE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
-  "DM collection": "credit-card",
-  Settlement: "file-text",
-  "Car Drop": "truck",
-  "Car Exchange": "repeat",
-  "Scheme Change": "sliders",
-  Rejoining: "user-plus",
-  Accident: "alert-triangle",
-  PMS: "settings",
-  "Running Repair": "tool",
-  Washing: "droplet",
-  Enquiry: "help-circle",
-  "New Registration": "user-plus",
-  Training: "book-open",
-  Documentation: "file-text",
-  "Self Recovery (QC)": "shield",
-  Abscond: "alert-circle",
-  Testing: "activity",
-  "Police Station": "map-pin",
-  "Test Drive": "truck",
-  "Hub-Personal use": "home",
-};
-
-// ----- Non DP purposes: flat list -----
-export const NON_DP_PURPOSES = [
-  "Self Recovery (QC)",
-  "Abscond",
-  "Testing",
-  "Police Station",
-  "Test Drive",
-  "Hub-Personal use",
-] as const;
-
-/** Display labels for grid (Figma) — key = API item, value = label shown */
-const DISPLAY_LABELS: Record<string, string> = {
-  "Self Recovery (QC)": "Self Recovery",
-  "Hub-Personal use": "Hub-Personal Use",
-};
 
 function PurposeGridCard({
   title,
@@ -235,11 +170,11 @@ export default function VisitorPurposeScreen() {
   const displayPhone = (formData.phone ?? "").trim() || (user?.phone ?? "").trim() || "—";
   const displayRole = "Guest";
 
-  const getDisplayTitle = (item: string) => DISPLAY_LABELS[item] ?? item;
+  const getDisplayTitle = (item: string) => PURPOSE_DISPLAY_LABELS[item] ?? item;
 
   const getPurposeIcon = (item: string): keyof typeof Feather.glyphMap => {
-    const key = item in PURPOSE_ICONS ? item : (item as string);
-    return PURPOSE_ICONS[key] ?? "circle";
+    const icon = PURPOSE_ICONS[item];
+    return (icon ?? "circle") as keyof typeof Feather.glyphMap;
   };
 
   /** assignee: Settlement/Onboarding → DRIVER MANAGER, Maintenance → FLEET MANAGER, Non DP → empty */
@@ -308,6 +243,7 @@ export default function VisitorPurposeScreen() {
         desk_location: String(desk_location),
         driverName: formData.name?.trim() || undefined,
         driverPhone: formData.phone?.trim() || undefined,
+        entryType: effectiveEntryType,
       });
     },
     onError: (error: Error) => {
@@ -776,8 +712,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   nextButtonDisabled: {
-    // opacity: 0.45,
-  
+    opacity: 0.5,
   },
   nextButtonPressed: {
     opacity: 0.9,

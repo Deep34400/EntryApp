@@ -1,15 +1,20 @@
-import React, { useMemo } from "react";
-import { View, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
+import React, { useLayoutEffect, useMemo } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Alert,
+  Text,
+  Platform,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, CommonActions } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
-import { ThemedText } from "@/components/ThemedText";
-import { useTheme } from "@/hooks/useTheme";
-import { Layout, Spacing, BorderRadius } from "@/constants/theme";
+import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -17,47 +22,68 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Profile">;
 
-const AVATAR_ICONS: (keyof typeof Feather.glyphMap)[] = [
-  "briefcase",
-  "user-check",
-  "award",
-  "shield",
-  "headphones",
-];
+// Serif: Georgia on iOS, system serif on Android (per spec)
+const FONT_SERIF = Platform.select({ ios: "Georgia", default: "serif" });
 
-function getAvatarIcon(name: string): keyof typeof Feather.glyphMap {
-  const hash = (name || "user").split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return AVATAR_ICONS[hash % AVATAR_ICONS.length];
+// Exact spec tokens
+const BG = "#FFFFFF";
+const AVATAR_BG = "#F8EBCF";
+const INITIALS_COLOR = "#3F3F3F";
+const NAME_COLOR = "#161B1D";
+const PHONE_COLOR = "#161B1D";
+const LOGOUT_BORDER = "#E6E6E6";
+const LOGOUT_ICON_BG = "#F2F2F2";
+const LOGOUT_ICON_COLOR = "#B31D38";
+const LOGOUT_TEXT_COLOR = "#161B1D";
+
+const AVATAR_SIZE = 96;
+const GAP_AVATAR_TO_NAME = 24;
+const GAP_NAME_TO_PHONE = 8;
+const GAP_PHONE_TO_LOGOUT = 40;
+const LOGOUT_CARD_HEIGHT = 56;
+const LOGOUT_ICON_SIZE = 40;
+const LOGOUT_ICON_TEXT_GAP = 12;
+
+/** Get 2-letter initials from name */
+function getInitials(name: string): string {
+  const trimmed = (name || "").trim();
+  if (!trimmed) return "—";
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const a = parts[0].charAt(0);
+    const b = parts[1].charAt(0);
+    return (a + b).toUpperCase();
+  }
+  if (trimmed.length >= 2) return trimmed.slice(0, 2).toUpperCase();
+  return trimmed.charAt(0).toUpperCase();
 }
 
-function formatRole(userType: string | undefined): string {
-  if (!userType?.trim()) return "—";
-  const normalized = userType.trim();
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1).toLowerCase();
+function formatPhoneDisplay(phone: string): string {
+  const p = (phone || "").trim().replace(/\D/g, "");
+  if (p.length === 10) return `+91-${p}`;
+  if (phone) return phone;
+  return "—";
 }
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
-  const { theme } = useTheme();
   const auth = useAuth();
   const { user: contextUser, clearUser } = useUser();
 
-  const displayName = auth.user?.name?.trim() || contextUser?.name?.trim() || "—";
-  const displayPhone = auth.user?.phone || contextUser?.phone || "—";
-  const role = auth.user?.userType;
+  const displayName =
+    auth.user?.name?.trim() || contextUser?.name?.trim() || "—";
+  const displayPhone = auth.user?.phone || contextUser?.phone || "";
 
-  const avatarIcon = useMemo(() => getAvatarIcon(displayName), [displayName]);
+  const initials = useMemo(() => getInitials(displayName), [displayName]);
+  const phoneFormatted = useMemo(
+    () => formatPhoneDisplay(displayPhone),
+    [displayPhone]
+  );
 
-  const hasDetails = role?.trim();
-  const detailItems = useMemo(() => {
-    const items: { label: string; value: string; icon: keyof typeof Feather.glyphMap }[] = [];
-    if (role?.trim()) {
-      items.push({ label: "Role", value: formatRole(role), icon: "briefcase" });
-    }
-    return items;
-  }, [role]);
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -82,181 +108,142 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
-      contentContainerStyle={{
-        flexGrow: 1,
-        paddingTop: headerHeight + Spacing.md,
-        paddingBottom: insets.bottom + Spacing.xl,
-        paddingHorizontal: Layout.horizontalScreenPadding,
-      }}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Identity section: avatar, name once, primary identifier (phone) */}
-      <Animated.View
-        entering={FadeInDown.delay(0).springify()}
-        style={[styles.identityCard, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: insets.top,
+            paddingBottom: APP_FOOTER_HEIGHT + insets.bottom + 24,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.avatarWrap, { backgroundColor: theme.primary }]}>
-          <Feather name={avatarIcon} size={28} color={theme.onPrimary} />
-        </View>
-        <ThemedText
-          type="h4"
-          style={[styles.identityName, { color: theme.text }]}
-          numberOfLines={2}
-          ellipsizeMode="tail"
+        <Animated.View
+          entering={FadeInDown.delay(0).springify()}
+          style={styles.profileSection}
         >
-          {displayName}
-        </ThemedText>
-        <ThemedText
-          type="body"
-          style={[styles.identityIdentifier, { color: theme.textSecondary }]}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
-          {displayPhone}
-        </ThemedText>
-      </Animated.View>
-
-      {/* Details: only additional/editable info (role, hub) — no name, no phone */}
-      {hasDetails && (
-        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.section}>
-          <ThemedText type="small" style={[styles.sectionLabel, { color: theme.textSecondary }]}>
-            DETAILS
-          </ThemedText>
-          <View style={[styles.detailCard, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
-            {detailItems.map((item, index) => (
-              <View key={item.label}>
-                {index > 0 && <View style={[styles.detailDivider, { backgroundColor: theme.border }]} />}
-                <View style={styles.detailRow}>
-                  <View style={styles.detailIconWrap}>
-                    <Feather name={item.icon} size={18} color={theme.primary} />
-                  </View>
-                  <View style={styles.detailLabelValue}>
-                    <ThemedText type="small" style={[styles.detailLabel, { color: theme.textSecondary }]}>
-                      {item.label}
-                    </ThemedText>
-                    <ThemedText type="body" style={[styles.detailValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
-                      {item.value}
-                    </ThemedText>
-                  </View>
-                </View>
-              </View>
-            ))}
+          <View style={styles.avatarWrap}>
+            <Text style={styles.avatarInitials} numberOfLines={1}>
+              {initials}
+            </Text>
           </View>
+          <Text style={styles.userName} numberOfLines={2} ellipsizeMode="tail">
+            {displayName}
+          </Text>
+          <Text style={styles.userPhone} numberOfLines={1} ellipsizeMode="tail">
+            {phoneFormatted}
+          </Text>
         </Animated.View>
-      )}
 
-      {/* Logout: bottom, subtle background, red text/icon */}
-      <Animated.View entering={FadeInDown.delay(hasDetails ? 120 : 60).springify()} style={styles.logoutWrap}>
-        <Pressable
-          onPress={handleLogout}
-          style={({ pressed }) => [
-            styles.logoutButton,
-            {
-              backgroundColor: theme.backgroundSecondary,
-              borderColor: theme.border,
-              opacity: pressed ? 0.9 : 1,
-            },
-          ]}
+        <Animated.View
+          entering={FadeInDown.delay(80).springify()}
+          style={styles.logoutWrap}
         >
-          <Feather name="log-out" size={18} color={theme.error} style={styles.logoutIcon} />
-          <ThemedText type="body" style={[styles.logoutText, { color: theme.error }]}>
-            Log out
-          </ThemedText>
-        </Pressable>
-      </Animated.View>
-    </ScrollView>
+          <Pressable
+            onPress={handleLogout}
+            style={({ pressed }) => [
+              styles.logoutCard,
+              pressed && styles.logoutCardPressed,
+            ]}
+          >
+            <View style={styles.logoutIconWrap}>
+              <Feather name="log-out" size={20} color={LOGOUT_ICON_COLOR} />
+            </View>
+            <Text style={styles.logoutText}>Logout</Text>
+          </Pressable>
+        </Animated.View>
+      </ScrollView>
+
+      <AppFooter activeTab="Account" />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: BG,
   },
-  identityCard: {
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 0,
     alignItems: "center",
-    marginBottom: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
+  },
+  profileSection: {
+    alignItems: "center",
+    width: "100%",
+    marginTop:50,
   },
   avatarWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.sm,
-  },
-  identityName: {
-    marginBottom: Spacing.xs,
-    textAlign: "center",
-    paddingHorizontal: Spacing.sm,
-    maxWidth: "100%",
-  },
-  identityIdentifier: {
-    letterSpacing: 0.2,
-    textAlign: "center",
-    paddingHorizontal: Spacing.sm,
-  },
-  section: {
-    marginBottom: Spacing.lg,
-  },
-  sectionLabel: {
-    marginBottom: Spacing.sm,
-    letterSpacing: 0.5,
-    fontWeight: "600",
-  },
-  detailCard: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  detailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-  },
-  detailIconWrap: {
-    width: 36,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: AVATAR_BG,
     alignItems: "center",
     justifyContent: "center",
   },
-  detailLabelValue: {
-    flex: 1,
-    minWidth: 0,
-    marginLeft: Spacing.sm,
+  avatarInitials: {
+    fontFamily: FONT_SERIF,
+    fontSize: 36,
+    fontWeight: "700",
+    color: INITIALS_COLOR,
   },
-  detailLabel: {
-    marginBottom: 2,
+  userName: {
+    fontFamily: FONT_SERIF,
+    fontSize: 22,
+    fontWeight: "700",
+    color: NAME_COLOR,
+    textAlign: "center",
+    marginTop: GAP_AVATAR_TO_NAME,
+    paddingHorizontal: 16,
   },
-  detailValue: {
-    lineHeight: 22,
-  },
-  detailDivider: {
-    height: 1,
-    marginLeft: 36 + Spacing.sm + Spacing.lg,
+  userPhone: {
+    fontFamily: FONT_SERIF,
+    fontSize: 16,
+    fontWeight: "400",
+    color: PHONE_COLOR,
+    textAlign: "center",
+    marginTop: GAP_NAME_TO_PHONE,
+    paddingHorizontal: 16,
   },
   logoutWrap: {
-    marginTop: "auto",
-    paddingTop: Spacing.lg,
+    width: "90%",
+    marginTop: GAP_PHONE_TO_LOGOUT,
+    alignSelf: "center",
   },
-  logoutButton: {
+  logoutCard: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.md,
+    justifyContent: "flex-start",
+    height: LOGOUT_CARD_HEIGHT,
+    borderRadius: LOGOUT_CARD_HEIGHT / 2,
+    backgroundColor: BG,
     borderWidth: 1,
+    borderColor: LOGOUT_BORDER,
+    paddingLeft: 12,
   },
-  logoutIcon: {
-    marginRight: Spacing.sm,
+  logoutCardPressed: {
+    opacity: 0.92,
+  },
+  logoutIconWrap: {
+    width: LOGOUT_ICON_SIZE,
+    height: LOGOUT_ICON_SIZE,
+    borderRadius: LOGOUT_ICON_SIZE / 2,
+    backgroundColor: LOGOUT_ICON_BG,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: LOGOUT_ICON_TEXT_GAP,
+    
   },
   logoutText: {
+    fontFamily: FONT_SERIF,
+    fontSize: 18,
     fontWeight: "500",
+    color: LOGOUT_TEXT_COLOR,
   },
 });

@@ -12,8 +12,6 @@ interface AppFooterProps {
   activeTab: AppFooterTab;
 }
 
-const FONT_POPPINS = "Poppins";
-
 const FOOTER_HEIGHT = 72;
 const TAB_PADDING_VERTICAL = 6;
 const TAB_PADDING_HORIZONTAL = 20;
@@ -23,7 +21,7 @@ const FONT_SIZE = 12;
 const LINE_HEIGHT = 18;
 
 const COLOR_ACTIVE = "#B31D38";
-const COLOR_INACTIVE = "#77878E";
+const COLOR_INACTIVE = "#8A8A8A";
 
 const TABS: { id: AppFooterTab; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
   { id: "Entry", label: "Entry", icon: "local-parking" },
@@ -128,7 +126,7 @@ const styles = StyleSheet.create({
     marginBottom: ICON_LABEL_GAP,
   },
   tabLabel: {
-    fontFamily: FONT_POPPINS,
+    fontFamily: Platform.select({ ios: "Georgia", default: "serif" }),
     fontSize: FONT_SIZE,
     lineHeight: LINE_HEIGHT,
     textAlign: "center",

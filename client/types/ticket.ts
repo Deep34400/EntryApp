@@ -3,6 +3,7 @@
  * Change shape here → list and detail stay in sync.
  */
 
+/** API entry type: new_dp, old_dp, non_dp. Used to show "Driver Partner" or "Staff". */
 export interface TicketListItem {
   id: string;
   token_no: string;
@@ -16,6 +17,8 @@ export interface TicketListItem {
   status?: string;
   regNumber?: string;
   phone?: string;
+  /** new_dp | old_dp | non_dp — for display label */
+  type?: string;
 }
 
 /** Normalize API item (camelCase or snake_case) to TicketListItem. */
@@ -26,6 +29,7 @@ export function normalizeTicketListItem(item: Record<string, unknown>): TicketLi
   const entryTime = item.entryTime ?? item.entry_time;
   const exitTime = item.exitTime ?? item.exit_time;
   const regNumber = item.regNumber ?? item.reg_number ?? item.vehicle;
+  const type = item.type ?? item.entry_type;
   return {
     id,
     token_no: String(tokenNo ?? ""),
@@ -49,5 +53,6 @@ export function normalizeTicketListItem(item: Record<string, unknown>): TicketLi
     status: item.status != null ? String(item.status) : undefined,
     regNumber: regNumber != null ? String(regNumber) : undefined,
     phone: item.phone != null ? String(item.phone) : undefined,
+    type: type != null ? String(type) : undefined,
   };
 }

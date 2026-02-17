@@ -26,6 +26,7 @@ import { formatEntryTime, formatDurationHours } from "@/lib/format";
 import type { TicketListItem } from "@/types/ticket";
 import { normalizeTicketListItem } from "@/types/ticket";
 import { getWaitingMinutes } from "@/lib/ticket-utils";
+import { getEntryTypeDisplayLabel } from "@/utils/entryType";
 
 export type { TicketListItem } from "@/types/ticket";
 
@@ -101,7 +102,7 @@ function TicketCard({
       : formatWaitingLabel(item.entry_time);
 
   const driverName = item.name ?? "—";
-  const role = "Driver Partner";
+  const role = getEntryTypeDisplayLabel(item.type);
 
   return (
     <View style={styles.cardWrapper}>

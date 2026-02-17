@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Layout, Spacing, BorderRadius, DesignTokens } from "@/constants/theme";
 import { BackArrow } from "@/components/BackArrow";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { getEntryTypeDisplayLabel } from "@/utils/entryType";
 
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -41,7 +42,9 @@ export default function TokenDisplayScreen() {
     desk_location,
     driverName,
     driverPhone,
+    entryType,
   } = route.params ?? {};
+  const roleLabel = getEntryTypeDisplayLabel(entryType);
 
   const displayToken = token?.startsWith("#")
     ? token
@@ -110,7 +113,7 @@ export default function TokenDisplayScreen() {
                 <Text style={styles.name} numberOfLines={1}>
                   {driverName || "—"}
                 </Text>
-                <Text style={styles.role}>Driver Partner</Text>
+                <Text style={styles.role}>{roleLabel}</Text>
               </View>
             </View>
             <Text style={styles.phone} numberOfLines={1}>
