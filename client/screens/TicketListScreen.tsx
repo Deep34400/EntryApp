@@ -435,8 +435,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     paddingHorizontal: Layout.horizontalScreenPadding,
     width: "100%",
-    maxWidth: Layout.contentMaxWidth + Layout.horizontalScreenPadding * 2,
-    alignSelf: "center",
   },
   emptyWrap: {
     paddingVertical: Spacing["3xl"],

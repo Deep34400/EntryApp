@@ -2,7 +2,7 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
-import { BackHeaderButton } from "@/components/BackHeaderButton";
+import { BackArrow } from "@/components/BackArrow";
 import { HeaderTitle } from "@/components/HeaderTitle";
 import { HomeHeaderButton } from "@/components/HomeHeaderButton";
 import { ThemeToggleHeaderButton } from "@/components/ThemeToggleHeaderButton";
@@ -59,12 +59,13 @@ export default function RootStackNavigator() {
         ...screenOptions,
         ...(SCREENS_WITH_BACK.includes(route.name)
           ? {
-              headerLeft: (props) => (
-                <BackHeaderButton
-                  onPress={() => navigation.goBack()}
-                  canGoBack={!!props.canGoBack}
-                />
-              ),
+              headerLeft: (props) =>
+                props.canGoBack ? (
+                  <BackArrow
+                    onPress={() => navigation.goBack()}
+                    inline
+                  />
+                ) : null,
               headerLeftContainerStyle: { minWidth: 56 },
             }
           : {}),

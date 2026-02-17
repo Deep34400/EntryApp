@@ -15,11 +15,11 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Feather } from "@expo/vector-icons";
 import Animated, { FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
+import { BackArrow } from "@/components/BackArrow";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
@@ -111,6 +111,44 @@ export default function LoginOtpScreen() {
     return () => clearInterval(id);
   }, [resendCooldown]);
 
+  const verifyTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (otp.trim().length < OTP_LENGTH) verifyTriggeredRef.current = false;
+  }, [otp]);
+
+  useEffect(() => {
+    const guestToken = auth.guestToken;
+    if (step !== "otp" || !isOtpComplete || !guestToken || loading || verifyTriggeredRef.current) return;
+    verifyTriggeredRef.current = true;
+    (async () => {
+      setError(null);
+      setLoading(true);
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        const data = await verifyOtp(phoneTrimmed, otp.trim(), guestToken);
+        if (data) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          await auth.setTokensAfterVerify(data);
+          const primaryPhone =
+            data.user.userContacts?.find((c) => c.isPrimary)?.phoneNo ||
+            data.user.userContacts?.[0]?.phoneNo ||
+            data.user.name;
+          setUserContext({
+            name: data.user.name?.trim() || primaryPhone,
+            phone: primaryPhone,
+          });
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Invalid OTP. Please try again.");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        verifyTriggeredRef.current = false;
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [step, isOtpComplete, otp, phoneTrimmed, auth.guestToken, loading, auth, setUserContext]);
+
   const handleSendOtp = async () => {
     if (!isPhoneValid || !auth.guestToken) return;
     setError(null);
@@ -142,33 +180,6 @@ export default function LoginOtpScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to resend OTP");
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!isOtpComplete || !auth.guestToken) return;
-    setError(null);
-    setLoading(true);
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const data = await verifyOtp(phoneTrimmed, otp.trim(), auth.guestToken);
-      if (data) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        await auth.setTokensAfterVerify(data);
-        const primaryPhone =
-          data.user.userContacts?.find((c) => c.isPrimary)?.phoneNo ||
-          data.user.userContacts?.[0]?.phoneNo ||
-          data.user.name;
-        setUserContext({
-          name: data.user.name?.trim() || primaryPhone,
-          phone: primaryPhone,
-        });
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Invalid OTP. Please try again.");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -223,7 +234,12 @@ export default function LoginOtpScreen() {
 
   if (step === "otp") {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: loginTokens.cardBg }]} edges={["top"]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: loginTokens.cardBg }]} edges={["top"]}>
+          <BackArrow
+    onPress={goBackToPhone}
+    color={loginTokens.otpText}
+    // topOffset={0} 
+  />
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboardView}
@@ -234,21 +250,14 @@ export default function LoginOtpScreen() {
             contentContainerStyle={[
               styles.scrollContent,
               styles.otpScrollContent,
-              { paddingTop: Spacing.xl, paddingBottom: insets.bottom + Spacing["2xl"] },
+              {
+                paddingTop: Layout.backButtonTouchTarget + Spacing.sm - 8,
+                paddingBottom: insets.bottom + Spacing["2xl"],
+              },
             ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <View style={[styles.otpTopBar, { paddingTop: 0 }]}>
-              <Pressable
-                onPress={goBackToPhone}
-                style={({ pressed }) => [styles.backArrowAbsolute, { opacity: pressed ? 0.7 : 1 }]}
-                hitSlop={16}
-                accessibilityLabel="Back to phone number"
-              >
-                <Feather name="chevron-left" size={26} color={loginTokens.otpText} />
-              </Pressable>
-            </View>
             <Animated.View entering={FadeIn.duration(260)} style={styles.otpContent}>
               <ThemedText type="h3" style={styles.otpTitle} numberOfLines={1}>
                 Enter OTP
@@ -329,15 +338,14 @@ export default function LoginOtpScreen() {
                   </Pressable>
                 )}
               </View>
-              <View style={styles.primaryButtonWrap}>
-                <Button
-                  onPress={handleVerifyOtp}
-                  disabled={!isOtpComplete || loading}
-                  style={[styles.primaryButton, styles.pillButton, { backgroundColor: isOtpComplete ? loginTokens.headerRed : theme.backgroundSecondary, opacity: isOtpComplete && !loading ? 1 : 0.8, borderWidth: 0 }]}
-                >
-                  {loading ? "Verifying…" : "Verify & Continue"}
-                </Button>
-              </View>
+              {loading ? (
+                <View style={[styles.verifyingRow, { backgroundColor: theme.backgroundSecondary }]}>
+                  <ActivityIndicator size="small" color={loginTokens.headerRed} />
+                  <ThemedText type="body" style={[styles.verifyingText, { color: loginTokens.otpText }]}>
+                    Verifying…
+                  </ThemedText>
+                </View>
+              ) : null}
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -607,18 +615,6 @@ const styles = StyleSheet.create({
     color: DesignTokens.login.termsLink,
     fontWeight: "600",
   },
-  otpTopBar: {
-    paddingHorizontal: Layout.horizontalScreenPadding,
-    paddingBottom: Layout.contentGap,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  backArrowAbsolute: {
-    width: Layout.backButtonTouchTarget,
-    height: Layout.backButtonTouchTarget,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   otpContent: {
     width: "100%",
   },
@@ -682,6 +678,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: Spacing.xl,
     flexWrap: "wrap",
+  },
+  verifyingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.md,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.sm,
+  },
+  verifyingText: {
+    fontFamily: "Poppins",
+    fontWeight: "600",
   },
   pillButton: {
     borderRadius: 22,

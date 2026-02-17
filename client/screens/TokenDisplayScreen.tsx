@@ -12,11 +12,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Feather } from "@expo/vector-icons";
 import { Layout, Spacing, BorderRadius, DesignTokens } from "@/constants/theme";
+import { BackArrow } from "@/components/BackArrow";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, "TokenDisplay">;
+type NavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "TokenDisplay"
+>;
 
 const FONT = "Poppins";
 const tokenTokens = DesignTokens.token;
@@ -40,15 +43,22 @@ export default function TokenDisplayScreen() {
     driverPhone,
   } = route.params ?? {};
 
-  const displayToken = token?.startsWith("#") ? token : token ? `#${token}` : "#—";
+  const displayToken = token?.startsWith("#")
+    ? token
+    : token
+    ? `#${token}`
+    : "#—";
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
-  }, []);
+  }, [navigation]);
 
   return (
     <View style={styles.root}>
-      {/* Green header — minHeight/maxHeight, safe area, back icon only absolute */}
+      {/* ✅ SINGLE GLOBAL BACK ARROW */}
+      <BackArrow color={tokenTokens.onHeader} />
+
+      {/* Green header */}
       <View
         style={[
           styles.green,
@@ -59,14 +69,6 @@ export default function TokenDisplayScreen() {
           },
         ]}
       >
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={[styles.back, { top: insets.top }]}
-          hitSlop={8}
-        >
-          <Feather name="chevron-left" size={24} color={tokenTokens.onHeader} />
-        </Pressable>
-
         <View style={styles.tokenWrap}>
           <Text style={styles.tokenLabel}>Token Number</Text>
           <Text style={styles.tokenValue} numberOfLines={1}>
@@ -75,7 +77,7 @@ export default function TokenDisplayScreen() {
         </View>
       </View>
 
-      {/* Scrollable content: cards + spacer so buttons stay at bottom on all devices */}
+      {/* Scrollable content */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -88,7 +90,6 @@ export default function TokenDisplayScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Cards wrapper — negative marginTop for Figma overlap */}
         <View
           style={[
             styles.cardWrapper,
@@ -134,7 +135,7 @@ export default function TokenDisplayScreen() {
         </View>
       </ScrollView>
 
-      {/* Bottom buttons — fixed at bottom, safe area, production touch targets */}
+      {/* Bottom buttons */}
       <View
         style={[
           styles.bottom,
@@ -147,7 +148,9 @@ export default function TokenDisplayScreen() {
         <Pressable
           onPress={() =>
             Share.share({
-              message: `Token: ${displayToken}\nProceed to: ${assignee ?? ""}\nEntry Gate: ${desk_location ?? ""}`,
+              message: `Token: ${displayToken}\nProceed to: ${
+                assignee ?? ""
+              }\nEntry Gate: ${desk_location ?? ""}`,
             })
           }
           style={({ pressed }) => [
@@ -159,7 +162,9 @@ export default function TokenDisplayScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => navigation.navigate("TicketList", { filter: "open" as const })}
+          onPress={() =>
+            navigation.navigate("TicketList", { filter: "open" as const })
+          }
           style={({ pressed }) => [
             styles.trackBtn,
             pressed && styles.buttonPressed,
@@ -187,16 +192,6 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing["3xl"],
   },
 
-  back: {
-    position: "absolute",
-    left: Layout.horizontalScreenPadding,
-    height: Layout.backButtonTouchTarget,
-    width: Layout.backButtonTouchTarget,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1,
-  },
-
   tokenWrap: {
     justifyContent: "center",
     alignItems: "center",
@@ -217,9 +212,7 @@ const styles = StyleSheet.create({
     color: tokenTokens.onHeader,
   },
 
-  scroll: {
-    flex: 1,
-  },
+  scroll: { flex: 1 },
 
   scrollContent: {
     flexGrow: 1,
@@ -275,10 +268,7 @@ const styles = StyleSheet.create({
     color: "#1C1917",
   },
 
-  userTextBlock: {
-    flex: 1,
-    minWidth: 0,
-  },
+  userTextBlock: { flex: 1 },
 
   name: {
     fontFamily: FONT,
@@ -299,7 +289,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: "#1C1917",
-    marginLeft: Spacing.md,
   },
 
   proceedCard: {
@@ -333,7 +322,6 @@ const styles = StyleSheet.create({
   },
 
   bottom: {
-    alignSelf: "stretch",
     backgroundColor: "#FFFFFF",
   },
 

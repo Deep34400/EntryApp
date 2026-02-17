@@ -9,15 +9,15 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
-import { Button } from "@/components/Button";
+import { BackArrow } from "@/components/BackArrow";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,9 +42,15 @@ export default function OTPVerificationScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<OTPVerificationRouteProp>();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const auth = useAuth();
   const { setUser: setUserContext } = useUser();
+
+  // Responsive: smaller OTP boxes and padding on narrow phones
+  const isNarrow = screenWidth < 360;
+  const otpBoxSize = isNarrow ? 42 : 48;
+  const otpGap = isNarrow ? Spacing.xs : Spacing.sm;
 
   const phone = route.params?.phone ?? "";
   const masked = maskPhone(phone);
@@ -59,6 +65,7 @@ export default function OTPVerificationScreen() {
 
   const otpString = otpDigits.join("");
   const isOtpComplete = otpString.length === OTP_LENGTH;
+  const verifyTriggeredRef = useRef(false);
 
   // Missing phone: go back to login
   useEffect(() => {
@@ -66,6 +73,48 @@ export default function OTPVerificationScreen() {
       navigation.replace("LoginOtp");
     }
   }, [phone, navigation]);
+
+  // Reset auto-verify trigger when OTP is edited (e.g. after error or backspace)
+  useEffect(() => {
+    if (otpString.length < OTP_LENGTH) verifyTriggeredRef.current = false;
+  }, [otpString]);
+
+  // Auto-verify when 6 digits entered (no button click required)
+  useEffect(() => {
+    const guestToken = auth.guestToken;
+    if (!isOtpComplete || !guestToken || loading || verifyTriggeredRef.current) return;
+    verifyTriggeredRef.current = true;
+    (async () => {
+      setError(null);
+      setLoading(true);
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        const data = await verifyOtp(phone, otpString, guestToken);
+        if (data) {
+          await auth.setTokensAfterVerify(data);
+          const primaryPhone =
+            data.user.userContacts?.find((c) => c.isPrimary)?.phoneNo ||
+            data.user.userContacts?.[0]?.phoneNo ||
+            data.user.name;
+          setUserContext({
+            name: data.user.name?.trim() || primaryPhone,
+            phone: primaryPhone,
+          });
+          navigation.replace("VisitorType");
+        }
+      } catch (e) {
+        if (isTokenVersionMismatch(e)) {
+          auth.logout();
+          navigation.replace("LoginOtp");
+          return;
+        }
+        setError(e instanceof Error ? e.message : "Invalid OTP. Please try again.");
+        verifyTriggeredRef.current = false;
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [isOtpComplete, otpString, phone, auth.guestToken, loading, auth, setUserContext, navigation]);
 
   // Resend countdown
   useEffect(() => {
@@ -118,37 +167,6 @@ export default function OTPVerificationScreen() {
     [otpDigits, focusIndex],
   );
 
-  const handleVerify = async () => {
-    if (!isOtpComplete || !auth.guestToken) return;
-    setError(null);
-    setLoading(true);
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const data = await verifyOtp(phone, otpString, auth.guestToken);
-      if (data) {
-        await auth.setTokensAfterVerify(data);
-        const primaryPhone =
-          data.user.userContacts?.find((c) => c.isPrimary)?.phoneNo ||
-          data.user.userContacts?.[0]?.phoneNo ||
-          data.user.name;
-        setUserContext({
-          name: data.user.name?.trim() || primaryPhone,
-          phone: primaryPhone,
-        });
-        navigation.replace("VisitorType");
-      }
-    } catch (e) {
-      if (isTokenVersionMismatch(e)) {
-        auth.logout();
-        navigation.replace("LoginOtp");
-        return;
-      }
-      setError(e instanceof Error ? e.message : "Invalid OTP. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleResend = async () => {
     if (resendSec > 0 || !auth.guestToken) return;
     setError(null);
@@ -175,22 +193,21 @@ export default function OTPVerificationScreen() {
           styles.header,
           {
             backgroundColor: theme.primary,
-            paddingTop: insets.top + Spacing.lg,
-            paddingBottom: Spacing.xl,
-            minHeight: 88 + insets.top,
+            paddingTop: insets.top + (isNarrow ? Spacing.md : Spacing.lg),
+            paddingBottom: isNarrow ? Spacing.lg : Spacing.xl,
+            paddingHorizontal: isNarrow ? Spacing.md : Layout.horizontalScreenPadding,
+            minHeight: (isNarrow ? 76 : 88) + insets.top,
           },
         ]}
       >
         <View style={styles.headerRow}>
-          <TouchableOpacity
-            style={styles.backWrap}
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-          >
-            <Feather name="chevron-left" size={28} color={theme.onPrimary} />
-          </TouchableOpacity>
+          <View style={styles.backWrap}>
+            <BackArrow
+              color={theme.onPrimary}
+              onPress={() => navigation.goBack()}
+              inline
+            />
+          </View>
           <View style={[styles.logoWrap, { backgroundColor: theme.backgroundTertiary }]}>
             <Image
               source={require("../../assets/images/logo.png")}
@@ -199,13 +216,26 @@ export default function OTPVerificationScreen() {
             />
           </View>
           <View style={styles.headerTextWrap}>
-            <ThemedText style={[styles.headerTitle, { color: theme.onPrimary }]}>Gate Entry / Exit</ThemedText>
-            <ThemedText style={[styles.headerSubtitle, { color: theme.onPrimary }]}>Gate Management System</ThemedText>
+            <ThemedText style={[styles.headerTitle, { color: theme.onPrimary }]} numberOfLines={1}>
+              Gate Entry / Exit
+            </ThemedText>
+            <ThemedText style={[styles.headerSubtitle, { color: theme.onPrimary }]} numberOfLines={1}>
+              Gate Management System
+            </ThemedText>
           </View>
         </View>
       </View>
 
-      <View style={[styles.content, { backgroundColor: theme.backgroundRoot, paddingBottom: insets.bottom + Spacing["2xl"] }]}>
+      <View
+        style={[
+          styles.content,
+          {
+            backgroundColor: theme.backgroundRoot,
+            paddingBottom: insets.bottom + Spacing["2xl"],
+            paddingHorizontal: isNarrow ? Spacing.md : Layout.horizontalScreenPadding,
+          },
+        ]}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboardView}
@@ -220,6 +250,9 @@ export default function OTPVerificationScreen() {
             <ThemedText type="body" style={[styles.introText, { color: theme.textSecondary }]}>
               Enter the OTP we sent you
             </ThemedText>
+            <ThemedText type="small" style={[styles.autoVerifyHint, { color: theme.textSecondary }]}>
+              Enter 6 digits — we&apos;ll verify automatically
+            </ThemedText>
 
             <ThemedText type="small" style={[styles.sentToLabel, { color: theme.textSecondary }]}>
               Code sent to
@@ -228,7 +261,7 @@ export default function OTPVerificationScreen() {
               {masked}
             </ThemedText>
 
-            <View style={styles.otpRow}>
+            <View style={[styles.otpRow, { gap: otpGap }]}>
               {Array.from({ length: OTP_LENGTH }, (_, i) => {
                 const isFocused = focusedIndex === i;
                 const hasError = !!error;
@@ -241,6 +274,9 @@ export default function OTPVerificationScreen() {
                     style={[
                       styles.otpBox,
                       {
+                        width: otpBoxSize,
+                        height: otpBoxSize + 8,
+                        fontSize: isNarrow ? 20 : 24,
                         backgroundColor: theme.backgroundSecondary,
                         borderColor: hasError
                           ? theme.error
@@ -294,30 +330,14 @@ export default function OTPVerificationScreen() {
               )}
             </View>
 
-            <View style={styles.buttonWrap}>
-              {loading ? (
-                <View style={[styles.verifyButton, styles.verifyButtonLoading, { backgroundColor: theme.primary }]}>
-                  <ActivityIndicator size="small" color={theme.onPrimary} />
-                  <ThemedText type="body" style={[styles.buttonLoadingText, { color: theme.onPrimary }]}>
-                    Verifying…
-                  </ThemedText>
-                </View>
-              ) : (
-                <Button
-                  onPress={handleVerify}
-                  disabled={!isOtpComplete || !auth.guestToken}
-                  style={[
-                    styles.verifyButton,
-                    {
-                      backgroundColor: isOtpComplete && auth.guestToken ? theme.primary : theme.backgroundTertiary,
-                      opacity: isOtpComplete && auth.guestToken ? 1 : 0.7,
-                    },
-                  ]}
-                >
-                  Verify & Continue
-                </Button>
-              )}
-            </View>
+            {loading ? (
+              <View style={[styles.verifyingRow, { backgroundColor: theme.backgroundSecondary }]}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <ThemedText type="body" style={[styles.verifyingText, { color: theme.text }]}>
+                  Verifying…
+                </ThemedText>
+              </View>
+            ) : null}
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
@@ -338,43 +358,46 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.md,
+    gap: Spacing.sm,
+    minHeight: Layout.backButtonTouchTarget,
   },
   backWrap: {
+    width: Layout.backButtonTouchTarget,
     minWidth: Layout.backButtonTouchTarget,
     minHeight: Layout.backButtonTouchTarget,
     justifyContent: "center",
-    marginRight: Spacing.xs,
+    alignItems: "center",
   },
   logoWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
   logo: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
   },
   headerTextWrap: {
     flex: 1,
+    minWidth: 0,
+    justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "700",
-    lineHeight: 28,
+    lineHeight: 24,
     marginBottom: 2,
   },
   headerSubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 18,
   },
   content: {
     flex: 1,
-    paddingHorizontal: Layout.horizontalScreenPadding,
-    paddingTop: Spacing["2xl"],
+    paddingTop: Spacing.xl,
   },
   keyboardView: {
     flex: 1,
@@ -387,7 +410,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   introText: {
+    marginBottom: Spacing.xs,
+  },
+  autoVerifyHint: {
     marginBottom: Spacing.sm,
+    opacity: 0.9,
   },
   sentToLabel: {
     marginBottom: 2,
@@ -400,15 +427,11 @@ const styles = StyleSheet.create({
   otpRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: Spacing.sm,
     marginBottom: Spacing.md,
   },
   otpBox: {
-    width: 48,
-    height: 56,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
-    fontSize: 24,
     fontWeight: "600",
     textAlign: "center",
     padding: 0,
@@ -429,22 +452,15 @@ const styles = StyleSheet.create({
   resendWrap: {
     marginBottom: Spacing.xl,
   },
-  buttonWrap: {
-    alignSelf: "stretch",
-  },
-  verifyButton: {
-    minHeight: 56,
-    width: "100%",
-    alignSelf: "stretch",
-    borderRadius: BorderRadius.md,
-  },
-  verifyButtonLoading: {
+  verifyingRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.md,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.md,
   },
-  buttonLoadingText: {
+  verifyingText: {
     fontWeight: "600",
   },
 });

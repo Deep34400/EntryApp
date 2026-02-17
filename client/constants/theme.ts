@@ -137,6 +137,10 @@ export const Layout = {
   headerCurveRadius: 16,
   /** Minimum touch target for back/header buttons (px). */
   backButtonTouchTarget: 44,
+  /** Back arrow icon visual size (px); touch area remains backButtonTouchTarget. */
+  backArrowIconSize: 24,
+  /** Vertical offset from safe-area top for global back arrow (px). Matches Figma. */
+  backArrowTopOffset: 0,
   /** Minimum touch target for primary actions (px). */
   minTouchTarget: 44,
   /** Minimum height for stat/summary cards (compact, enterprise). */

@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
+import { BackArrow } from "@/components/BackArrow";
 import { formatDateTime } from "@/lib/format";
 import { getWaitingMinutes } from "@/lib/ticket-utils";
 import { fetchWithAuthRetry, apiRequestWithAuthRetry } from "@/lib/query-client";
@@ -174,18 +175,8 @@ export default function TicketDetailScreen() {
   if (isLoading || !ticket) {
     return (
       <View style={styles.screen}>
-        <View style={[styles.header, { paddingTop: insets.top + HEADER_TOP_OFFSET }]}>
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              navigation.goBack();
-            }}
-            style={({ pressed }) => [styles.headerBack, { opacity: pressed ? 0.7 : 1 }]}
-            hitSlop={16}
-          >
-            <Feather name="chevron-left" size={24} color="#161B1D" />
-          </Pressable>
-        </View>
+        <BackArrow color="#161B1D" />
+        <View style={[styles.header, { paddingTop: insets.top + HEADER_TOP_OFFSET }]} />
         <View style={[styles.centered, { paddingBottom: insets.bottom + 24 }]}>
           {isLoading ? (
             <>
@@ -210,19 +201,8 @@ export default function TicketDetailScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.header, { paddingTop: insets.top + HEADER_TOP_OFFSET }]}>
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            navigation.goBack();
-          }}
-          style={({ pressed }) => [styles.headerBack, { opacity: pressed ? 0.7 : 1 }]}
-          hitSlop={16}
-          accessibilityLabel="Go back"
-        >
-          <Feather name="chevron-left" size={24} color="#161B1D" />
-        </Pressable>
-      </View>
+      <BackArrow color="#161B1D" />
+      <View style={[styles.header, { paddingTop: insets.top + HEADER_TOP_OFFSET }]} />
 
       <ScrollView
         style={styles.scroll}
@@ -343,11 +323,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     backgroundColor: "#FFFFFF",
-  },
-  headerBack: {
-    width: 44,
-    height: 44,
-    justifyContent: "center",
   },
   scroll: {
     flex: 1,

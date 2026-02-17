@@ -22,17 +22,28 @@ export function formatEntryTime(iso?: string | null): string {
     return String(iso);
   }
 }
-
-/** Full date/time: medium date + short time. Use in detail screens. */
+/** Format: 15 Feb 25, 12:35 PM */
 export function formatDateTime(iso?: string | null): string {
-  if (iso == null || iso === "") return "—";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return String(iso);
-  }
+  if (!iso) return "—";
+
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+
+  const day = d.getDate().toString().padStart(2, "0");
+
+  const month = d.toLocaleString("en-GB", { month: "short" });
+
+  const year = d.getFullYear().toString().slice(-2);
+
+  let hours = d.getHours();
+  const minutes = d.getMinutes().toString().padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+
+  hours = hours % 12 || 12;
+
+  return `${day} ${month} ${year}, ${hours}:${minutes} ${ampm}`;
 }
+
 
 /** Waiting time since entry: "3h", "48h", "45m". For open tickets. */
 export function formatWaitingHours(entryTime?: string | null): string {
