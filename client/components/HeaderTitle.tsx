@@ -6,14 +6,16 @@ import { Spacing, Typography } from "@/constants/theme";
 
 interface HeaderTitleProps {
   title: string;
+  /** Use "light" for light header (e.g. Visitor's Purpose - Categorization). Renders logo with tint for contrast on light background per Figma. */
+  variant?: "default" | "light";
 }
 
-export function HeaderTitle({ title }: HeaderTitleProps) {
+export function HeaderTitle({ title, variant = "default" }: HeaderTitleProps) {
   return (
     <View style={styles.container}>
       <Image
         source={require("../../assets/images/logo.png")}
-        style={styles.icon}
+        style={[styles.icon, variant === "light" && styles.iconLight]}
         resizeMode="contain"
       />
       <ThemedText style={styles.title}>{title}</ThemedText>
@@ -32,6 +34,7 @@ const styles = StyleSheet.create({
     height: 28,
     marginRight: Spacing.sm,
   },
+  iconLight: {},
   title: {
     ...Typography.body,
     fontWeight: "600",

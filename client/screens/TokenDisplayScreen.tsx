@@ -7,23 +7,30 @@ import {
   Share,
   Platform,
   useWindowDimensions,
+  ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
+import { Layout, Spacing, BorderRadius, DesignTokens } from "@/constants/theme";
+import type { RootStackParamList } from "@/navigation/RootStackNavigator";
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, "TokenDisplay">;
 
 const FONT = "Poppins";
-const GREEN_MIN_HEIGHT = 240;
-const CARD_OVERLAP = 40;
-const CARD_MAX_WIDTH = 328;
-const HORIZONTAL_PADDING = 20;
+const tokenTokens = DesignTokens.token;
 
 export default function TokenDisplayScreen() {
   const route = useRoute<any>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const cardWidth = Math.min(CARD_MAX_WIDTH, screenWidth - HORIZONTAL_PADDING * 2);
+
+  const contentWidth = Math.min(
+    Layout.contentMaxWidth,
+    screenWidth - Layout.horizontalScreenPadding * 2
+  );
 
   const {
     token,
@@ -31,9 +38,9 @@ export default function TokenDisplayScreen() {
     desk_location,
     driverName,
     driverPhone,
-  } = route.params;
+  } = route.params ?? {};
 
-  const displayToken = token.startsWith("#") ? token : `#${token}`;
+  const displayToken = token?.startsWith("#") ? token : token ? `#${token}` : "#—";
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -41,72 +48,122 @@ export default function TokenDisplayScreen() {
 
   return (
     <View style={styles.root}>
-      {/* GREEN HEADER — flow layout, minHeight */}
-      <View style={[styles.green, { paddingTop: insets.top }]}>
+      {/* Green header — minHeight/maxHeight, safe area, back icon only absolute */}
+      <View
+        style={[
+          styles.green,
+          {
+            paddingTop: insets.top,
+            minHeight: Layout.tokenGreenHeaderMinHeight,
+            maxHeight: Layout.tokenGreenHeaderMaxHeight,
+          },
+        ]}
+      >
         <Pressable
           onPress={() => navigation.goBack()}
           style={[styles.back, { top: insets.top }]}
+          hitSlop={8}
         >
-          <Feather name="chevron-left" size={24} color="#FFF" />
+          <Feather name="chevron-left" size={24} color={tokenTokens.onHeader} />
         </Pressable>
 
         <View style={styles.tokenWrap}>
           <Text style={styles.tokenLabel}>Token Number</Text>
-          <Text style={styles.tokenValue}>{displayToken}</Text>
+          <Text style={styles.tokenValue} numberOfLines={1}>
+            {displayToken}
+          </Text>
         </View>
       </View>
 
-      {/* CARDS WRAPPER — negative marginTop for overlap, responsive width */}
-      <View style={[styles.cardWrapper, { width: cardWidth, marginTop: -CARD_OVERLAP }]}>
-        <View style={styles.userCard}>
-          <View style={styles.userLeft}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {driverName?.[0]?.toUpperCase() || "?"}
+      {/* Scrollable content: cards + spacer so buttons stay at bottom on all devices */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: Spacing["2xl"],
+            minHeight: 280,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Cards wrapper — negative marginTop for Figma overlap */}
+        <View
+          style={[
+            styles.cardWrapper,
+            {
+              width: contentWidth,
+              marginTop: -Layout.tokenCardOverlap,
+            },
+          ]}
+        >
+          <View style={styles.userCard}>
+            <View style={styles.userLeft}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {driverName?.[0]?.toUpperCase() || "?"}
+                </Text>
+              </View>
+              <View style={styles.userTextBlock}>
+                <Text style={styles.name} numberOfLines={1}>
+                  {driverName || "—"}
+                </Text>
+                <Text style={styles.role}>Driver Partner</Text>
+              </View>
+            </View>
+            <Text style={styles.phone} numberOfLines={1}>
+              {driverPhone ?? "—"}
+            </Text>
+          </View>
+
+          <View style={styles.proceedCard}>
+            <View>
+              <Text style={styles.small}>Proceed to</Text>
+              <Text style={styles.value} numberOfLines={1}>
+                {assignee || "—"}
               </Text>
             </View>
-
-            <View>
-              <Text style={styles.name}>{driverName}</Text>
-              <Text style={styles.role}>Driver Partner</Text>
+            <View style={styles.entryGateWrap}>
+              <Text style={styles.small}>Entry Gate</Text>
+              <Text style={styles.value} numberOfLines={1}>
+                {desk_location || "—"}
+              </Text>
             </View>
           </View>
-
-          <Text style={styles.phone}>{driverPhone}</Text>
         </View>
+      </ScrollView>
 
-        <View style={styles.proceedCard}>
-          <View>
-            <Text style={styles.small}>Proceed to</Text>
-            <Text style={styles.value}>{assignee}</Text>
-          </View>
-
-          <View style={styles.entryGateWrap}>
-            <Text style={styles.small}>Entry Gate</Text>
-            <Text style={styles.value}>{desk_location || "—"}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Spacer so buttons sit at bottom */}
-      <View style={styles.spacer} />
-
-      {/* BOTTOM BUTTONS — flow layout, no absolute */}
-      <View style={[styles.bottom, { paddingBottom: insets.bottom + 16 }]}>
+      {/* Bottom buttons — fixed at bottom, safe area, production touch targets */}
+      <View
+        style={[
+          styles.bottom,
+          {
+            paddingBottom: insets.bottom + Spacing.lg,
+            paddingHorizontal: Layout.horizontalScreenPadding + 10,
+          },
+        ]}
+      >
         <Pressable
           onPress={() =>
             Share.share({
-              message: `Token: ${displayToken}\nProceed to: ${assignee}`,
+              message: `Token: ${displayToken}\nProceed to: ${assignee ?? ""}\nEntry Gate: ${desk_location ?? ""}`,
             })
           }
-          style={styles.shareBtn}
+          style={({ pressed }) => [
+            styles.shareBtn,
+            pressed && styles.buttonPressed,
+          ]}
         >
           <Text style={styles.shareText}>Share Receipt</Text>
         </Pressable>
 
         <Pressable
-          onPress={() => navigation.navigate("TrackTickets" as never)}
-          style={styles.trackBtn}
+          onPress={() => navigation.navigate("TicketList", { filter: "open" as const })}
+          style={({ pressed }) => [
+            styles.trackBtn,
+            pressed && styles.buttonPressed,
+          ]}
         >
           <Text style={styles.trackText}>Track Tickets</Text>
         </Pressable>
@@ -115,36 +172,32 @@ export default function TokenDisplayScreen() {
   );
 }
 
-/* ================= STYLES ================= */
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    alignItems: "center",
   },
 
   green: {
     width: "100%",
-    minHeight: GREEN_MIN_HEIGHT,
-    backgroundColor: "#199881",
-    paddingHorizontal: 16,
-    justifyContent: "flex-start",
+    backgroundColor: tokenTokens.headerGreen,
+    paddingHorizontal: Layout.horizontalScreenPadding,
+    justifyContent: "flex-end",
     alignItems: "center",
-    paddingBottom: 80
+    paddingBottom: Spacing["3xl"],
   },
 
   back: {
     position: "absolute",
-    left: 16,
-    height: 44,
-    width: 44,
+    left: Layout.horizontalScreenPadding,
+    height: Layout.backButtonTouchTarget,
+    width: Layout.backButtonTouchTarget,
     justifyContent: "center",
+    alignItems: "center",
     zIndex: 1,
   },
 
   tokenWrap: {
-    marginTop: 28,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -153,7 +206,7 @@ const styles = StyleSheet.create({
     fontFamily: FONT,
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFF",
+    color: tokenTokens.onHeader,
     marginBottom: 6,
   },
 
@@ -161,7 +214,16 @@ const styles = StyleSheet.create({
     fontFamily: FONT,
     fontSize: 32,
     fontWeight: "600",
-    color: "#FFF",
+    color: tokenTokens.onHeader,
+  },
+
+  scroll: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: "center",
   },
 
   cardWrapper: {
@@ -171,13 +233,13 @@ const styles = StyleSheet.create({
   userCard: {
     width: "100%",
     backgroundColor: "#FFF",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: BorderRadius.sm,
+    padding: Layout.cardPadding,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E8EBEC",
+    borderColor: tokenTokens.cardBorder,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -192,52 +254,64 @@ const styles = StyleSheet.create({
   userLeft: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
+    minWidth: 0,
   },
 
   avatar: {
     height: 40,
     width: 40,
     borderRadius: 20,
-    backgroundColor: "#E8EBEC",
+    backgroundColor: tokenTokens.cardBorder,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
 
   avatarText: {
     fontFamily: FONT,
     fontSize: 18,
     fontWeight: "600",
+    color: "#1C1917",
+  },
+
+  userTextBlock: {
+    flex: 1,
+    minWidth: 0,
   },
 
   name: {
     fontFamily: FONT,
     fontSize: 14,
     fontWeight: "500",
+    color: "#1C1917",
   },
 
   role: {
     fontFamily: FONT,
     fontSize: 12,
-    color: "#3F4C52",
+    color: tokenTokens.labelGray,
+    marginTop: 2,
   },
 
   phone: {
     fontFamily: FONT,
     fontSize: 14,
     fontWeight: "500",
+    color: "#1C1917",
+    marginLeft: Spacing.md,
   },
 
   proceedCard: {
-    marginTop: 24,
+    marginTop: Spacing["2xl"],
     width: "100%",
     backgroundColor: "#FFF",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: BorderRadius.sm,
+    padding: Layout.cardPadding,
     flexDirection: "row",
     justifyContent: "space-between",
     borderWidth: 1,
-    borderColor: "#E8EBEC",
+    borderColor: tokenTokens.cardBorder,
   },
 
   entryGateWrap: {
@@ -247,47 +321,43 @@ const styles = StyleSheet.create({
   small: {
     fontFamily: FONT,
     fontSize: 12,
-    color: "#3F4C52",
+    color: tokenTokens.labelGray,
   },
 
   value: {
     fontFamily: FONT,
     fontSize: 14,
     fontWeight: "500",
+    color: "#1C1917",
     marginTop: 4,
-  },
-
-  spacer: {
-    flex: 1,
   },
 
   bottom: {
     alignSelf: "stretch",
-    paddingHorizontal: 26,
     backgroundColor: "#FFFFFF",
   },
 
   shareBtn: {
-    height: 48,
+    marginBottom: Spacing.md,
+    minHeight: Layout.minTouchTarget,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#B31D38",
+    borderColor: tokenTokens.accentRed,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
   },
 
   shareText: {
     fontFamily: FONT,
     fontSize: 14,
     fontWeight: "600",
-    color: "#B31D38",
+    color: tokenTokens.accentRed,
   },
 
   trackBtn: {
-    height: 48,
+    minHeight: Layout.minTouchTarget,
     borderRadius: 22,
-    backgroundColor: "#B31D38",
+    backgroundColor: tokenTokens.accentRed,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -296,6 +366,10 @@ const styles = StyleSheet.create({
     fontFamily: FONT,
     fontSize: 14,
     fontWeight: "600",
-    color: "#FFF",
+    color: tokenTokens.onHeader,
+  },
+
+  buttonPressed: {
+    opacity: 0.85,
   },
 });

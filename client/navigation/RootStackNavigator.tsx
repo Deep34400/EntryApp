@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 import { BackHeaderButton } from "@/components/BackHeaderButton";
+import { HeaderTitle } from "@/components/HeaderTitle";
 import { HomeHeaderButton } from "@/components/HomeHeaderButton";
 import { ThemeToggleHeaderButton } from "@/components/ThemeToggleHeaderButton";
 import LoginOtpScreen from "@/screens/LoginOtpScreen";
@@ -104,14 +105,18 @@ export default function RootStackNavigator() {
           headerRight: () => <HomeHeaderButton />,
         })}
       />
-      <Stack.Screen
-        name="VisitorPurpose"
+      {/* <Stack.Screen
         component={VisitorPurposeScreen}
-        options={{
-          headerTitle: "Visitor's Purpose",
-          headerRight: () => <HomeHeaderButton />,
-        }}
-      />
+      
+      /> */}
+          <Stack.Screen
+      name="VisitorPurpose"
+      component={VisitorPurposeScreen}
+      options={{
+        headerTitle: () => null,
+      }}
+    />
+
       <Stack.Screen
         name="TicketList"
         component={TicketListScreen}

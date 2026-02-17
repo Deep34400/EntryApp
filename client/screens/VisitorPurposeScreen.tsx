@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   Modal,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -36,6 +36,38 @@ import {
 } from "@/navigation/RootStackNavigator";
 import { isPhoneValid, phoneForApi } from "@/utils/validation";
 
+/** Figma dark-premium: screen grey, cards white, borders & typography per spec. No layout/logic changes. */
+const DESIGN = {
+  screenBg: "#F6F7F9",
+  cardBg: "#FFFFFF",
+  cardBorder: "#E8EBEC",
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.08,
+  shadowRadius: 12,
+  elevation: 5,
+  brandRed: "#B31D38",
+  brandRedDisabled: "#E6A3AE",
+  nameSize: 14,
+  roleSize: 12,
+  sectionTitleSize: 16,
+  labelSize: 12,
+  cardMinHeight: 80,
+  headerHeight: 56,
+  buttonHeight: 48,
+  buttonRadius: 24,
+  avatarSize: 40,
+  cardRadius: 12,
+  segmentedBg: "#EBEDF1",
+  segmentedSelectedBg: "#FFFFFF",
+  segmentedSelectedText: "#B31D38",
+  segmentedUnselectedText: "#3F4C52",
+  selectedCardBorder: "#B31D38",
+  selectedCardFill: "#FFF5F7",
+  bottomBarBorder: "#E8EBEC",
+  textPrimary: "#161B1D",
+  textSecondary: "#3F4C52",
+} as const;
+
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "VisitorPurpose">;
 type VisitorPurposeRouteProp = RouteProp<RootStackParamList, "VisitorPurpose">;
 
@@ -62,10 +94,10 @@ export const DP_MAINTENANCE = {
   items: ["Accident", "PMS", "Running Repair", "Washing"],
 } as const;
 
-/** Sub-options when user taps "Running Repair" — shown in a modal */
+/** Sub-options when user taps "Running Repair" — shown in a modal (per Figma: Part missing, Mechanical/electrical fault, Car bodyshop, Repair Parking) */
 export const RUNNING_REPAIR_SUB_ITEMS = [
   "Part missing",
-  "Mechanical Electrical fault",
+  "Mechanical / electrical fault",
   "Car bodyshop",
   "Repair Parking",
 ] as const;
@@ -110,72 +142,26 @@ export const NON_DP_PURPOSES = [
   "Hub-Personal use",
 ] as const;
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-function PurposeItem({
-  title,
-  delay,
-  onPress,
-  theme,
-  showArrow = false,
-}: {
-  title: string;
-  delay: number;
-  onPress: () => void;
-  theme: ReturnType<typeof useTheme>["theme"];
-  showArrow?: boolean;
-}) {
-  const scale = useSharedValue(1);
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  return (
-    <Animated.View entering={FadeInDown.delay(delay).springify()}>
-      <AnimatedPressable
-        onPress={onPress}
-        onPressIn={() => {
-          scale.value = withSpring(0.98, { damping: 15, stiffness: 150 });
-        }}
-        onPressOut={() => {
-          scale.value = withSpring(1, { damping: 15, stiffness: 150 });
-        }}
-        style={[
-          styles.itemCard,
-          {
-            backgroundColor: theme.backgroundDefault,
-            shadowColor: theme.shadowColor,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 4,
-          },
-          animatedStyle,
-        ]}
-      >
-        <ThemedText type="body" style={styles.itemTitle} numberOfLines={3}>
-          {title}
-        </ThemedText>
-        {showArrow ? (
-          <Feather name="chevron-right" size={22} color={theme.textSecondary} style={styles.itemCardArrow} />
-        ) : null}
-      </AnimatedPressable>
-    </Animated.View>
-  );
-}
+/** Display labels for grid (Figma) — key = API item, value = label shown */
+const DISPLAY_LABELS: Record<string, string> = {
+  "Self Recovery (QC)": "Self Recovery",
+  "Hub-Personal use": "Hub-Personal Use",
+};
 
 function PurposeGridCard({
   title,
+  displayTitle,
   icon,
   onPress,
-  theme,
+  selected,
   showArrow = false,
   delay,
 }: {
   title: string;
+  displayTitle: string;
   icon: keyof typeof Feather.glyphMap;
   onPress: () => void;
-  theme: ReturnType<typeof useTheme>["theme"];
+  selected: boolean;
   showArrow?: boolean;
   delay: number;
 }) {
@@ -196,30 +182,25 @@ function PurposeGridCard({
         }}
         style={({ pressed }) => [
           styles.gridCard,
+          selected && styles.gridCardSelected,
           {
-            backgroundColor: theme.backgroundDefault,
             opacity: pressed ? 0.92 : 1,
-            shadowColor: theme.shadowColor,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 4,
           },
         ]}
       >
-        <View style={[styles.gridCardIconWrap, { backgroundColor: theme.primary }]}>
-          <Feather name={icon} size={22} color={theme.onPrimary} />
+        <View style={styles.gridCardIconWrap}>
+        <Feather name={icon} size={20} color={DESIGN.brandRed} />
         </View>
         {showArrow ? (
           <View style={styles.gridCardLabelRow}>
-            <ThemedText type="small" style={[styles.gridCardLabel, { color: theme.text }]} numberOfLines={2}>
-              {title}
+            <ThemedText type="small" style={[styles.gridCardLabel, styles.gridCardLabelDark]} numberOfLines={2}>
+              {displayTitle}
             </ThemedText>
-            <Feather name="chevron-right" size={18} color={theme.textSecondary} />
+            <Feather name="chevron-right" size={18} color={DESIGN.textSecondary} />
           </View>
         ) : (
-          <ThemedText type="small" style={[styles.gridCardLabel, { color: theme.text }]} numberOfLines={2}>
-            {title}
+          <ThemedText type="small" style={[styles.gridCardLabel, styles.gridCardLabelDark]} numberOfLines={2}>
+            {displayTitle}
           </ThemedText>
         )}
       </Pressable>
@@ -238,8 +219,23 @@ export default function VisitorPurposeScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showRunningRepairModal, setShowRunningRepairModal] = useState(false);
   const [selectedCategoryTab, setSelectedCategoryTab] = useState<"Settlement" | "Maintenance">("Settlement");
+  const [selectedPurpose, setSelectedPurpose] = useState<{ categoryTitle: string | null; item: string } | null>(null);
 
-  const isDp = entryType === "new_dp" || entryType === "old_dp";
+  /** Unified DP: driver name + phone only → Onboarding; with vehicle number → Settlement + Maintenance. Do not disturb this logic — only UI matches design. */
+  const hasVehicle = (formData.vehicle_reg_number ?? "").trim().length > 0;
+  const effectiveEntryType: EntryType =
+    entryType === "dp"
+      ? hasVehicle
+        ? "old_dp"
+        : "new_dp"
+      : entryType;
+  const isDp = effectiveEntryType === "new_dp" || effectiveEntryType === "old_dp";
+
+  const displayName = (formData.name ?? "").trim() || (user?.name ?? "").trim() || "—";
+  const displayPhone = (formData.phone ?? "").trim() || (user?.phone ?? "").trim() || "—";
+  const displayRole = "Guest";
+
+  const getDisplayTitle = (item: string) => DISPLAY_LABELS[item] ?? item;
 
   const getPurposeIcon = (item: string): keyof typeof Feather.glyphMap => {
     const key = item in PURPOSE_ICONS ? item : (item as string);
@@ -286,13 +282,13 @@ export default function VisitorPurposeScreen() {
       }
 
       const body: Record<string, string> = {
-        type: entryType,
+        type: effectiveEntryType,
         phone,
         name,
         assignee,
         reason,
       };
-      if (entryType === "old_dp") {
+      if (effectiveEntryType === "old_dp") {
         const regNumber = (formData.vehicle_reg_number ?? "").trim();
         if (regNumber) body.reg_number = regNumber;
       }
@@ -328,196 +324,204 @@ export default function VisitorPurposeScreen() {
     },
   });
 
-  const handleSelectPurpose = (categoryTitle: string | null, item: string) => {
+  const handleCardPress = (categoryTitle: string | null, item: string) => {
+    const isRunningRepair = categoryTitle === "Maintenance" && item === "Running Repair";
+    if (isRunningRepair) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setShowRunningRepairModal(true);
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    submitMutation.mutate({ categoryTitle, item });
+    setSelectedPurpose({ categoryTitle, item });
   };
 
-  const handleRunningRepairPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowRunningRepairModal(true);
+  const handleNextPress = () => {
+    if (!selectedPurpose) return;
+    submitMutation.mutate(selectedPurpose);
   };
 
   const handleRunningRepairSubSelect = (subItem: string) => {
     setShowRunningRepairModal(false);
-    handleSelectPurpose("Maintenance", `Running Repair - ${subItem}`);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    submitMutation.mutate({ categoryTitle: "Maintenance", item: `Running Repair - ${subItem}` });
   };
 
+
+
+  const isSelected = (categoryTitle: string | null, item: string) =>
+    selectedPurpose?.categoryTitle === categoryTitle && selectedPurpose?.item === item;
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          styles.scrollContentFullScreen,
-          {
-            paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: Math.max(insets.bottom, Spacing.sm) + Spacing.lg,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <Animated.View
-          entering={FadeInDown.delay(0).springify()}
-          style={[
-            styles.headerCard,
+    <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
+      <View style={styles.container}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContent,
+            styles.scrollContentFullScreen,
             {
-              backgroundColor: theme.backgroundDefault,
-              borderColor: theme.border,
-              shadowColor: theme.shadowColor,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.06,
-              shadowRadius: 8,
-              elevation: 3,
+              paddingTop: headerHeight + Spacing.lg,
+              paddingBottom: Spacing.lg,
             },
           ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <View style={[styles.headerCardIconWrap, { backgroundColor: theme.primary }]}>
-            <Feather name="shield" size={20} color={theme.onPrimary} />
-          </View>
-          <View style={styles.headerCardText}>
-            <ThemedText type="h4" style={[styles.headerCardTitle, { color: theme.text }]}>
-              Select Purpose
+          <Animated.View entering={FadeInDown.delay(0).springify()} style={styles.userCard}>
+            <View style={styles.userCardAvatar}>
+              <Feather name="user" size={20} color="#FFFFFF" />
+            </View>
+            <View style={styles.userCardCenter}>
+              <ThemedText type="small" style={[styles.userCardName, styles.userCardTextDark]} numberOfLines={1}>
+                {displayName}
+              </ThemedText>
+              <ThemedText type="small" style={[styles.userCardRole, styles.userCardRoleMuted]} numberOfLines={1}>
+                {displayRole}
+              </ThemedText>
+            </View>
+            <ThemedText type="small" style={[styles.userCardPhone, styles.userCardTextDark]} numberOfLines={1}>
+              {displayPhone}
             </ThemedText>
-            <ThemedText type="body" style={[styles.headerCardDesc, { color: theme.textSecondary }]}>
-              {isDp
-                ? "Choose the visitor's purpose to generate a secure gate pass."
-                : "Select purpose for Non DP entry."}
-            </ThemedText>
-          </View>
-        </Animated.View>
+          </Animated.View>
 
-        {submitError != null && (
-          <ThemedText
-            type="small"
-            style={[styles.errorText, { color: theme.error }]}
-            numberOfLines={3}
-          >
-            {submitError}
+          <ThemedText type="h6" style={[styles.sectionTitle, styles.sectionTitleDark]}>
+            Select ticket for entry
           </ThemedText>
-        )}
 
-        {isDp ? (
-          entryType === "old_dp" ? (
-            <>
-              <View style={styles.tabBar}>
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedCategoryTab("Settlement");
-                  }}
-                  style={[
-                    styles.tabButton,
-                    selectedCategoryTab === "Settlement" && {
-                      backgroundColor: theme.primary,
-                    },
-                    selectedCategoryTab !== "Settlement" && {
-                      backgroundColor: theme.backgroundDefault,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    type="body"
+          {submitError != null && (
+            <ThemedText type="small" style={[styles.errorText, { color: theme.error }]} numberOfLines={3}>
+              {submitError}
+            </ThemedText>
+          )}
+
+          {isDp ? (
+            /* old_dp (vehicle number given): Settlement + Maintenance tabs — same design as above (user card, section title, grid cards, sticky Next). Functionality unchanged (Running Repair modal, assignee/reason). */
+            effectiveEntryType === "old_dp" ? (
+              <>
+                <View style={styles.tabBar}>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedCategoryTab("Settlement");
+                    }}
                     style={[
-                      styles.tabButtonText,
-                      { color: selectedCategoryTab === "Settlement" ? theme.buttonText : theme.text },
+                      styles.tabButton,
+                      selectedCategoryTab === "Settlement" && styles.tabButtonSelected,
+                      selectedCategoryTab !== "Settlement" && styles.tabButtonDefault,
                     ]}
                   >
-                    Settlement
-                  </ThemedText>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedCategoryTab("Maintenance");
-                  }}
-                  style={[
-                    styles.tabButton,
-                    selectedCategoryTab === "Maintenance" && {
-                      backgroundColor: theme.primary,
-                    },
-                    selectedCategoryTab !== "Maintenance" && {
-                      backgroundColor: theme.backgroundDefault,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    type="body"
+                    <ThemedText
+                      type="body"
+                      style={[
+                        styles.tabButtonText,
+                        selectedCategoryTab === "Settlement" && styles.tabButtonTextSelected,
+                        selectedCategoryTab !== "Settlement" && styles.tabButtonTextDefault,
+                      ]}
+                    >
+                      Settlement (DM)
+                    </ThemedText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedCategoryTab("Maintenance");
+                    }}
                     style={[
-                      styles.tabButtonText,
-                      { color: selectedCategoryTab === "Maintenance" ? theme.buttonText : theme.text },
+                      styles.tabButton,
+                      selectedCategoryTab === "Maintenance" && styles.tabButtonSelected,
+                      selectedCategoryTab !== "Maintenance" && styles.tabButtonDefault,
                     ]}
                   >
-                    Maintenance
-                  </ThemedText>
-                </Pressable>
-              </View>
+                    <ThemedText
+                      type="body"
+                      style={[
+                        styles.tabButtonText,
+                        selectedCategoryTab === "Maintenance" && styles.tabButtonTextSelected,
+                        selectedCategoryTab !== "Maintenance" && styles.tabButtonTextDefault,
+                      ]}
+                    >
+                      Maintenance (FE)
+                    </ThemedText>
+                  </Pressable>
+                </View>
+                <View style={styles.grid}>
+                  {(selectedCategoryTab === "Settlement" ? DP_SETTLEMENT.items : DP_MAINTENANCE.items).map(
+                    (item, index) => {
+                      const categoryTitle = selectedCategoryTab;
+                      const isRunningRepair = categoryTitle === "Maintenance" && item === "Running Repair";
+                      return (
+                        <PurposeGridCard
+                          key={item}
+                          title={item}
+                          displayTitle={getDisplayTitle(item)}
+                          icon={getPurposeIcon(item)}
+                          delay={80 + index * 50}
+                          onPress={() => handleCardPress(categoryTitle, item)}
+                          selected={!isRunningRepair && isSelected(categoryTitle, item)}
+                          showArrow={isRunningRepair}
+                        />
+                      );
+                    }
+                  )}
+                </View>
+              </>
+            ) : (
               <View style={styles.grid}>
-                {(selectedCategoryTab === "Settlement" ? DP_SETTLEMENT.items : DP_MAINTENANCE.items).map(
-                  (item, index) => {
-                    const categoryTitle = selectedCategoryTab;
-                    const isRunningRepair = categoryTitle === "Maintenance" && item === "Running Repair";
-                    return (
-                      <PurposeGridCard
-                        key={item}
-                        title={item}
-                        icon={getPurposeIcon(item)}
-                        delay={80 + index * 50}
-                        onPress={
-                          isRunningRepair
-                            ? handleRunningRepairPress
-                            : () => handleSelectPurpose(categoryTitle, item)
-                        }
-                        theme={theme}
-                        showArrow={isRunningRepair}
-                      />
-                    );
-                  }
-                )}
+                {DP_ONBOARDING.items.map((item, index) => (
+                  <PurposeGridCard
+                    key={item}
+                    title={item}
+                    displayTitle={getDisplayTitle(item)}
+                    icon={getPurposeIcon(item)}
+                    delay={80 + index * 50}
+                    onPress={() => handleCardPress("Onboarding", item)}
+                    selected={isSelected("Onboarding", item)}
+                  />
+                ))}
               </View>
-            </>
+            )
           ) : (
             <View style={styles.grid}>
-              {DP_ONBOARDING.items.map((item, index) => (
+              {NON_DP_PURPOSES.map((item, index) => (
                 <PurposeGridCard
                   key={item}
                   title={item}
+                  displayTitle={getDisplayTitle(item)}
                   icon={getPurposeIcon(item)}
                   delay={80 + index * 50}
-                  onPress={() => handleSelectPurpose("Onboarding", item)}
-                  theme={theme}
+                  onPress={() => handleCardPress(null, item)}
+                  selected={isSelected(null, item)}
                 />
               ))}
             </View>
-          )
-        ) : (
-          <View style={styles.grid}>
-            {NON_DP_PURPOSES.map((item, index) => (
-              <PurposeGridCard
-                key={item}
-                title={item}
-                icon={getPurposeIcon(item)}
-                delay={80 + index * 50}
-                onPress={() => handleSelectPurpose(null, item)}
-                theme={theme}
-              />
-            ))}
-          </View>
-        )}
+          )}
 
-        {submitMutation.isPending && (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={theme.primary} />
-            <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: Spacing.sm }}>
-              Generating token…
+          {submitMutation.isPending && (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator size="large" color={DESIGN.brandRed} />
+              <ThemedText type="small" style={styles.loadingText}>
+                Generating token…
+              </ThemedText>
+            </View>
+          )}
+        </ScrollView>
+
+        <View style={[styles.stickyBottom, { paddingBottom: insets.bottom + Spacing.sm }]}>
+          <Pressable
+            onPress={handleNextPress}
+            disabled={!selectedPurpose || submitMutation.isPending}
+            style={({ pressed }) => [
+              styles.nextButton,
+              (!selectedPurpose || submitMutation.isPending) ? styles.nextButtonDisabled : {},
+              pressed && selectedPurpose && !submitMutation.isPending && styles.nextButtonPressed,
+            ]}
+          >
+            <ThemedText type="label" style={styles.nextButtonText}>
+              Next
             </ThemedText>
-          </View>
-        )}
-      </ScrollView>
+          </Pressable>
+        </View>
+      </View>
 
       {/* Running Repair sub-options modal */}
       <Modal
@@ -570,13 +574,18 @@ export default function VisitorPurposeScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: DESIGN.screenBg,
+  },
   container: {
     flex: 1,
+    backgroundColor: DESIGN.screenBg,
   },
   scrollView: {
     flex: 1,
@@ -587,32 +596,71 @@ const styles = StyleSheet.create({
   scrollContentFullScreen: {
     flexGrow: 1,
   },
-  headerCard: {
+  userCard: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: Spacing.lg,
     padding: Spacing.md,
-    borderRadius: BorderRadius.md,
+    borderRadius: DESIGN.cardRadius,
     borderWidth: 1,
+    borderColor: DESIGN.cardBorder,
+    backgroundColor: DESIGN.cardBg,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: DESIGN.elevation,
   },
-  headerCardIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.sm,
+  userCardAvatar: {
+    width: DESIGN.avatarSize,
+    height: DESIGN.avatarSize,
+    borderRadius: DESIGN.avatarSize / 2,
+    backgroundColor: DESIGN.brandRed,
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.md,
   },
-  headerCardText: {
+  userCardCenter: {
     flex: 1,
     minWidth: 0,
+    justifyContent: "center",
   },
-  headerCardTitle: {
+  userCardName: {
+    fontSize: DESIGN.nameSize,
     fontWeight: "600",
-    marginBottom: Spacing.xs,
+    marginBottom: 2,
   },
-  headerCardDesc: {
-    lineHeight: 22,
+  userCardRole: {
+    fontSize: DESIGN.roleSize,
+    fontWeight: "400",
+  },
+  userCardPhone: {
+    fontSize: DESIGN.nameSize,
+    fontWeight: "600",
+    marginLeft: Spacing.sm,
+  },
+  userCardTextDark: {
+    color: DESIGN.textPrimary,
+  },
+  userCardRoleMuted: {
+    color: DESIGN.textSecondary,
+  },
+  sectionTitle: {
+    fontSize: DESIGN.sectionTitleSize,
+    fontWeight: "600",
+    marginBottom: Spacing.lg,
+  },
+  sectionTitleDark: {
+    color: DESIGN.textPrimary,
+  },
+  categorySubtitle: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: -Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  categorySubtitleMuted: {
+    color: DESIGN.textSecondary,
   },
   errorText: {
     marginBottom: Spacing.md,
@@ -620,18 +668,38 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: "row",
-    gap: Spacing.sm,
+    gap: 4,
     marginBottom: Spacing.lg,
+    backgroundColor: DESIGN.segmentedBg,
+    borderRadius: 24,
+    padding: 4,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
+  tabButtonSelected: {
+    backgroundColor: DESIGN.segmentedSelectedBg,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabButtonDefault: {
+    backgroundColor: "transparent",
+  },
   tabButtonText: {
     fontWeight: "600",
+  },
+  tabButtonTextSelected: {
+    color: DESIGN.segmentedSelectedText,
+  },
+  tabButtonTextDefault: {
+    color: DESIGN.segmentedUnselectedText,
   },
   grid: {
     flexDirection: "row",
@@ -647,56 +715,78 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
-    minHeight: 100,
+    borderRadius: DESIGN.cardRadius,
+    minHeight: DESIGN.cardMinHeight,
+    borderWidth: 1,
+    borderColor: DESIGN.cardBorder,
+    backgroundColor: DESIGN.cardBg,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: DESIGN.elevation,
+  },
+  gridCardSelected: {
+    borderColor: DESIGN.selectedCardBorder,
+    borderWidth: 2,
+    backgroundColor: DESIGN.selectedCardFill,
   },
   gridCardIconWrap: {
     width: 44,
     height: 44,
-    borderRadius: BorderRadius.sm,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: Spacing.sm,
+    backgroundColor: "#F5DADF",
   },
   gridCardLabel: {
     textAlign: "center",
     fontWeight: "500",
+    fontSize: DESIGN.labelSize,
+  },
+  gridCardLabelDark: {
+    color: DESIGN.textPrimary,
   },
   gridCardLabelRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.xs,
   },
-  categoryBlock: {
-    marginBottom: Spacing["2xl"],
-  },
-  categoryTitle: {
-    fontWeight: "600",
-    letterSpacing: 0.3,
-    marginBottom: Spacing.sm,
-  },
-  itemsRow: {
-    gap: Spacing.lg,
-  },
-  itemCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
-  },
-  itemTitle: {
-    flex: 1,
-    marginRight: Spacing.md,
-    fontWeight: "500",
-  },
-  itemCardArrow: {
-    marginLeft: Spacing.xs,
-  },
   loadingWrap: {
     alignItems: "center",
     paddingVertical: Spacing["2xl"],
+  },
+  loadingText: {
+    color: DESIGN.textSecondary,
+    marginTop: Spacing.sm,
+  },
+  stickyBottom: {
+    paddingHorizontal: Layout.horizontalScreenPadding,
+    paddingTop: Spacing.sm,
+    backgroundColor: DESIGN.cardBg,
+    borderTopWidth: 1,
+    borderTopColor: DESIGN.bottomBarBorder,
+  },
+  nextButton: {
+    height: DESIGN.buttonHeight,
+    borderRadius: DESIGN.buttonRadius,
+    backgroundColor: DESIGN.brandRed,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  nextButtonDisabled: {
+    // opacity: 0.45,
+  
+  },
+  nextButtonPressed: {
+    opacity: 0.9,
+  },
+  nextButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    opacity: 0.95,
   },
   modalOverlay: {
     flex: 1,

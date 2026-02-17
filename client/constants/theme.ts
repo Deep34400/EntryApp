@@ -157,6 +157,8 @@ export const Layout = {
   tokenGreenHeaderMinHeight: 220,
   /** Token display screen: green header max height. */
   tokenGreenHeaderMaxHeight: 320,
+  /** Token display screen: white card overlap over green header (px). */
+  tokenCardOverlap: 80,
 } as const;
 
 export const BorderRadius = {
