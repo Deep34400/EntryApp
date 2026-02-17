@@ -6,13 +6,11 @@ import {
   Pressable,
   Share,
   Platform,
-  useWindowDimensions,
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Layout, Spacing, BorderRadius, DesignTokens } from "@/constants/theme";
 import { BackArrow } from "@/components/BackArrow";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { getEntryTypeDisplayLabel } from "@/utils/entryType";
@@ -23,18 +21,35 @@ type NavigationProp = NativeStackNavigationProp<
 >;
 
 const FONT = "Poppins";
-const tokenTokens = DesignTokens.token;
+
+// ---- DESIGN CONSTANTS ----
+const GREEN_HEADER_HEIGHT = 260;
+const CARD_WIDTH = 328;
+const DRIVER_CARD_PADDING_V = 12;
+const DRIVER_CARD_PADDING_H = 16;
+const ASSIGNMENT_CARD_PADDING = 16;
+const BOTTOM_PADDING = 16;
+const BUTTON_HEIGHT = 48;
+const BUTTON_RADIUS = 22;
+
+const GREEN_BG = "#199881";
+const CARD_BORDER = "#E8EBEC";
+const TEXT_PRIMARY = "#161B1D";
+const TEXT_SECONDARY = "#3F4C52";
+const ACCENT_RED = "#B31D38";
+
+// ---- HELPERS ----
+function formatContactPhone(phone?: string): string {
+  if (!phone) return "—";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10) return `+91-${digits}`;
+  return phone;
+}
 
 export default function TokenDisplayScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
-
-  const contentWidth = Math.min(
-    Layout.contentMaxWidth,
-    screenWidth - Layout.horizontalScreenPadding * 2
-  );
 
   const {
     token,
@@ -43,14 +58,18 @@ export default function TokenDisplayScreen() {
     driverName,
     driverPhone,
     entryType,
+    purpose,
   } = route.params ?? {};
+
   const roleLabel = getEntryTypeDisplayLabel(entryType);
 
-  const displayToken = token?.startsWith("#")
-    ? token
-    : token
-    ? `#${token}`
+  const displayToken = token
+    ? token.startsWith("#")
+      ? token
+      : `#${token}`
     : "#—";
+
+  const contactValue = formatContactPhone(driverPhone);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -58,102 +77,101 @@ export default function TokenDisplayScreen() {
 
   return (
     <View style={styles.root}>
-      {/* ✅ SINGLE GLOBAL BACK ARROW */}
-      <BackArrow color={tokenTokens.onHeader} />
+      <BackArrow color="#FFFFFF" />
 
-      {/* Green header */}
+      {/* GREEN HEADER */}
       <View
         style={[
           styles.green,
-          {
-            paddingTop: insets.top,
-            minHeight: Layout.tokenGreenHeaderMinHeight,
-            maxHeight: Layout.tokenGreenHeaderMaxHeight,
-          },
+          { paddingTop: insets.top, height: GREEN_HEADER_HEIGHT },
         ]}
       >
         <View style={styles.tokenWrap}>
           <Text style={styles.tokenLabel}>Token Number</Text>
-          <Text style={styles.tokenValue} numberOfLines={1}>
-            {displayToken}
+          <Text style={styles.tokenValue}>{displayToken}</Text>
+        </View>
+      </View>
+
+      {/* DRIVER CARD — FLOATING (FIXED) */}
+      <View style={styles.driverCardFloating}>
+        <View style={styles.driverCard}>
+          <View style={styles.driverLeft}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {driverName?.[0]?.toUpperCase() || "?"}
+              </Text>
+            </View>
+            <View style={styles.driverTextBlock}>
+              <Text style={styles.name} numberOfLines={1}>
+                {driverName || "—"}
+              </Text>
+              <Text style={styles.role}>{roleLabel}</Text>
+            </View>
+          </View>
+          <Text style={styles.phone} numberOfLines={1}>
+            {driverPhone ?? "—"}
           </Text>
         </View>
       </View>
 
-      {/* Scrollable content */}
+      {/* SCROLL CONTENT */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingBottom: Spacing["2xl"],
-            minHeight: 280,
+            paddingTop: 48, // space below floating card
+            paddingBottom:
+              insets.bottom + BOTTOM_PADDING + BUTTON_HEIGHT * 2 + 12,
           },
         ]}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
-        <View
-          style={[
-            styles.cardWrapper,
-            {
-              width: contentWidth,
-              marginTop: -Layout.tokenCardOverlap,
-            },
-          ]}
-        >
-          <View style={styles.userCard}>
-            <View style={styles.userLeft}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {driverName?.[0]?.toUpperCase() || "?"}
-                </Text>
-              </View>
-              <View style={styles.userTextBlock}>
-                <Text style={styles.name} numberOfLines={1}>
-                  {driverName || "—"}
-                </Text>
-                <Text style={styles.role}>{roleLabel}</Text>
-              </View>
-            </View>
-            <Text style={styles.phone} numberOfLines={1}>
-              {driverPhone ?? "—"}
-            </Text>
+        {/* ASSIGNMENT CARD */}
+        <View style={styles.assignmentCard}>
+          <Text style={styles.assignmentHeader}>Assignment</Text>
+          <View style={styles.assignmentDivider} />
+
+          <View style={styles.assignmentRow}>
+            <Text style={styles.assignmentLabel}>Purpose</Text>
+            <Text style={styles.assignmentValue}>{purpose ?? "—"}</Text>
           </View>
 
-          <View style={styles.proceedCard}>
-            <View>
-              <Text style={styles.small}>Proceed to</Text>
-              <Text style={styles.value} numberOfLines={1}>
-                {assignee || "—"}
-              </Text>
-            </View>
-            <View style={styles.entryGateWrap}>
-              <Text style={styles.small}>Entry Gate</Text>
-              <Text style={styles.value} numberOfLines={1}>
-                {desk_location || "—"}
-              </Text>
-            </View>
+          <View style={styles.assignmentRow}>
+            <Text style={styles.assignmentLabel}>Agent</Text>
+            <Text style={styles.assignmentValue}>{assignee ?? "—"}</Text>
+          </View>
+
+          {/* <View style={styles.assignmentRow}>
+            <Text style={styles.assignmentLabel}>Contact</Text>
+            <Text style={styles.assignmentValue}>{contactValue}</Text>
+          </View> */}
+
+          <View style={styles.assignmentRow}>
+            <Text style={styles.assignmentLabel}>Desk/Location</Text>
+            <Text style={styles.assignmentValue}>
+              {desk_location ?? "—"}
+            </Text>
           </View>
         </View>
       </ScrollView>
 
-      {/* Bottom buttons */}
+      {/* BOTTOM ACTIONS */}
       <View
         style={[
           styles.bottom,
           {
-            paddingBottom: insets.bottom + Spacing.lg,
-            paddingHorizontal: Layout.horizontalScreenPadding + 10,
+            paddingBottom: insets.bottom + BOTTOM_PADDING,
+            paddingHorizontal: BOTTOM_PADDING,
           },
         ]}
       >
         <Pressable
           onPress={() =>
             Share.share({
-              message: `Token: ${displayToken}\nProceed to: ${
+              message: `Token: ${displayToken}\nAgent: ${
                 assignee ?? ""
-              }\nEntry Gate: ${desk_location ?? ""}`,
+              }\nDesk: ${desk_location ?? ""}`,
             })
           }
           style={({ pressed }) => [
@@ -166,7 +184,7 @@ export default function TokenDisplayScreen() {
 
         <Pressable
           onPress={() =>
-            navigation.navigate("TicketList", { filter: "open" as const })
+            navigation.navigate("TicketList", { filter: "open" })
           }
           style={({ pressed }) => [
             styles.trackBtn,
@@ -180,6 +198,7 @@ export default function TokenDisplayScreen() {
   );
 }
 
+// ---- STYLES ----
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -188,23 +207,22 @@ const styles = StyleSheet.create({
 
   green: {
     width: "100%",
-    backgroundColor: tokenTokens.headerGreen,
-    paddingHorizontal: Layout.horizontalScreenPadding,
-    justifyContent: "flex-end",
+    backgroundColor: GREEN_BG,
     alignItems: "center",
-    paddingBottom: Spacing["3xl"],
+    paddingBottom: 56,
+    justifyContent: "center",
   },
 
   tokenWrap: {
-    justifyContent: "center",
     alignItems: "center",
+    marginTop: -20, 
   },
 
   tokenLabel: {
     fontFamily: FONT,
     fontSize: 16,
     fontWeight: "600",
-    color: tokenTokens.onHeader,
+    color: "#FFFFFF",
     marginBottom: 6,
   },
 
@@ -212,30 +230,110 @@ const styles = StyleSheet.create({
     fontFamily: FONT,
     fontSize: 32,
     fontWeight: "600",
-    color: tokenTokens.onHeader,
+    color: "#FFFFFF",
   },
 
-  scroll: { flex: 1 },
-
-  scrollContent: {
-    flexGrow: 1,
+  // 🔥 KEY FIX
+  driverCardFloating: {
+    position: "absolute",
+    top: GREEN_HEADER_HEIGHT - 90,
+    left: 0,
+    right: 0,
     alignItems: "center",
+    zIndex: 10,
+    
   },
 
-  cardWrapper: {
-    alignSelf: "center",
-  },
-
-  userCard: {
-    width: "100%",
-    backgroundColor: "#FFF",
-    borderRadius: BorderRadius.sm,
-    padding: Layout.cardPadding,
+  driverCard: {
+    width: CARD_WIDTH,
+    minHeight: 64,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingVertical: DRIVER_CARD_PADDING_V,
+    paddingHorizontal: DRIVER_CARD_PADDING_H,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: tokenTokens.cardBorder,
+    borderColor: CARD_BORDER,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 2 },
+      },
+      android: { elevation: 3 },
+    }),
+    
+  },
+
+  driverLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    minWidth: 0,
+  },
+
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: CARD_BORDER,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+
+  avatarText: {
+    fontFamily: FONT,
+    fontSize: 18,
+    fontWeight: "600",
+    color: TEXT_PRIMARY,
+  },
+
+  driverTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  name: {
+    fontFamily: FONT,
+    fontSize: 14,
+    fontWeight: "500",
+    color: TEXT_PRIMARY,
+  },
+
+  role: {
+    fontFamily: FONT,
+    fontSize: 12,
+    fontWeight: "400",
+    color: TEXT_SECONDARY,
+    marginTop: 2,
+  },
+
+  phone: {
+    fontFamily: FONT,
+    fontSize: 14,
+    fontWeight: "500",
+    color: TEXT_PRIMARY,
+  },
+
+  scroll: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    alignItems: "center",
+  },
+
+  assignmentCard: {
+    width: CARD_WIDTH,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: ASSIGNMENT_CARD_PADDING,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -247,108 +345,70 @@ const styles = StyleSheet.create({
     }),
   },
 
-  userLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    minWidth: 0,
-  },
-
-  avatar: {
-    height: 40,
-    width: 40,
-    borderRadius: 20,
-    backgroundColor: tokenTokens.cardBorder,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: Spacing.md,
-  },
-
-  avatarText: {
+  assignmentHeader: {
     fontFamily: FONT,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
-    color: "#1C1917",
+    color: TEXT_PRIMARY,
   },
 
-  userTextBlock: { flex: 1 },
-
-  name: {
-    fontFamily: FONT,
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#1C1917",
+  assignmentDivider: {
+    height: 1,
+    backgroundColor: CARD_BORDER,
+    marginVertical: 12,
   },
 
-  role: {
-    fontFamily: FONT,
-    fontSize: 12,
-    color: tokenTokens.labelGray,
-    marginTop: 2,
-  },
-
-  phone: {
-    fontFamily: FONT,
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#1C1917",
-  },
-
-  proceedCard: {
-    marginTop: Spacing["2xl"],
-    width: "100%",
-    backgroundColor: "#FFF",
-    borderRadius: BorderRadius.sm,
-    padding: Layout.cardPadding,
+  assignmentRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    borderWidth: 1,
-    borderColor: tokenTokens.cardBorder,
+    marginBottom: 10,
   },
 
-  entryGateWrap: {
-    alignItems: "flex-end",
-  },
-
-  small: {
+  assignmentLabel: {
     fontFamily: FONT,
-    fontSize: 12,
-    color: tokenTokens.labelGray,
+    fontSize: 14,
+    fontWeight: "400",
+    color: TEXT_SECONDARY,
   },
 
-  value: {
+  assignmentValue: {
     fontFamily: FONT,
     fontSize: 14,
     fontWeight: "500",
-    color: "#1C1917",
-    marginTop: 4,
+    color: TEXT_PRIMARY,
+    maxWidth: "60%",
+    textAlign: "right",
   },
 
   bottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "#FFFFFF",
   },
 
   shareBtn: {
-    marginBottom: Spacing.md,
-    minHeight: Layout.minTouchTarget,
-    borderRadius: 22,
+    height: BUTTON_HEIGHT,
+    borderRadius: BUTTON_RADIUS,
     borderWidth: 1,
-    borderColor: tokenTokens.accentRed,
+    borderColor: ACCENT_RED,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 12,
   },
 
   shareText: {
     fontFamily: FONT,
     fontSize: 14,
     fontWeight: "600",
-    color: tokenTokens.accentRed,
+    color: ACCENT_RED,
   },
 
   trackBtn: {
-    minHeight: Layout.minTouchTarget,
-    borderRadius: 22,
-    backgroundColor: tokenTokens.accentRed,
+    height: BUTTON_HEIGHT,
+    borderRadius: BUTTON_RADIUS,
+    backgroundColor: ACCENT_RED,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -357,7 +417,7 @@ const styles = StyleSheet.create({
     fontFamily: FONT,
     fontSize: 14,
     fontWeight: "600",
-    color: tokenTokens.onHeader,
+    color: "#FFFFFF",
   },
 
   buttonPressed: {

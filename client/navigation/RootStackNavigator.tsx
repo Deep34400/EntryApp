@@ -45,6 +45,8 @@ export type RootStackParamList = {
     driverPhone?: string;
     /** new_dp | old_dp | non_dp — used to show "Driver Partner" or "Staff" */
     entryType?: string;
+    /** e.g. Settlement — for Assignment "Ticket" row */
+    purpose?: string;
   };
   ExitConfirmation: { token: string };
   TicketList: { filter: "open" | "closed" };

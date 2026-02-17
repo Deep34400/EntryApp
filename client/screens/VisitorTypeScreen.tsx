@@ -322,12 +322,12 @@ const styles = StyleSheet.create({
   illustrationWrap: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    marginTop: 50,
+    paddingVertical: 8,
+    marginTop: 40,
   },
   illustration: {
-    width: 240,
-    height: 80,
+    width: '95%',
+    height: 160,
   },
   title: {
     fontFamily: FONT_POPPINS,
@@ -353,6 +353,7 @@ const styles = StyleSheet.create({
   toggleTabsRow: {
     flexDirection: "row",
     flex: 1,
+
   },
   toggleTab: {
     flex: 1,

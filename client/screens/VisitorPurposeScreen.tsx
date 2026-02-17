@@ -237,6 +237,7 @@ export default function VisitorPurposeScreen() {
       const token = raw.tokenNo ?? raw.token_no ?? raw.token ?? raw.id ?? "";
       const assignee = raw.assignee ?? raw.assignee_name ?? raw.agent ?? "—";
       const desk_location = raw.deskLocation ?? raw.desk_location ?? raw.gate ?? raw.gate_name ?? "—";
+      const purpose = raw.reason ?? raw.purpose;
       navigation.navigate("TokenDisplay", {
         token: String(token),
         assignee: String(assignee),
@@ -244,6 +245,7 @@ export default function VisitorPurposeScreen() {
         driverName: formData.name?.trim() || undefined,
         driverPhone: formData.phone?.trim() || undefined,
         entryType: effectiveEntryType,
+        purpose: purpose != null ? String(purpose) : undefined,
       });
     },
     onError: (error: Error) => {
