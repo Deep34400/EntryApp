@@ -1,1 +1,1 @@
-export { ThemeProvider, useThemeContext, type ThemePreference } from "@/store/themeStore";
+export { ThemeProvider, useThemeContext, type ThemePreference } from "@/contexts/ThemeContext";

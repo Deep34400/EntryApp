@@ -1,7 +1,7 @@
 /**
  * Re-export token/login screen colors for compatibility. Prefer @/theme (tokenScreen, loginScreen).
  */
-import { tokenScreen, loginScreen } from "@/theme/colors";
+import { token, login } from "@/constants/theme";
 
 export const DesignTokens = {
   brand: {
@@ -17,6 +17,6 @@ export const DesignTokens = {
   dark: {},
   overlay: {},
   shadow: {},
-  token: tokenScreen,
-  login: loginScreen,
+  token: token,
+  login: login,
 } as const;

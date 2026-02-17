@@ -1,1 +1,1 @@
-export { AuthProvider, useAuth, type AuthUser } from "@/store/authStore";
+export { AuthProvider, useAuth, type AuthUser } from "@/contexts/AuthContext";
