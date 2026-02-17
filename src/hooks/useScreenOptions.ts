@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { useTheme } from "@/hooks/useTheme";
-import { layout } from "@/constants/layout";
+import { Layout } from "@/constants/theme";
 
 interface UseScreenOptionsParams {
   transparent?: boolean;
@@ -24,7 +24,6 @@ export function useScreenOptions({
         android: theme.backgroundRoot,
         web: theme.backgroundRoot,
       }),
-      minHeight: layout.headerMinHeight,
     },
     gestureEnabled: true,
     gestureDirection: "horizontal",

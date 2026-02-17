@@ -1,12 +1,12 @@
 import { Text, type TextProps } from "react-native";
 import { useTheme } from "@/hooks/useTheme";
-import { typography } from "@/theme";
+import { Typography } from "@/constants/theme";
 
 export type ThemedTextProps = TextProps & {
   lightColor?: string;
   darkColor?: string;
   variant?: "default" | "secondary";
-  type?: keyof typeof typography;
+  type?: keyof typeof Typography;
 };
 
 export function ThemedText({
@@ -27,7 +27,7 @@ export function ThemedText({
     return theme.text;
   };
 
-  const typeStyle = typography[type] ?? typography.body;
+  const typeStyle = Typography[type] ?? Typography.body;
 
   return (
     <Text style={[{ color: getColor() }, typeStyle, style]} {...rest} />

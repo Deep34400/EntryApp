@@ -1,13 +1,13 @@
 import { useColorScheme } from "react-native";
-import { useThemeContext } from "@/store/themeStore";
-import { colors } from "@/theme";
+import { useThemeContext } from "@/contexts/ThemeContext";
+import { Colors } from "@/constants/theme";
 
 export function useTheme() {
   const themeContext = useThemeContext();
   const systemScheme = useColorScheme();
   const colorScheme = themeContext?.colorScheme ?? systemScheme ?? "light";
   const isDark = colorScheme === "dark";
-  const theme = colors[colorScheme];
+  const theme = Colors[colorScheme as keyof typeof Colors];
 
   return {
     theme,

@@ -5,9 +5,9 @@ import { CommonActions } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/hooks/useTheme";
-import { layout } from "@/constants/layout";
-import { spacing } from "@/theme";
-import type { RootStackParamList } from "@/navigation/types";
+import { Layout } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
+import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, keyof RootStackParamList>;
@@ -44,14 +44,14 @@ export function HomeHeaderButton() {
 
 const styles = StyleSheet.create({
   wrapper: {
-    minWidth: layout.backButtonTouchTarget,
-    minHeight: layout.backButtonTouchTarget,
+    minWidth: Layout.backButtonTouchTarget,
+    minHeight: Layout.backButtonTouchTarget,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: spacing.xs,
+    marginRight: Spacing.xs,
   },
   button: {
-    padding: spacing.sm,
+    padding: Spacing.sm,
     alignItems: "center",
     justifyContent: "center",
   },

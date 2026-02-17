@@ -4,8 +4,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { MaterialIcons } from "@expo/vector-icons";
-import type { RootStackParamList } from "@/navigation/types";
-import { colors } from "@/theme";
+import type { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { Colors } from "@/constants/theme";
 
 export type AppFooterTab = "Entry" | "Ticket" | "Account";
 
@@ -53,7 +53,7 @@ export function AppFooter({ activeTab }: AppFooterProps) {
   };
 
   const bottomInset = insets.bottom > 0 ? insets.bottom : 0;
-  const bg = colors.light.surface;
+  const bg = Colors.light.surface;
 
   return (
     <View style={[styles.footer, { paddingBottom: bottomInset, backgroundColor: bg }]}>
