@@ -55,6 +55,9 @@
     },
     "owner": "tech3440",
     "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/09511a6a-5a9e-46b1-9c05-4b25b5d190e5"
     }
   }
