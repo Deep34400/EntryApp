@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   View,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   Pressable,
   Linking,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -36,6 +37,15 @@ type Step = "phone" | "otp";
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SECONDS = 30;
 
+/** Responsive OTP box constraints (no overflow on small screens, reasonable on tablets). */
+const OTP_BOX_MIN = 40;
+const OTP_BOX_MAX = 56;
+const OTP_GAP = 8;
+const OTP_ROW_MAX_WIDTH = 440;
+const OTP_FONT_RATIO = 0.44;
+const OTP_FONT_MIN = 14;
+const OTP_FONT_MAX = 22;
+
 const loginTokens = DesignTokens.login;
 
 export default function LoginOtpScreen() {
@@ -53,6 +63,25 @@ export default function LoginOtpScreen() {
   const [error, setError] = useState<string | null>(null);
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  const { width: screenWidth } = useWindowDimensions();
+
+  const otpLayout = useMemo(() => {
+    const horizontalPadding = Layout.horizontalScreenPadding * 2;
+    const availableWidth = Math.min(
+      screenWidth - horizontalPadding,
+      OTP_ROW_MAX_WIDTH,
+    );
+    const totalGap = (OTP_LENGTH - 1) * OTP_GAP;
+    const rawBoxSize = (availableWidth - totalGap) / OTP_LENGTH;
+    const boxSize = Math.round(
+      Math.min(OTP_BOX_MAX, Math.max(OTP_BOX_MIN, rawBoxSize)),
+    );
+    const digitFontSize = Math.round(
+      Math.min(OTP_FONT_MAX, Math.max(OTP_FONT_MIN, boxSize * OTP_FONT_RATIO)),
+    );
+    return { boxSize, gapSize: OTP_GAP, digitFontSize };
+  }, [screenWidth]);
 
   const phoneTrimmed = phone.trim().replace(/\D/g, "");
   const isPhoneValid = checkPhoneValid(phone);
@@ -232,14 +261,60 @@ export default function LoginOtpScreen() {
                   <ThemedText type="small" numberOfLines={3} style={{ color: theme.error }}>{error}</ThemedText>
                 </View>
               ) : null}
-              <Pressable onPress={() => otpInputRef.current?.focus()} style={styles.otpRowWrap}>
-                <TextInput ref={otpInputRef} value={otp} onChangeText={setOtpDigits} keyboardType="number-pad" maxLength={OTP_LENGTH} editable={!loading} style={styles.otpHiddenInput} testID="input-otp" />
+              <Pressable
+                onPress={() => otpInputRef.current?.focus()}
+                style={[
+                  styles.otpRowWrap,
+                  {
+                    minHeight: otpLayout.boxSize,
+                    height: otpLayout.boxSize,
+                    marginBottom: Spacing.lg,
+                  },
+                ]}
+              >
+                <TextInput
+                  ref={otpInputRef}
+                  value={otp}
+                  onChangeText={setOtpDigits}
+                  keyboardType="number-pad"
+                  maxLength={OTP_LENGTH}
+                  editable={!loading}
+                  style={[styles.otpHiddenInput, { height: otpLayout.boxSize }]}
+                  testID="input-otp"
+                />
                 {Array.from({ length: OTP_LENGTH }).map((_, i) => {
                   const digit = otp[i] ?? "";
                   const isActive = i === otp.length;
                   return (
-                    <View key={i} style={[styles.otpBox, { borderColor: isActive ? loginTokens.otpBoxBorderActive : loginTokens.otpBoxBorder, borderWidth: isActive ? 2 : 1 }]}>
-                      <ThemedText type="h5" style={[styles.otpBoxDigit, { color: loginTokens.otpText, opacity: digit ? 1 : 0.4 }]} numberOfLines={1}>{digit}</ThemedText>
+                    <View
+                      key={i}
+                      style={[
+                        styles.otpBox,
+                        {
+                          width: otpLayout.boxSize,
+                          height: otpLayout.boxSize,
+                          marginRight: i < OTP_LENGTH - 1 ? otpLayout.gapSize : 0,
+                          borderColor: isActive
+                            ? loginTokens.otpBoxBorderActive
+                            : loginTokens.otpBoxBorder,
+                          borderWidth: isActive ? 2 : 1,
+                        },
+                      ]}
+                    >
+                      <ThemedText
+                        type="h5"
+                        style={[
+                          styles.otpBoxDigit,
+                          {
+                            color: loginTokens.otpText,
+                            opacity: digit ? 1 : 0.4,
+                            fontSize: otpLayout.digitFontSize,
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {digit}
+                      </ThemedText>
                     </View>
                   );
                 })}
@@ -581,22 +656,18 @@ const styles = StyleSheet.create({
   otpRowWrap: {
     flexDirection: "row",
     justifyContent: "flex-start",
-    gap: Layout.contentGap,
+    alignItems: "center",
     position: "relative",
-    minHeight: 56,
-    marginBottom: Spacing.lg,
+    width: "100%",
   },
   otpHiddenInput: {
     position: "absolute",
     opacity: 0,
-    height: 56,
     left: 0,
     right: 0,
     fontSize: 16,
   },
   otpBox: {
-    width: 56,
-    height: 56,
     borderRadius: BorderRadius.sm,
     backgroundColor: DesignTokens.login.cardBg,
     alignItems: "center",

@@ -13,19 +13,19 @@ import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 
 import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { DesignTokens } from "@/constants/designTokens";
-import { fetchWithAuthRetry } from "@/lib/query-client";
+import { fetchWithAuthRetry, fetchTicketCountsSafe } from "@/lib/query-client";
 import { getEntryAppListPath } from "@/lib/api-endpoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { formatEntryTime, formatDurationHours } from "@/lib/format";
 import type { TicketListItem } from "@/types/ticket";
 import { normalizeTicketListItem } from "@/types/ticket";
-import { isEntryOlderThan2Hours, getWaitingMinutes } from "@/lib/ticket-utils";
+import { getWaitingMinutes } from "@/lib/ticket-utils";
 
 export type { TicketListItem } from "@/types/ticket";
 
@@ -36,20 +36,38 @@ type TicketListRouteProp = RouteProp<RootStackParamList, "TicketList">;
 
 const FONT_POPPINS = "Poppins";
 const primaryRed = DesignTokens.login.headerRed;
+const PAGE_SIZE = 50;
 
-async function fetchTicketList(
-  filter: "open" | "closed",
-  accessToken?: string | null,
-): Promise<TicketListItem[]> {
+/** API response: { success, data: { data: [], total, page, limit } } */
+export type TicketListPageResult = {
+  list: TicketListItem[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+async function fetchTicketListPage(
+  filter: "open" | "closed" | "delayed",
+  accessToken: string | null | undefined,
+  page: number,
+): Promise<TicketListPageResult> {
   try {
-    const path = getEntryAppListPath(filter, 50);
+    const path = getEntryAppListPath(filter, PAGE_SIZE, page);
     const res = await fetchWithAuthRetry(path, accessToken);
-    if (!res.ok) return [];
-    const json = (await res.json()) as { success?: boolean; data?: unknown[] };
-    const list = Array.isArray(json.data) ? (json.data as Record<string, unknown>[]) : [];
-    return list.map((item) => normalizeTicketListItem(item));
+    if (!res.ok) return { list: [], total: 0, page: 1, limit: PAGE_SIZE };
+    const json = (await res.json()) as {
+      success?: boolean;
+      data?: { data?: unknown[]; total?: number; page?: number; limit?: number };
+    };
+    const payload = json.data;
+    const rawList = Array.isArray(payload?.data) ? (payload.data as Record<string, unknown>[]) : [];
+    const list = rawList.map((item) => normalizeTicketListItem(item));
+    const total = Number(payload?.total ?? 0) || 0;
+    const pageNum = Number(payload?.page ?? page) || page;
+    const limitNum = Number(payload?.limit ?? PAGE_SIZE) || PAGE_SIZE;
+    return { list, total, page: pageNum, limit: limitNum };
   } catch {
-    return [];
+    return { list: [], total: 0, page: 1, limit: PAGE_SIZE };
   }
 }
 
@@ -145,49 +163,96 @@ export default function TicketListScreen() {
 
   const [activeTab, setActiveTab] = useState<TabId>("Open");
 
-  const { data: openList = [], isLoading: loadingOpen, isRefetching: refetchingOpen, refetch: refetchOpen } = useQuery({
+  const { data: counts = { open: 0, closed: 0, delayed: 0 }, isLoading: loadingCounts, isRefetching: refetchingCounts, refetch: refetchCounts } = useQuery({
+    queryKey: ["ticket-counts", auth.accessToken],
+    queryFn: () => fetchTicketCountsSafe(undefined, auth.accessToken),
+    staleTime: 15_000,
+  });
+
+  const openQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "open", auth.accessToken],
-    queryFn: () => fetchTicketList("open", auth.accessToken),
+    queryFn: ({ pageParam }) => fetchTicketListPage("open", auth.accessToken, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,
     staleTime: 15_000,
   });
 
-  const { data: closedList = [], isLoading: loadingClosed, isRefetching: refetchingClosed, refetch: refetchClosed } = useQuery({
+  const delayedQuery = useInfiniteQuery({
+    queryKey: ["ticket-list", "delayed", auth.accessToken],
+    queryFn: ({ pageParam }) => fetchTicketListPage("delayed", auth.accessToken, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,
+    staleTime: 15_000,
+  });
+
+  const closedQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "closed", auth.accessToken],
-    queryFn: () => fetchTicketList("closed", auth.accessToken),
+    queryFn: ({ pageParam }) => fetchTicketListPage("closed", auth.accessToken, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,
     staleTime: 15_000,
   });
 
-  const { delayedList, openListFiltered } = useMemo(() => {
-    const delayed: TicketListItem[] = [];
-    const open: TicketListItem[] = [];
-    openList.forEach((t) => {
-      if (isEntryOlderThan2Hours(t.entry_time)) delayed.push(t);
-      else open.push(t);
-    });
-    return { delayedList: delayed, openListFiltered: open };
-  }, [openList]);
+  const delayedCount = counts.delayed;
+  const openCount = counts.open;
+  const closedCount = counts.closed;
 
-  const delayedCount = delayedList.length;
-  const openCount = openListFiltered.length;
-  const closedCount = closedList.length;
-
-  const currentList = useMemo(() => {
+  const { currentList, fetchNextPage, hasNextPage, isFetchingNextPage } = useMemo(() => {
     switch (activeTab) {
       case "Delayed":
-        return delayedList;
+        return {
+          currentList: delayedQuery.data?.pages.flatMap((p) => p.list) ?? [],
+          fetchNextPage: delayedQuery.fetchNextPage,
+          hasNextPage: delayedQuery.hasNextPage ?? false,
+          isFetchingNextPage: delayedQuery.isFetchingNextPage,
+        };
       case "Open":
-        return openListFiltered;
+        return {
+          currentList: openQuery.data?.pages.flatMap((p) => p.list) ?? [],
+          fetchNextPage: openQuery.fetchNextPage,
+          hasNextPage: openQuery.hasNextPage ?? false,
+          isFetchingNextPage: openQuery.isFetchingNextPage,
+        };
       case "Closed":
-        return closedList;
+        return {
+          currentList: closedQuery.data?.pages.flatMap((p) => p.list) ?? [],
+          fetchNextPage: closedQuery.fetchNextPage,
+          hasNextPage: closedQuery.hasNextPage ?? false,
+          isFetchingNextPage: closedQuery.isFetchingNextPage,
+        };
     }
-  }, [activeTab, delayedList, openListFiltered, closedList]);
+  }, [
+    activeTab,
+    openQuery.data?.pages,
+    delayedQuery.data?.pages,
+    closedQuery.data?.pages,
+    openQuery.fetchNextPage,
+    delayedQuery.fetchNextPage,
+    closedQuery.fetchNextPage,
+    openQuery.hasNextPage,
+    delayedQuery.hasNextPage,
+    closedQuery.hasNextPage,
+    openQuery.isFetchingNextPage,
+    delayedQuery.isFetchingNextPage,
+    closedQuery.isFetchingNextPage,
+  ]);
 
-  const isLoading = loadingOpen || loadingClosed;
-  const isRefetching = refetchingOpen || refetchingClosed;
+  const isLoading =
+    loadingCounts || openQuery.isLoading || delayedQuery.isLoading || closedQuery.isLoading;
+  const isRefetching =
+    refetchingCounts ||
+    openQuery.isRefetching ||
+    delayedQuery.isRefetching ||
+    closedQuery.isRefetching;
 
   const refetch = () => {
-    refetchOpen();
-    refetchClosed();
+    refetchCounts();
+    openQuery.refetch();
+    delayedQuery.refetch();
+    closedQuery.refetch();
   };
 
   useLayoutEffect(() => {
@@ -264,6 +329,18 @@ export default function TicketListScreen() {
               </Text>
             </View>
           }
+          ListFooterComponent={
+            hasNextPage && isFetchingNextPage ? (
+              <View style={styles.loadMoreWrap}>
+                <ActivityIndicator size="small" color={primaryRed} />
+                <Text style={styles.loadMoreText}>Loading more…</Text>
+              </View>
+            ) : null
+          }
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+          }}
+          onEndReachedThreshold={0.4}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -355,11 +432,11 @@ const styles = StyleSheet.create({
   },
   listContent: {
     flexGrow: 1,
-    paddingHorizontal: Layout.horizontalScreenPadding,
     paddingTop: Spacing.lg,
-    alignSelf: "center",
-    maxWidth: Layout.contentMaxWidth + Layout.horizontalScreenPadding * 2,
+    paddingHorizontal: Layout.horizontalScreenPadding,
     width: "100%",
+    maxWidth: Layout.contentMaxWidth + Layout.horizontalScreenPadding * 2,
+    alignSelf: "center",
   },
   emptyWrap: {
     paddingVertical: Spacing["3xl"],
@@ -370,11 +447,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: DesignTokens.login.termsText,
   },
+  loadMoreWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.lg,
+  },
+  loadMoreText: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 14,
+    color: DesignTokens.login.termsText,
+  },
   cardWrapper: {
     marginBottom: Spacing.lg,
-    maxWidth: Layout.contentMaxWidth,
     width: "100%",
-    alignSelf: "center",
   },
   card: {
     backgroundColor: DesignTokens.login.cardBg,

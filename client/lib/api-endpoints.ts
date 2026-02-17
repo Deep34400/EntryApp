@@ -32,12 +32,16 @@ const ENTRY_APP_BASE = "/api/v1/entry-app";
 /** POST — Create entry. Body: { type, name, phone, assignee, reason, regNumber? }. assignee e.g. driver_manager/fleet_manager, reason e.g. "Settlement - Car Drop". */
 export const ENTRY_APP_CREATE_PATH = ENTRY_APP_BASE;
 
-/** GET — List open or closed. view=open|closed, limit=50 */
-export function getEntryAppListPath(view: "open" | "closed", limit = 50): string {
-  return `${ENTRY_APP_BASE}?view=${view}&limit=${limit}`;
+/** GET — List by status. view=open|closed|delayed, limit=50, page=1 (1-based). Response: { data: { data: [], total, page, limit } }. */
+export function getEntryAppListPath(
+  view: "open" | "closed" | "delayed",
+  limit = 50,
+  page = 1,
+): string {
+  return `${ENTRY_APP_BASE}?view=${view}&limit=${limit}&page=${page}`;
 }
 
-/** GET — Counts. Response: { success, data: { open, closed } } */
+/** GET — Counts. Response: { success, data: { open, closed, delayed } } */
 export const ENTRY_APP_COUNTS_PATH = `${ENTRY_APP_BASE}?view=counts`;
 
 /** GET — Single entry by id (UUID). Response: { success, data: { id, tokenNo, purpose, name, phone, regNumber, status, entryTime, exitTime, ... } } */

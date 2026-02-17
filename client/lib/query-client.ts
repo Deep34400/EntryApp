@@ -118,21 +118,22 @@ export async function fetchWithAuthRetry(
   return fetch(url.toString(), { method: "GET", credentials: "omit" });
 }
 
-/** Fetch open/closed counts. GET /api/v1/entry-app?view=counts → { success, data: { open, closed } }. On 401 tries refresh then retries. */
+/** Fetch open/closed/delayed counts. GET /api/v1/entry-app?view=counts → { success, data: { open, closed, delayed } }. On 401 tries refresh then retries. */
 export async function fetchTicketCountsSafe(
   _hubId?: string,
   accessToken?: string | null,
-): Promise<{ open: number; closed: number }> {
+): Promise<{ open: number; closed: number; delayed: number }> {
   try {
     const res = await fetchWithAuthRetry(ENTRY_APP_COUNTS_PATH, accessToken);
-    if (!res.ok) return { open: 0, closed: 0 };
-    const json = (await res.json()) as { success?: boolean; data?: { open?: number; closed?: number } };
+    if (!res.ok) return { open: 0, closed: 0, delayed: 0 };
+    const json = (await res.json()) as { success?: boolean; data?: { open?: number; closed?: number; delayed?: number } };
     const data = json.data;
     const open = Number(data?.open ?? 0) || 0;
     const closed = Number(data?.closed ?? 0) || 0;
-    return { open, closed };
+    const delayed = Number(data?.delayed ?? 0) || 0;
+    return { open, closed, delayed };
   } catch {
-    return { open: 0, closed: 0 };
+    return { open: 0, closed: 0, delayed: 0 };
   }
 }
 
