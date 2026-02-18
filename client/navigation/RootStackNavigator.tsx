@@ -117,7 +117,7 @@ export default function RootStackNavigator() {
       <Stack.Screen
         name="VisitorPurpose"
         component={VisitorPurposeScreen}
-        options={{ headerTitle: () => null }}
+        options={{ headerTitle: () => null , headerShadowVisible: false}}
       />
 
       <Stack.Screen

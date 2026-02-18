@@ -299,8 +299,8 @@ export default function VisitorPurposeScreen() {
             styles.scrollContent,
             styles.scrollContentFullScreen,
             {
-              paddingTop: headerHeight + Spacing.lg,
-              paddingBottom: Spacing.lg,
+              paddingTop:Spacing.lg,
+              paddingBottom: Spacing.md,
             },
           ]}
           showsVerticalScrollIndicator={false}

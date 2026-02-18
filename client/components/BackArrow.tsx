@@ -4,6 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "@/hooks/useTheme";
 
 /** Prevent double navigation */
 const TAP_GUARD_MS = 400;
@@ -13,16 +14,19 @@ const TOUCH_SIZE = 44;
 const ICON_SIZE = 24;
 
 export type BackArrowProps = {
+  /** Override icon color; defaults to theme.text (visible in both light and dark) */
   color?: string;
   onPress?: () => void;
   inline?: boolean;
 };
 
 export function BackArrow({
-  color = "#161B1D",
+  color,
   onPress,
   inline = false,
 }: BackArrowProps) {
+  const { theme } = useTheme();
+  const iconColor = color ?? theme.text;
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const lastTapRef = useRef(0);
@@ -38,7 +42,7 @@ export function BackArrow({
 
   const icon = (
     <View pointerEvents="none">
-      <Feather name="arrow-left" size={ICON_SIZE} color={color} />
+      <Feather name="arrow-left" size={ICON_SIZE} color={iconColor} />
     </View>
   );
 
