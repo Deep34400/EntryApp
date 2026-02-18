@@ -33,8 +33,8 @@ const VARIANT_CONFIG: Record<
     icon: "alert-circle",
   },
   server_unavailable: {
-    title: "Server is temporarily unavailable",
-    message: "We're having trouble connecting to the server. Please try again.",
+    title: "Server temporarily unavailable",
+    message: "Please try again in a few minutes.",
     icon: "cloud-off",
   },
 };

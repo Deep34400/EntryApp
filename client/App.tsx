@@ -37,21 +37,21 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <AuthProvider>
-            <SessionExpiredHandler navigationRef={navigationRef} />
-            <UserProvider>
-              <SafeAreaProvider>
-                <GestureHandlerRootView style={styles.root}>
-                  <KeyboardProvider>
-                    <ServerUnavailableProvider>
+            <ServerUnavailableProvider>
+              <SessionExpiredHandler navigationRef={navigationRef} />
+              <UserProvider>
+                <SafeAreaProvider>
+                  <GestureHandlerRootView style={styles.root}>
+                    <KeyboardProvider>
                       <NavigationContainer ref={navigationRef}>
                         <RootStackNavigator />
                       </NavigationContainer>
-                    </ServerUnavailableProvider>
-                    <StatusBarStyle />
-                  </KeyboardProvider>
-                </GestureHandlerRootView>
-              </SafeAreaProvider>
-            </UserProvider>
+                      <StatusBarStyle />
+                    </KeyboardProvider>
+                  </GestureHandlerRootView>
+                </SafeAreaProvider>
+              </UserProvider>
+            </ServerUnavailableProvider>
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>

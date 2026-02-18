@@ -17,6 +17,8 @@ export function isServerUnavailableError(err: unknown): boolean {
   if (msg === SERVER_UNAVAILABLE_MSG) return true;
   if (name === "AbortError" || msg === "AbortError") return true;
   if (/failed to fetch|network request failed|network error/i.test(msg)) return true;
+  if (/cors|cross-origin|networkerror/i.test(msg)) return true;
+  if (name === "TypeError" && /fetch|network/i.test(msg)) return true;
   if (/timeout|timed out/i.test(msg)) return true;
   if (/econnreset|econnrefused|enotfound|socket hang up/i.test(msg)) return true;
   if (err instanceof TypeError && /fetch/i.test(msg)) return true;

@@ -3,6 +3,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetchIdentity, refreshTokens, isTokenVersionMismatch, type VerifyOtpResponse } from "@/lib/auth-api";
 import { setRefreshHandler, setOnUnauthorizedHandler } from "@/lib/auth-bridge";
 import { setHubId } from "@/lib/hub-bridge";
+import { isServerUnavailableError } from "@/lib/server-unavailable";
+import { isServerUnavailableActive } from "@/lib/server-unavailable-bridge";
 
 const AUTH_STORAGE_KEY = "@entry_app_auth";
 
@@ -95,6 +97,8 @@ type AuthContextValue = {
   sessionExpired: boolean;
   /** Clear sessionExpired after redirecting to LoginOtp. */
   clearSessionExpiredFlag: () => void;
+  /** Re-run guest identity fetch (e.g. after Retry on Server Unavailable). */
+  retryGuestIdentity: () => void;
   /** True when user is logged in (has access token and user). */
   isAuthenticated: boolean;
   /** Logged-in user (from OTP verify). Null when only guest. */
@@ -167,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearSessionExpiredFlag = useCallback(() => {
     setSessionExpired(false);
+    setAuthError(null);
   }, []);
 
   /** Refresh access token using refresh token only. Never use guestToken. Returns new access token or null (session expired). Single flight. */
@@ -198,9 +203,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           selectedHubId: stored.selectedHubId,
         });
         return tokens.accessToken;
-      } catch (_e) {
-        // Any refresh failure → logout immediately. No retry, no second attempt.
-        // Covers: 401, token version mismatch, timeout, network error, invalid response.
+      } catch (e) {
+        // 503 / 5xx / network / timeout → do NOT logout. Rethrow so requestClient shows Server Unavailable.
+        if (isServerUnavailableError(e)) throw e;
+        // Real auth failure (401, invalid token, etc.) → logout.
         setHubId(null);
         setAuthError("Your session expired. Please sign in again.");
         setSessionExpired(true);
@@ -220,8 +226,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setRefreshHandler(null);
   }, [refreshAccessToken]);
 
-  /** When requestClient gets 401 Unauthorized (generic or after failed refresh), clear session and set sessionExpired so app redirects to Login. */
+  /** When requestClient gets 401 Unauthorized (generic or after failed refresh), clear session and set sessionExpired so app redirects to Login. If Server Unavailable is active, do nothing (server has priority; avoids startup race). */
   const handleUnauthorized = useCallback(() => {
+    if (isServerUnavailableActive()) return;
     setHubId(null);
     setAuthError("Your session expired. Please sign in again.");
     setSessionExpired(true);
@@ -234,33 +241,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setOnUnauthorizedHandler(null);
   }, [handleUnauthorized]);
 
-  /** When no tokens (after logout/session expired or fresh install): fetch new guestToken. Single place for "get first guest" so no duplicate identity calls. */
+  const [identityRetryTrigger, setIdentityRetryTrigger] = useState(0);
+
+  /** When no tokens (after logout/session expired or fresh install): fetch new guestToken. Re-runs when retryGuestIdentity() is called (e.g. after Server Unavailable Retry). */
   useEffect(() => {
-    const needsGuest =
-      isRestored &&
-      !stored.accessToken?.trim() &&
-      !stored.refreshToken?.trim() &&
-      !stored.guestToken?.trim() &&
-      !isGuestReady;
-    if (!needsGuest) return;
+    const noAuth = isRestored && !stored.accessToken?.trim() && !stored.refreshToken?.trim();
+    const needsGuest = noAuth && !stored.guestToken?.trim() && !isGuestReady;
+    const retryTriggered = identityRetryTrigger > 0 && noAuth;
+    if (!needsGuest && !retryTriggered) return;
     let cancelled = false;
-    fetchIdentity({ guestToken: "", accessToken: undefined, refreshToken: undefined, tokenVersion: 1 })
+    let skipSetGuestReady = false;
+    fetchIdentity({
+      guestToken: stored.guestToken?.trim() || "",
+      accessToken: undefined,
+      refreshToken: undefined,
+      tokenVersion: stored.tokenVersion ?? 1,
+    })
       .then((data) => {
         if (cancelled || !data?.guestToken || !data?.id) return;
         const next: StoredAuth = { ...defaultStored, guestToken: data.guestToken, identityId: data.id };
         setStored(next);
         saveStored(next);
       })
-      .catch(() => {
-        if (!cancelled) setAuthError("Failed to prepare login");
+      .catch((e) => {
+        if (cancelled) return;
+        if (isServerUnavailableError(e)) {
+          skipSetGuestReady = true;
+          return;
+        }
+        setAuthError("Failed to prepare login");
       })
       .finally(() => {
-        if (!cancelled) setIsGuestReady(true);
+        if (!cancelled && !skipSetGuestReady) setIsGuestReady(true);
       });
     return () => { cancelled = true; };
-  }, [isRestored, stored.accessToken, stored.refreshToken, stored.guestToken]);
+  }, [isRestored, stored.accessToken, stored.refreshToken, stored.guestToken, identityRetryTrigger]);
 
-  /** Fetch or validate guest token. When we have access+refresh we only validate (do not store guestToken). When we have no access+refresh we fetch guest token. */
+  /** Fetch or validate guest token. When we have access+refresh we only validate (do not store guestToken). When we have no access+refresh we fetch guest token. On 5xx/HTML/CORS/fetch failure: do NOT set sessionExpired, authError, or isGuestReady (showServerUnavailable already called). */
   const ensureGuestToken = useCallback(async () => {
     setAuthError(null);
     const hasAuth = !!(stored.accessToken?.trim() && stored.refreshToken?.trim());
@@ -280,6 +297,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setIsGuestReady(true);
     } catch (e) {
+      if (isServerUnavailableError(e)) {
+        return;
+      }
       if (isTokenVersionMismatch(e)) {
         setSessionExpired(true);
         setIsGuestReady(false);
@@ -290,6 +310,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsGuestReady(true);
     }
   }, [stored, persist]);
+
+  const retryGuestIdentity = useCallback(() => {
+    setIdentityRetryTrigger((t) => t + 1);
+  }, []);
 
   /** App start: load storage. If we have access+refresh, use them (no refresh on startup — refresh only when API returns 401). If only guest, validate. If none, fetch new guest. */
   useEffect(() => {
@@ -314,6 +338,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      let skipSetGuestReady = false;
       fetchIdentity({
         guestToken: s.guestToken!,
         accessToken: undefined,
@@ -328,6 +353,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         })
         .catch((e) => {
           if (cancelled) return;
+          if (isServerUnavailableError(e)) {
+            skipSetGuestReady = true;
+            return;
+          }
           if (isTokenVersionMismatch(e)) {
             const next = clearedStored(s.identityId);
             setStored(next);
@@ -340,7 +369,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsGuestReady(true);
         })
         .finally(() => {
-          if (!cancelled) setIsGuestReady(true);
+          if (!cancelled && !skipSetGuestReady) setIsGuestReady(true);
         });
     });
     return () => {
@@ -401,6 +430,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authError,
     sessionExpired,
     clearSessionExpiredFlag,
+    retryGuestIdentity,
     isAuthenticated: !!(stored.accessToken?.trim() && stored.user),
     user: stored.user,
     guestToken: stored.guestToken || null,
@@ -428,6 +458,7 @@ export function useAuth(): AuthContextValue {
       authError: null,
       sessionExpired: false,
       clearSessionExpiredFlag: () => {},
+      retryGuestIdentity: () => {},
       isAuthenticated: false,
       user: null,
       guestToken: null,

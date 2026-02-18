@@ -68,17 +68,50 @@ export function parseApiErrorFromBody(statusCode: number, body: unknown): ApiErr
   return new ApiError({ title, message, statusCode });
 }
 
+/** Safe message when response is HTML or server error — never show raw HTML to user. */
+const SERVER_UNAVAILABLE_USER_MESSAGE =
+  "Service temporarily unavailable. Please try again in a few minutes.";
+
+/**
+ * True if the response body looks like HTML (proxy/gateway error page).
+ * We must never use this as the user-facing message.
+ */
+function isHtmlBody(text: string): boolean {
+  const trimmed = (text ?? "").trim();
+  if (!trimmed) return false;
+  return /^\s*<(!doctype|html)\s/i.test(trimmed) || trimmed.toLowerCase().startsWith("<html");
+}
+
 /**
  * Parses a failed Response into a normalized API error.
  * Reads body once, never exposes path/timestamp/stack to UI.
+ * If the body is HTML (e.g. 503 error page), returns a clean user-safe message — never raw HTML.
  */
 export async function parseApiErrorFromResponse(res: Response): Promise<ApiError> {
   let body: unknown = {};
+  let text = "";
   try {
-    const text = await res.text();
-    if (text?.trim()) body = JSON.parse(text) as unknown;
+    text = await res.text();
+    if (text?.trim()) {
+      if (isHtmlBody(text)) {
+        // Server/gateway returned HTML. Never show it to the user.
+        return new ApiError({
+          title: res.status >= 500 ? "Server temporarily unavailable" : "Error",
+          message: SERVER_UNAVAILABLE_USER_MESSAGE,
+          statusCode: res.status,
+        });
+      }
+      body = JSON.parse(text) as unknown;
+    }
   } catch {
-    // Non-JSON or empty body
+    // Non-JSON or empty body — if we already have HTML detected above we returned; else body stays {}
+    if (text && isHtmlBody(text)) {
+      return new ApiError({
+        title: res.status >= 500 ? "Server temporarily unavailable" : "Error",
+        message: SERVER_UNAVAILABLE_USER_MESSAGE,
+        statusCode: res.status,
+      });
+    }
   }
   return parseApiErrorFromBody(res.status, body);
 }

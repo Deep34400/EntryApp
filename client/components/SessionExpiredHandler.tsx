@@ -3,6 +3,7 @@ import { CommonActions } from "@react-navigation/native";
 import type { ParamListBase } from "@react-navigation/native";
 import type { NavigationContainerRef } from "@react-navigation/native";
 import { useAuth } from "@/contexts/AuthContext";
+import { useServerUnavailable } from "@/contexts/ServerUnavailableContext";
 
 type Props = {
   navigationRef: React.RefObject<NavigationContainerRef<ParamListBase> | null>;
@@ -10,12 +11,13 @@ type Props = {
 
 const SESSION_EXPIRED_MSG = "Your session expired. Please request OTP again.";
 
-/** When sessionExpired is set (refresh failed or token version mismatch), reset stack to LoginOtp and clear flag. */
+/** When sessionExpired is set by real auth failure (401 / refresh failed), reset stack to LoginOtp. Never runs when Server Unavailable is active — server errors must never trigger logout or this screen. */
 export function SessionExpiredHandler({ navigationRef }: Props) {
   const auth = useAuth();
+  const { serverUnavailable } = useServerUnavailable();
 
   useEffect(() => {
-    if (!auth.sessionExpired) return;
+    if (!auth.sessionExpired || serverUnavailable) return;
     const doReset = () => {
       const nav = navigationRef.current;
       if (nav?.isReady?.()) {
@@ -35,7 +37,7 @@ export function SessionExpiredHandler({ navigationRef }: Props) {
       doReset();
     }, 100);
     return () => clearTimeout(t);
-  }, [auth.sessionExpired, auth.clearSessionExpiredFlag, navigationRef]);
+  }, [auth.sessionExpired, auth.clearSessionExpiredFlag, navigationRef, serverUnavailable]);
 
   return null;
 }

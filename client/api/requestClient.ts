@@ -3,6 +3,11 @@
  * - Single-flight refresh: multiple 401s share one refresh call.
  * - On 401 + TOKEN_EXPIRED only: refresh once, retry original request. No refresh on 403, 500, 503, offline.
  * - On refresh failure: auth-bridge returns null; AuthContext clears state and sets sessionExpired → redirect to Login.
+ *
+ * IMPORTANT — Auth errors log the user out. Server errors never do.
+ * 503 / 5xx / HTML error pages are SERVER_UNAVAILABLE: we show the global "Server temporarily unavailable"
+ * screen and never call notifyUnauthorized() or set sessionExpired. This avoids logging users out when the
+ * backend is down or a proxy returns an HTML error page (e.g. 503 Service Temporarily Unavailable).
  */
 
 import { tryRefreshToken, notifyUnauthorized } from "@/lib/auth-bridge";
@@ -19,7 +24,10 @@ import {
   isServerUnavailableError,
   SERVER_UNAVAILABLE_MSG,
 } from "@/lib/server-unavailable";
-import { showServerUnavailable } from "@/lib/server-unavailable-bridge";
+import {
+  showServerUnavailable,
+  isServerUnavailableActive,
+} from "@/lib/server-unavailable-bridge";
 
 /** Backend error code indicating access token expiry. Keep in sync with client/lib/auth-error-codes.ts REFRESH_ON_401_CODES. */
 export const ERROR_CODE_TOKEN_EXPIRED = "TOKEN_EXPIRED";
@@ -35,6 +43,37 @@ export function getApiUrl(): string {
 }
 
 export const UNAUTHORIZED_MSG = "UNAUTHORIZED";
+
+/**
+ * True if response is an HTML error page (e.g. proxy/gateway 503).
+ * We treat these as SERVER_UNAVAILABLE and never as auth failure.
+ */
+function isHtmlContentType(res: Response): boolean {
+  const ct = res.headers.get("content-type")?.toLowerCase() ?? "";
+  return ct.includes("text/html");
+}
+
+/**
+ * True if response body looks like HTML (e.g. <html> or <!DOCTYPE).
+ * Used to avoid treating gateway/proxy HTML error pages as auth failures.
+ */
+async function isHtmlResponseBody(res: Response): Promise<boolean> {
+  try {
+    const text = await res.clone().text();
+    const trimmed = (text ?? "").trim();
+    if (!trimmed) return false;
+    return /^\s*<(!doctype|html)\s/i.test(trimmed) || trimmed.toLowerCase().startsWith("<html");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True if status indicates server/gateway error. These must NEVER trigger logout.
+ */
+function isServerErrorStatus(status: number): boolean {
+  return status >= 500 && status < 600;
+}
 
 /** On non-2xx: parses response body and throws ApiError (title, message, statusCode). No raw JSON or technical details. */
 export async function throwIfResNotOk(res: Response): Promise<void> {
@@ -159,8 +198,23 @@ export async function requestWithAuthRetry(
     }
     throw e;
   }
+
+  // --- SERVER ERROR PATH: return immediately. Do NOT reach 401 logic. Do NOT call notifyUnauthorized(). ---
+  if (isServerErrorStatus(res.status) || isHtmlContentType(res)) {
+    showServerUnavailable();
+    throw new Error(SERVER_UNAVAILABLE_MSG);
+  }
+  if (res.status === 401 && (await isHtmlResponseBody(res))) {
+    showServerUnavailable();
+    throw new Error(SERVER_UNAVAILABLE_MSG);
+  }
+
+  // --- AUTH PATH: only real 401 (JSON, non-HTML). Skip auth/logout if Server Unavailable is already active (prevents race). ---
   if (res.status === 401) {
-    // Auth/OTP/identity/refresh APIs: never refresh, never retry. Fail-safe → logout.
+    if (isServerUnavailableActive()) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
     if (isAuthApi(route)) {
       notifyUnauthorized();
       throw new Error(UNAUTHORIZED_MSG);
@@ -180,7 +234,10 @@ export async function requestWithAuthRetry(
         throw e;
       }
     }
-    // Generic 401 or retry still 401 → clear session and redirect to Login.
+    if (isServerUnavailableActive()) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
     if (res.status === 401) {
       notifyUnauthorized();
       throw new Error(UNAUTHORIZED_MSG);

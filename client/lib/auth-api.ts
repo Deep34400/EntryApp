@@ -11,11 +11,22 @@ export const ERROR_CODE_TOKEN_VERSION_MISMATCH = "TOKEN_VERSION_MISMATCH";
 
 export type AuthError = Error & { statusCode?: number; errorCode?: string };
 
-/** Parse error response; prefer errorCode when present. */
+/** True if body looks like HTML — never use as user-facing message. */
+function isHtmlBody(text: string): boolean {
+  const t = (text ?? "").trim();
+  return !!(t && (/^\s*<(!doctype|html)\s/i.test(t) || t.toLowerCase().startsWith("<html")));
+}
+
+/** Parse error response; prefer errorCode when present. Never returns raw HTML as message. */
 export function parseAuthError(text: string, statusCode: number): AuthError {
   let message = "Request failed";
   let errorCode: string | undefined;
   try {
+    if (isHtmlBody(text)) {
+      const err = new Error("Service temporarily unavailable. Please try again.") as AuthError;
+      err.statusCode = statusCode;
+      return err;
+    }
     const data = JSON.parse(text) as Record<string, unknown>;
     errorCode = typeof data.errorCode === "string" ? data.errorCode : undefined;
     if (!errorCode && typeof data.code === "string") errorCode = data.code;
@@ -25,7 +36,7 @@ export function parseAuthError(text: string, statusCode: number): AuthError {
     else if (m && typeof m === "object" && typeof (m as { message?: unknown }).message === "string")
       message = (m as { message: string }).message;
   } catch {
-    if (text.length < 300) message = text;
+    if (!isHtmlBody(text) && text.length < 300) message = text;
   }
   const err = new Error(message) as AuthError;
   err.statusCode = statusCode;
@@ -149,6 +160,10 @@ export async function fetchIdentity(params: {
 
   const text = await res.text();
   if (!res.ok) {
+    if (res.status >= 500 || isHtmlBody(text)) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
     throw parseAuthError(text, res.status);
   }
 
@@ -191,6 +206,10 @@ export async function refreshTokens(refreshToken: string): Promise<{ accessToken
 
   const text = await res.text();
   if (!res.ok) {
+    if (res.status >= 500 || isHtmlBody(text)) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
     throw parseAuthError(text, res.status);
   }
 
@@ -231,6 +250,10 @@ export async function sendOtp(phoneNo: string, guestToken: string): Promise<void
 
   const text = await res.text();
   if (!res.ok) {
+    if (res.status >= 500 || isHtmlBody(text)) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
     throw parseAuthError(text, res.status);
   }
 }
@@ -293,6 +316,10 @@ export async function verifyOtp(
 
   const text = await res.text();
   if (!res.ok) {
+    if (res.status >= 500 || isHtmlBody(text)) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
     throw parseAuthError(text, res.status);
   }
 

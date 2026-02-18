@@ -32,6 +32,12 @@ export async function apiRequest(
     throw e;
   }
 
+  // 5xx or HTML → Server Unavailable screen (never treat as auth or show raw HTML)
+  if (!res.ok && (res.status >= 500 || (res.headers.get("content-type")?.toLowerCase().includes("text/html") ?? false))) {
+    showServerUnavailable();
+    throw new Error(SERVER_UNAVAILABLE_MSG);
+  }
+
   await throwIfResNotOk(res);
   return res;
 }
@@ -65,6 +71,12 @@ export async function apiRequestWithAuth(
       throw new Error(SERVER_UNAVAILABLE_MSG);
     }
     throw e;
+  }
+
+  // 5xx or HTML → Server Unavailable screen (never logout or show raw HTML)
+  if (!res.ok && (res.status >= 500 || (res.headers.get("content-type")?.toLowerCase().includes("text/html") ?? false))) {
+    showServerUnavailable();
+    throw new Error(SERVER_UNAVAILABLE_MSG);
   }
 
   if (res.status === 401) {
