@@ -23,7 +23,7 @@ import { BackArrow } from "@/components/BackArrow";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
-import { DesignTokens } from "@/constants/designTokens";
+import { DesignTokens } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";

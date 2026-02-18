@@ -1,5 +1,7 @@
 # Assets
+
 Copy or symlink images from project root here:
+
 - images/car.png
 - images/logo.png
 - images/latestLogo.png

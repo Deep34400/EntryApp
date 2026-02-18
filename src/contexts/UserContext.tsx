@@ -1,1 +1,1 @@
-export { UserProvider, useUser, type AppUser } from "@/contexts/UserContext";
+export { UserProvider, useUser, type AppUser } from "@/store/userStore";

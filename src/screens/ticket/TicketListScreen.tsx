@@ -17,7 +17,7 @@ import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 
 import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
-import { DesignTokens } from "@/constants/designTokens";
+import { DesignTokens } from "@/constants/theme";
 import { fetchWithAuthRetry, fetchTicketCountsSafe } from "@/lib/query-client";
 import { getEntryAppListPath } from "@/lib/api-endpoints";
 import { useAuth } from "@/contexts/AuthContext";

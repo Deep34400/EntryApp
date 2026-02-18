@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { getApiUrl, throwIfResNotOk, requestWithAuthRetry } from "@/services/apiClient";
+import { ENTRY_APP_COUNTS_PATH } from "@/lib/api-endpoints";
 
 export { getApiUrl, UNAUTHORIZED_MSG } from "@/services/apiClient";
 
@@ -39,6 +40,26 @@ export async function fetchWithAuthRetry(
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
   return fetch(url.toString(), { method: "GET", credentials: "omit" });
+}
+
+/** Fetch open/closed/delayed counts. On 401 tries refresh then retries. */
+export async function fetchTicketCountsSafe(
+  _hubId?: string,
+  accessToken?: string | null
+): Promise<{ open: number; closed: number; delayed: number }> {
+  try {
+    const res = await fetchWithAuthRetry(ENTRY_APP_COUNTS_PATH, accessToken);
+    if (!res.ok) return { open: 0, closed: 0, delayed: 0 };
+    const json = (await res.json()) as { success?: boolean; data?: { open?: number; closed?: number; delayed?: number } };
+    const data = json.data;
+    return {
+      open: Number(data?.open ?? 0) || 0,
+      closed: Number(data?.closed ?? 0) || 0,
+      delayed: Number(data?.delayed ?? 0) || 0,
+    };
+  } catch {
+    return { open: 0, closed: 0, delayed: 0 };
+  }
 }
 
 export const queryClient = new QueryClient({
