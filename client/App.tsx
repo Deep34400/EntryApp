@@ -1,6 +1,9 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
-import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
+import { StyleSheet } from "react-native";
+import {
+  NavigationContainer,
+  useNavigationContainerRef,
+} from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -16,6 +19,8 @@ import RootStackNavigator from "@/navigation/RootStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SessionExpiredHandler } from "@/components/SessionExpiredHandler";
 
+import type { RootStackParamList } from "@/navigation/RootStackNavigator";
+
 function StatusBarStyle() {
   const ctx = useThemeContext();
   const isDark = ctx?.colorScheme === "dark";
@@ -23,7 +28,8 @@ function StatusBarStyle() {
 }
 
 export default function App() {
-  const navigationRef = useNavigationContainerRef();
+  const navigationRef =
+    useNavigationContainerRef<RootStackParamList>();
 
   return (
     <ErrorBoundary>

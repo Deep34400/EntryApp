@@ -168,7 +168,7 @@ export default function VisitorPurposeScreen() {
 
   const displayName = (formData.name ?? "").trim() || (user?.name ?? "").trim() || "—";
   const displayPhone = (formData.phone ?? "").trim() || (user?.phone ?? "").trim() || "—";
-  const displayRole = "Guest";
+  const displayRole = isDp ? "Driver Partner" : "Staff";
 
   const getDisplayTitle = (item: string) => PURPOSE_DISPLAY_LABELS[item] ?? item;
 
@@ -356,7 +356,7 @@ export default function VisitorPurposeScreen() {
                         selectedCategoryTab !== "Settlement" && styles.tabButtonTextDefault,
                       ]}
                     >
-                      Settlement (DM)
+                      Settlement 
                     </ThemedText>
                   </Pressable>
                   <Pressable
@@ -378,7 +378,7 @@ export default function VisitorPurposeScreen() {
                         selectedCategoryTab !== "Maintenance" && styles.tabButtonTextDefault,
                       ]}
                     >
-                      Maintenance (FE)
+                      Maintenance
                     </ThemedText>
                   </Pressable>
                 </View>

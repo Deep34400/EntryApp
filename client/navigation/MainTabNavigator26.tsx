@@ -1,5 +1,6 @@
 import React from "react";
-import { createNativeBottomTabNavigator } from "@react-navigation/bottom-tabs/unstable";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 
 import HomeStackNavigator from "@/navigation/HomeStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
@@ -9,14 +10,16 @@ export type MainTabParamList = {
   ProfileTab: undefined;
 };
 
-const Tab = createNativeBottomTabNavigator<MainTabParamList>();
+const Tab = createBottomTabNavigator<MainTabParamList>();
 
-export default function MainTabNavigator26() {
+export default function MainTabNavigator() {
   return (
     <Tab.Navigator
       initialRouteName="HomeTab"
       screenOptions={{
         headerShown: false,
+        tabBarActiveTintColor: "#B31D38",
+        tabBarInactiveTintColor: "#77878E",
       }}
     >
       <Tab.Screen
@@ -24,12 +27,13 @@ export default function MainTabNavigator26() {
         component={HomeStackNavigator}
         options={{
           title: "Home",
-          icon: {
-            sfSymbolName: "house",
-          },
-          selectedIcon: {
-            sfSymbolName: "house.fill",
-          },
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? "home" : "home-outline"}
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -37,12 +41,13 @@ export default function MainTabNavigator26() {
         component={ProfileStackNavigator}
         options={{
           title: "Profile",
-          icon: {
-            sfSymbolName: "person",
-          },
-          selectedIcon: {
-            sfSymbolName: "person.fill",
-          },
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? "person" : "person-outline"}
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
     </Tab.Navigator>
