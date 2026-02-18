@@ -53,6 +53,15 @@ export const NON_DP_PURPOSES = [
   "Hub-Personal use",
 ] as const;
 
+/**
+ * Format purpose for display: "Category - SubCategory" (e.g. "Maintenance - Accident", "Settlement - Car Drop").
+ * For non-DP (no category) returns just the item.
+ */
+export function formatPurposeDisplay(category: string | null, subCategory: string): string {
+  if (category && subCategory) return `${category} - ${subCategory}`;
+  return subCategory;
+}
+
 /** Display labels for grid (API value → label shown). */
 export const PURPOSE_DISPLAY_LABELS: Record<string, string> = {
   "Self Recovery (QC)": "Self Recovery",

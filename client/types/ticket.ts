@@ -10,6 +10,10 @@ export interface TicketListItem {
   name?: string;
   purpose?: string;
   reason?: string;
+  /** Category e.g. Maintenance, Settlement, Onboarding (from backend). */
+  category?: string;
+  /** SubCategory e.g. Accident, DM collection (from backend). */
+  subCategory?: string;
   entry_time?: string;
   exit_time?: string;
   agent_name?: string;
@@ -30,12 +34,16 @@ export function normalizeTicketListItem(item: Record<string, unknown>): TicketLi
   const exitTime = item.exitTime ?? item.exit_time;
   const regNumber = item.regNumber ?? item.reg_number ?? item.vehicle;
   const type = item.type ?? item.entry_type;
+  const category = item.category ?? item.category_name;
+  const subCategory = item.subCategory ?? item.sub_category;
   return {
     id,
     token_no: String(tokenNo ?? ""),
     name: item.name != null ? String(item.name) : undefined,
     purpose: item.purpose != null ? String(item.purpose) : undefined,
     reason: item.reason != null ? String(item.reason) : undefined,
+    category: category != null ? String(category) : undefined,
+    subCategory: subCategory != null ? String(subCategory) : undefined,
     entry_time: entryTime != null ? String(entryTime) : undefined,
     exit_time: exitTime != null ? String(exitTime) : undefined,
     agent_name:

@@ -18,7 +18,7 @@ import * as Haptics from "expo-haptics";
 
 import { BackArrow } from "@/components/BackArrow";
 import { formatDateTime } from "@/lib/format";
-import { getWaitingMinutes } from "@/lib/ticket-utils";
+import { getWaitingMinutes, getCategoryLabel } from "@/lib/ticket-utils";
 import { fetchWithAuthRetry, apiRequestWithAuthRetry } from "@/lib/query-client";
 import { getEntryAppDetailPath, getEntryAppUpdatePath } from "@/lib/api-endpoints";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,6 +60,8 @@ export interface TicketDetailResult {
   assignee?: string;
   desk_location?: string;
   purpose?: string;
+  category?: string;
+  subCategory?: string;
   /** new_dp | old_dp | non_dp — for "Driver Partner" / "Staff" label */
   type?: string;
 }
@@ -85,6 +87,8 @@ async function fetchTicketDetail(
     const agentId = d.agentId ?? d.agent_id;
     const purpose = d.purpose != null ? String(d.purpose) : undefined;
     const type = d.type ?? d.entry_type;
+    const category = d.category ?? d.category_name;
+    const subCategory = d.subCategory ?? d.sub_category;
     return {
       id: String(d.id ?? ""),
       token_no: String(tokenNo ?? ""),
@@ -93,6 +97,8 @@ async function fetchTicketDetail(
       phone: d.phone != null ? String(d.phone) : undefined,
       reason: d.reason != null ? String(d.reason) : undefined,
       purpose: purpose != null ? String(purpose) : undefined,
+      category: category != null ? String(category) : undefined,
+      subCategory: subCategory != null ? String(subCategory) : undefined,
       agent_id: agentId != null ? String(agentId) : undefined,
       status: d.status != null ? String(d.status) : undefined,
       entry_time: entryTime != null ? String(entryTime) : undefined,
@@ -282,7 +288,7 @@ export default function TicketDetailScreen() {
           <View style={styles.divider} />
           <View style={styles.assignmentRow}>
             <Text style={styles.assignmentLabel}>Ticket</Text>
-            <Text style={styles.assignmentValue}>{ticket.purpose ?? "Settlement"}</Text>
+            <Text style={styles.assignmentValue}>{getCategoryLabel({ purpose: ticket.purpose, reason: ticket.reason, category: ticket.category, subCategory: ticket.subCategory }) || "—"}</Text>
           </View>
           <View style={styles.assignmentRow}>
             <Text style={styles.assignmentLabel}>Agent</Text>

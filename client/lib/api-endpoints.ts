@@ -29,7 +29,7 @@ export const APP_VERSION = 1;
 // All entry-app endpoints: create, list, counts, get by id, update/close.
 const ENTRY_APP_BASE = "/api/v1/entry-app";
 
-/** POST — Create entry. Body: { type, name, phone, assignee, reason, regNumber? }. assignee e.g. driver_manager/fleet_manager, reason e.g. "Settlement - Car Drop". */
+/** POST — Create entry. Body: { type, name, phone, assignee, category, subCategory, regNumber? }. No reason/purpose; display uses category + subCategory. */
 export const ENTRY_APP_CREATE_PATH = ENTRY_APP_BASE;
 
 /** GET — List by status. view=open|closed|delayed, limit=50, page=1 (1-based). Response: { data: { data: [], total, page, limit } }. */

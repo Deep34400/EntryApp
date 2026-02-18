@@ -10,8 +10,22 @@ import type { ScreenPaletteType } from "@/constants/screenPalette";
 export const WAITING_THRESHOLD_WARNING_MINS = 30;
 export const WAITING_THRESHOLD_OVERDUE_MINS = 120;
 
-/** Category line: "Reason • Purpose" or just one (e.g. "Accident • Maintenance"). */
-export function getCategoryLabel(item: TicketListItem): string {
+/** Minimal shape for purpose display (category + subCategory or reason/purpose). */
+export type PurposeDisplayItem = Pick<
+  TicketListItem,
+  "category" | "subCategory" | "reason" | "purpose"
+>;
+
+/**
+ * Display purpose as "Category - SubCategory" (e.g. "Maintenance - Accident", "Settlement - DM collection").
+ * Prefers category + subCategory from backend; falls back to reason then purpose.
+ */
+export function getCategoryLabel(item: PurposeDisplayItem | TicketListItem): string {
+  const category = (item.category ?? "").trim();
+  const subCategory = (item.subCategory ?? "").trim();
+  if (category && subCategory) return `${category} - ${subCategory}`;
+  if (category) return category;
+  if (subCategory) return subCategory;
   const reason = (item.reason ?? "").trim();
   const purpose = (item.purpose ?? "").trim();
   if (reason && purpose && reason !== purpose) return `${reason} • ${purpose}`;

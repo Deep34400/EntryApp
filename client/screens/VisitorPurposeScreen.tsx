@@ -48,6 +48,7 @@ import {
   NON_DP_PURPOSES,
   PURPOSE_DISPLAY_LABELS,
   PURPOSE_ICONS,
+  formatPurposeDisplay,
 } from "@/constants/entryPurpose";
 
 /** Screen-specific design tokens (purpose selection UI). */
@@ -185,12 +186,6 @@ export default function VisitorPurposeScreen() {
     else return ""; // non_dp
   };
 
-  /** reason: combined like "Maintenance - Accident", "Settlement - DM collection"; non_dp just the item */
-  const getReason = (categoryTitle: string | null, item: string): string => {
-    if (categoryTitle) return `${categoryTitle} - ${item}`;
-    return item;
-  };
-
   const { accessToken, clearAuth } = useAuth();
 
   const submitMutation = useMutation({
@@ -203,9 +198,7 @@ export default function VisitorPurposeScreen() {
     }) => {
       setSubmitError(null);
       const assignee = getPurpose(categoryTitle);
-      const reason = getReason(categoryTitle, item);
 
-      // Use form data as source of truth so edits after "Back" are sent; fall back to logged-in user only when form is empty
       let phone = (formData.phone ?? "").trim() || (user?.phone ?? "").trim();
       let name = (formData.name ?? "").trim() || (user?.name ?? "").trim();
 
@@ -217,16 +210,20 @@ export default function VisitorPurposeScreen() {
         throw new Error("Driver name is required.");
       }
 
+      const category = categoryTitle ?? "Staff";
+      const subCategory = item;
+
       const body: Record<string, string> = {
-        type: effectiveEntryType,
-        phone,
+        type: displayRole,
         name,
+        phone,
         assignee,
-        reason,
+        category,
+        subCategory,
       };
       if (effectiveEntryType === "old_dp") {
         const regNumber = (formData.vehicle_reg_number ?? "").trim();
-        if (regNumber) body.reg_number = regNumber;
+        if (regNumber) body.regNumber = regNumber;
       }
       const response = await apiRequestWithAuthRetry("POST", ENTRY_APP_CREATE_PATH, body, accessToken);
       return response.json();
@@ -238,7 +235,13 @@ export default function VisitorPurposeScreen() {
       const token = raw.tokenNo ?? raw.token_no ?? raw.token ?? raw.id ?? "";
       const assignee = raw.assignee ?? raw.assignee_name ?? raw.agent ?? "—";
       const desk_location = raw.deskLocation ?? raw.desk_location ?? raw.gate ?? raw.gate_name ?? "—";
-      const purpose = raw.reason ?? raw.purpose;
+      const cat = raw.category ?? raw.category_name;
+      const sub = raw.subCategory ?? raw.sub_category;
+      const purposeCombined =
+        cat != null && sub != null
+          ? formatPurposeDisplay(String(cat), String(sub))
+          : (raw.reason ?? raw.purpose);
+      const purpose = purposeCombined != null ? String(purposeCombined) : undefined;
       navigation.navigate("TokenDisplay", {
         token: String(token),
         assignee: String(assignee),
@@ -246,7 +249,7 @@ export default function VisitorPurposeScreen() {
         driverName: formData.name?.trim() || undefined,
         driverPhone: formData.phone?.trim() || undefined,
         entryType: effectiveEntryType,
-        purpose: purpose != null ? String(purpose) : undefined,
+        purpose,
       });
     },
     onError: (error: Error) => {
