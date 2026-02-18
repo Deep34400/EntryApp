@@ -8,9 +8,7 @@
     "scheme": "gateentry",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "sdkVersion",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.gateentry.app"
