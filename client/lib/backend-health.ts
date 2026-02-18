@@ -31,8 +31,11 @@ export async function checkBackendHealth(): Promise<BackendHealthResult> {
   } catch (e) {
     clearTimeout(timeoutId);
     const msg = e instanceof Error ? e.message : String(e);
-    if (msg === "AbortError" || /timeout|network|failed to fetch|econnreset/i.test(msg)) {
+    if (msg === "AbortError" || /timeout|econnreset/i.test(msg)) {
       return "server_unavailable";
+    }
+    if (/network request failed|failed to fetch|network error|not connected/i.test(msg)) {
+      return "offline";
     }
     return "server_unavailable";
   }

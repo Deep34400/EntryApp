@@ -8,6 +8,8 @@ type Props = {
   navigationRef: React.RefObject<NavigationContainerRef<ParamListBase> | null>;
 };
 
+const SESSION_EXPIRED_MSG = "Your session expired. Please request OTP again.";
+
 /** When sessionExpired is set (refresh failed or token version mismatch), reset stack to LoginOtp and clear flag. */
 export function SessionExpiredHandler({ navigationRef }: Props) {
   const auth = useAuth();
@@ -20,7 +22,7 @@ export function SessionExpiredHandler({ navigationRef }: Props) {
         nav.dispatch(
           CommonActions.reset({
             index: 0,
-            routes: [{ name: "LoginOtp" }],
+            routes: [{ name: "LoginOtp", params: { message: SESSION_EXPIRED_MSG } }],
           })
         );
         auth.clearSessionExpiredFlag();

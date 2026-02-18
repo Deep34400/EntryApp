@@ -61,7 +61,7 @@ export function isInvalidGuestSessionError(err: unknown): boolean {
   return false;
 }
 
-import { getApiUrl } from "./query-client";
+import { getApiUrl } from "@/api/requestClient";
 import {
   IDENTITY_PATH,
   LOGIN_OTP_PATH,

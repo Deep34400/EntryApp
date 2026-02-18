@@ -5,7 +5,7 @@
  * - On refresh failure: auth-bridge returns null; AuthContext clears state and sets sessionExpired → redirect to Login.
  */
 
-import { tryRefreshToken } from "@/lib/auth-bridge";
+import { tryRefreshToken, notifyUnauthorized } from "@/lib/auth-bridge";
 import { getHubId } from "@/lib/hub-bridge";
 import { parseApiErrorFromResponse } from "@/lib/api-error";
 import {
@@ -14,13 +14,14 @@ import {
   LOGIN_OTP_VERIFY_PATH,
   REFRESH_TOKEN_PATH,
 } from "@/lib/api-endpoints";
+import { isRefreshable401Code } from "@/lib/auth-error-codes";
 import {
   isServerUnavailableError,
   SERVER_UNAVAILABLE_MSG,
 } from "@/lib/server-unavailable";
 import { showServerUnavailable } from "@/lib/server-unavailable-bridge";
 
-/** Backend error code indicating access token expiry — only then we refresh. Do NOT refresh on 403, 500, 503, or generic 401. */
+/** Backend error code indicating access token expiry. Keep in sync with client/lib/auth-error-codes.ts REFRESH_ON_401_CODES. */
 export const ERROR_CODE_TOKEN_EXPIRED = "TOKEN_EXPIRED";
 
 /** Base URL from EXPO_PUBLIC_API_URL. */
@@ -52,7 +53,10 @@ function isAuthApi(route: string): boolean {
   );
 }
 
-/** Parse 401 response body: return true only when error indicates token expiry (so we may refresh). Do not refresh on other 401s. */
+/**
+ * Parse 401 response body: return true only when backend code is in REFRESH_ON_401_CODES (e.g. TOKEN_EXPIRED).
+ * To add more "refresh on this code" → edit client/lib/auth-error-codes.ts REFRESH_ON_401_CODES.
+ */
 export async function is401TokenExpired(res: Response): Promise<boolean> {
   try {
     const text = await res.clone().text();
@@ -61,9 +65,7 @@ export async function is401TokenExpired(res: Response): Promise<boolean> {
     const code =
       (typeof body.errorCode === "string" ? body.errorCode : null) ??
       (typeof body.code === "string" ? body.code : null);
-    if (code === ERROR_CODE_TOKEN_EXPIRED) return true;
-    if (typeof code === "string" && /token.?expired|access.?token.?expired/i.test(code)) return true;
-    return false;
+    return isRefreshable401Code(code);
   } catch {
     return false;
   }
@@ -106,7 +108,10 @@ export async function requestWithAuthRetry(
 
     const isGet = method.toUpperCase() === "GET";
     if (isGet) {
-      if (effectiveHubId) url.searchParams.set("hubId", effectiveHubId);
+      if (effectiveHubId) {
+        url.searchParams.set("hubId", effectiveHubId);
+        url.searchParams.set("hub_id", effectiveHubId);
+      }
       return fetch(url.toString(), {
         method,
         headers,
@@ -117,7 +122,10 @@ export async function requestWithAuthRetry(
     if (data != null && typeof data === "object" && !Array.isArray(data)) {
       headers["Content-Type"] = "application/json";
       const payload = { ...(data as Record<string, unknown>) };
-      if (effectiveHubId) payload.hubId = effectiveHubId;
+      if (effectiveHubId) {
+        payload.hubId = effectiveHubId;
+        payload.hub_id = effectiveHubId;
+      }
       return fetch(url.toString(), {
         method,
         headers,
@@ -127,11 +135,16 @@ export async function requestWithAuthRetry(
     }
 
     headers["Content-Type"] = "application/json";
-    const body = data != null ? JSON.stringify(data) : undefined;
+    const body =
+      data != null
+        ? JSON.stringify(data)
+        : effectiveHubId
+          ? JSON.stringify({ hubId: effectiveHubId, hub_id: effectiveHubId })
+          : undefined;
     return fetch(url.toString(), {
       method,
       headers,
-      body: body ?? (effectiveHubId ? JSON.stringify({ hubId: effectiveHubId }) : undefined),
+      body,
       credentials: "omit",
     });
   };
@@ -147,8 +160,10 @@ export async function requestWithAuthRetry(
     throw e;
   }
   if (res.status === 401) {
+    // Auth/OTP/identity/refresh APIs: never refresh, never retry. Fail-safe → logout.
     if (isAuthApi(route)) {
-      await throwIfResNotOk(res);
+      notifyUnauthorized();
+      throw new Error(UNAUTHORIZED_MSG);
     }
     const shouldRefresh = await is401TokenExpired(res);
     if (shouldRefresh) {
@@ -165,7 +180,9 @@ export async function requestWithAuthRetry(
         throw e;
       }
     }
+    // Generic 401 or retry still 401 → clear session and redirect to Login.
     if (res.status === 401) {
+      notifyUnauthorized();
       throw new Error(UNAUTHORIZED_MSG);
     }
   }

@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetchIdentity, refreshTokens, isTokenVersionMismatch, type VerifyOtpResponse } from "@/lib/auth-api";
-import { setRefreshHandler } from "@/lib/auth-bridge";
+import { setRefreshHandler, setOnUnauthorizedHandler } from "@/lib/auth-bridge";
 import { setHubId } from "@/lib/hub-bridge";
 
 const AUTH_STORAGE_KEY = "@entry_app_auth";
@@ -64,9 +64,11 @@ function extractSelectedHubId(user: NonNullable<VerifyOtpResponse["data"]>["user
   return null;
 }
 
-/** First allowed role in array (guard or hm); used globally for navigation. */
+/** First allowed role in array (guard or hm/hub_manager); used globally for navigation. "hm" normalized to hub_manager. */
 function getAllowedRole(roles: string[]): AllowedRole | null {
   for (const r of roles) {
+    if (r === "guard") return "guard";
+    if (r === "hub_manager" || r === "hm") return "hub_manager";
     if (ALLOWED_ROLES.includes(r as AllowedRole)) return r as AllowedRole;
   }
   return null;
@@ -196,17 +198,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           selectedHubId: stored.selectedHubId,
         });
         return tokens.accessToken;
-      } catch (e) {
-        const statusCode = (e as { statusCode?: number }).statusCode;
-        if (statusCode === 401 || isTokenVersionMismatch(e)) {
-          setHubId(null);
-          setAuthError("Your session expired. Please sign in again.");
-          setSessionExpired(true);
-          setIsGuestReady(false);
-          persist(clearedStored(stored.identityId));
-          return null;
-        }
-        throw e;
+      } catch (_e) {
+        // Any refresh failure → logout immediately. No retry, no second attempt.
+        // Covers: 401, token version mismatch, timeout, network error, invalid response.
+        setHubId(null);
+        setAuthError("Your session expired. Please sign in again.");
+        setSessionExpired(true);
+        setIsGuestReady(false);
+        persist(clearedStored(stored.identityId));
+        return null;
       } finally {
         refreshInFlightRef.current = null;
       }
@@ -219,6 +219,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setRefreshHandler(refreshAccessToken);
     return () => setRefreshHandler(null);
   }, [refreshAccessToken]);
+
+  /** When requestClient gets 401 Unauthorized (generic or after failed refresh), clear session and set sessionExpired so app redirects to Login. */
+  const handleUnauthorized = useCallback(() => {
+    setHubId(null);
+    setAuthError("Your session expired. Please sign in again.");
+    setSessionExpired(true);
+    setIsGuestReady(false);
+    persist(clearedStored(stored.identityId));
+  }, [stored.identityId, persist]);
+
+  useEffect(() => {
+    setOnUnauthorizedHandler(handleUnauthorized);
+    return () => setOnUnauthorizedHandler(null);
+  }, [handleUnauthorized]);
 
   /** When no tokens (after logout/session expired or fresh install): fetch new guestToken. Single place for "get first guest" so no duplicate identity calls. */
   useEffect(() => {
@@ -365,6 +379,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [stored, persist],
   );
 
+  /** Logout: clear all tokens (guest, access, refresh), user, role, hub. Resets to login; Identity will be called for new guest token. */
   const logout = useCallback(() => {
     setHubId(null);
     setIsGuestReady(false);

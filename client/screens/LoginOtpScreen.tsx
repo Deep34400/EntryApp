@@ -21,6 +21,7 @@ import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/ThemedText";
 import { BackArrow } from "@/components/BackArrow";
 import { Button } from "@/components/Button";
+import { SessionExpiredScreen } from "@/components/SessionExpiredScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { DesignTokens } from "@/constants/designTokens";
@@ -67,6 +68,7 @@ export default function LoginOtpScreen() {
   const [error, setError] = useState<string | null>(null);
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [retryingGuest, setRetryingGuest] = useState(false);
 
   const { width: screenWidth } = useWindowDimensions();
 
@@ -232,14 +234,28 @@ export default function LoginOtpScreen() {
     );
   }
 
-  if (auth.authError) {
+  // Show polished Session Expired screen whenever we have a session-expired message
+  // (from refresh fail = authError, or from OTP fail = route.params.message). Never show
+  // the login form with the error in a grey box — always this screen, then clean form after "Sign in again".
+  const sessionExpiredMessageFromRoute = route.params?.message ?? null;
+  const showSessionExpiredScreen = !!(auth.authError || sessionExpiredMessageFromRoute);
+
+  if (showSessionExpiredScreen) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.backgroundRoot }]}>
-        <ThemedText type="body" numberOfLines={3} style={{ color: theme.error, marginBottom: Spacing.lg, textAlign: "center" }}>
-          {auth.authError}
-        </ThemedText>
-        <Button onPress={() => auth.ensureGuestToken()}>Retry</Button>
-      </View>
+      <SessionExpiredScreen
+        message={auth.authError || sessionExpiredMessageFromRoute || undefined}
+        isLoading={retryingGuest}
+        onSignInAgain={async () => {
+          setRetryingGuest(true);
+          try {
+            await auth.ensureGuestToken();
+            // Clear route params so when we show the login form it has no error banner
+            navigation.replace("LoginOtp");
+          } finally {
+            setRetryingGuest(false);
+          }
+        }}
+      />
     );
   }
 

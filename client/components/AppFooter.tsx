@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useAuth } from "@/contexts/AuthContext";
+import { canAccessScreen } from "@/permissions/rolePermissions";
 
 export type AppFooterTab = "Entry" | "Ticket" | "Account";
 
@@ -23,15 +25,22 @@ const LINE_HEIGHT = 18;
 const COLOR_ACTIVE = "#B31D38";
 const COLOR_INACTIVE = "#8A8A8A";
 
-const TABS: { id: AppFooterTab; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
-  { id: "Entry", label: "Entry", icon: "local-parking" },
-  { id: "Ticket", label: "Ticket", icon: "confirmation-number" },
-  { id: "Account", label: "Account", icon: "account-circle" },
+const ALL_TABS: { id: AppFooterTab; label: string; icon: keyof typeof MaterialIcons.glyphMap; screen: keyof RootStackParamList }[] = [
+  { id: "Entry", label: "Entry", icon: "local-parking", screen: "VisitorType" },
+  { id: "Ticket", label: "Ticket", icon: "confirmation-number", screen: "TicketList" },
+  { id: "Account", label: "Account", icon: "account-circle", screen: "Profile" },
 ];
 
 export function AppFooter({ activeTab }: AppFooterProps) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { allowedRole } = useAuth();
+
+  /** Only show tabs for screens the current role can access (same source as root navigator). */
+  const visibleTabs = useMemo(
+    () => ALL_TABS.filter((tab) => canAccessScreen(tab.screen, allowedRole)),
+    [allowedRole],
+  );
 
   const handleTabPress = (tab: AppFooterTab) => {
     switch (tab) {
@@ -52,7 +61,7 @@ export function AppFooter({ activeTab }: AppFooterProps) {
   return (
     <View style={[styles.footer, { paddingBottom: bottomInset }]}>
       <View style={styles.tabRow}>
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const color = isActive ? COLOR_ACTIVE : COLOR_INACTIVE;
           const fontWeight = isActive ? "600" : "500";

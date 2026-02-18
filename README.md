@@ -33,19 +33,14 @@ The guard App is a mobile application that lets authorized staff:
 
 ### When the app starts
 
-1. App loads → **BackendGate** runs.
-2. BackendGate checks **internet** and **backend health** (e.g. GET base URL).
-3. If **offline** → show **Global Offline** screen (Retry).
-4. If **503** → show **Maintenance** screen (Retry).
-5. If **500 / timeout** → show **Server error** screen (Retry).
-6. Only when the check passes → render **navigation** (login or main app).
+1. App loads and renders **navigation** (login or main app) immediately.
+2. **No** backend health check is run on startup (no extra API call). The backend is only called when the user performs an action (e.g. Identity, Send OTP, list tickets).
 
 ### Before login
 
 1. **Auth state** is restored from storage (AsyncStorage).
 2. If there are **no access/refresh tokens** and **no guest token** → app calls **Identity API** to get a **new guest token** and stores it.
-3. When **guest token is ready** (and backend gate passed) → **Login screen** is shown.
-4. **Login screen is not shown** until both backend is reachable and guest token is ready.
+3. When **guest token is ready** → **Login screen** is shown.
 
 ### During login
 
@@ -61,13 +56,11 @@ The guard App is a mobile application that lets authorized staff:
    - No allowed role (guard/hm) → **NoRoleBlock** screen (Access denied; Logout).
    - Allowed role but **no hub** → **NoHubBlock** screen (“No hub is assigned…”; Logout).
    - Allowed role **and** hub → continue to main app.
-2. Main app opens at **VisitorType** (home). guard and HM currently share the same main stack; navigation is decided **once at root**, not per screen.
+2. Main app opens at **VisitorType** (home). **Only screens allowed for the user’s role are registered** in the root stack (guard vs HM have different screen sets); navigation enforces access by **which screens exist**, not by checks inside screens.
 
 ---
 
-## 3. App Start & Backend Gate
-
-### Why a gate?
+## 3. App Start (No Health Check)
 
 The app **must not** show the login screen until it knows the backend is reachable. Otherwise the user would tap “Send OTP” and see network errors with no clear path.
 
@@ -124,9 +117,9 @@ The app **must not** show the login screen until it knows the backend is reachab
 **What the app does with this data**
 
 - Stores **accessToken** and **refreshToken** (and user).
-- Extracts **roles** from `user.roles[].name` or `user.userRoles[].role.name` (normalized to lowercase).
+- Extracts **roles** from `user.roles[].name` or `user.userRoles[].role.name` (normalized to lowercase; **hm** is treated as **hub_manager**).
 - Picks **hub** from `user.hubs[0]` or `user.userHubs[0]` and stores it as **selectedHubId**.
-- Uses **roles** and **hub** for root-level navigation (allow/block, NoRoleBlock, NoHubBlock, or main app).
+- Uses **roles** and **hub** for root-level navigation (allow/block, NoRoleBlock, NoHubBlock, or main app) and for **which screens are registered** (see Role handling).
 
 ---
 
@@ -137,7 +130,7 @@ The app **must not** show the login screen until it knows the backend is reachab
 - **Purpose:** Authorizes **all** authenticated API calls (entry, tickets, counts, etc.).
 - **Lifetime:** Short-lived (e.g. ~2 hours; defined by backend).
 - **Storage:** In memory and in AsyncStorage under a single auth key.
-- **Usage:** Sent as `Authorization: Bearer <accessToken>` on every authenticated request. **x-hub-id** is also sent when a hub is set.
+- **Usage:** Sent as `Authorization: Bearer <accessToken>` on every authenticated request. **Hub** is sent when set: in request payload/query as **hubId** and **hub_id** (and optionally in headers as **x-hub-id** if the client is configured for it).
 
 ### Refresh token
 
@@ -153,9 +146,9 @@ The app **must not** show the login screen until it knows the backend is reachab
 
 ### How tokens are attached to APIs
 
-- **Authenticated requests** go through a central client that:
+- **Authenticated requests** go through a central client (`client/api/requestClient.ts`) that:
   - Adds `Authorization: Bearer <accessToken>`.
-  - Adds `x-hub-id: <selectedHubId>` when hub is set (from a global hub bridge).
+  - Injects **selectedHubId** into every request: for GET as query params **hubId** and **hub_id**; for POST/PUT/PATCH as body fields **hubId** and **hub_id** (from the global hub bridge).
 - **OTP/Identity/Refresh** endpoints are **not** sent through this client’s retry/refresh logic; they use direct calls and **never** trigger access-token refresh.
 
 ### Refresh logic
@@ -218,32 +211,46 @@ Then: the app runs **one** refresh (single-flight: concurrent 401s share the sam
 
 ---
 
-## 7. Role Handling (Array Based)
+## 7. Role Handling (Single Source of Truth)
 
 ### How roles are received
 
 - After **Verify OTP**, the backend returns a **user** object. Roles can be:
   - `user.roles[]` — array of objects with a **name** (e.g. `{ name: "guard" }`).
   - Or `user.userRoles[]` — array of objects with `role.name` (e.g. `{ role: { name: "hm" } }`).
-- The app **normalizes** all role names to **lowercase** and treats them as a single list.
+- The app **normalizes** all role names to **lowercase** and treats **hm** as **hub_manager** for internal use. Access is allowed if **any** role is **guard** or **hub_manager** (or **hm**).
 
-### Why roles are arrays
+### Single permission map
 
-- A user may have multiple roles. The app allows access if **any** role in the list is allowed (guard or hm).
+- **All** role behavior is defined in one place: **`client/permissions/rolePermissions.ts`**.
+- This file defines:
+  - **Which screens are visible per role** — guard gets EntryForm, VisitorPurpose, TokenDisplay, ExitConfirmation, TicketList, TicketDetail, Profile; HM gets only VisitorType, TicketList, TicketDetail, Profile (no entry creation, token display, or exit confirmation).
+  - **Which actions are allowed per role** — e.g. create entry, close ticket, verify token, gate operations (guard only); view tickets (guard + HM).
+- **No** role checks are done inside screens or API calls; the permission map is the **only** source of truth. Screens use the **`usePermissions()`** hook (from `client/permissions/usePermissions.ts`) only to show/hide or enable/disable **actions** (e.g. “Close Ticket” button, “Create Entry” form).
 
-### Allowed roles
+### Navigation enforcement (root level)
 
-- **guard** — Gate operations, entry/exit, token display, tickets, guard-oriented screens.
-- **hm** — Hub Manager; monitoring, approval, HM-oriented screens (same stack in current implementation; can be split later).
+- The **root navigator** (`RootStackNavigator`) reads **allowedRole** from **AuthContext** and calls **`getScreensForRole(allowedRole)`**.
+- **Only** the screens returned for that role are **registered** in the stack. Screens not allowed for the role are **not** registered and are **not reachable** (including via deep links).
+- So: **guard** can reach EntryForm, VisitorPurpose, TokenDisplay, ExitConfirmation, TicketList, TicketDetail, Profile; **HM** cannot reach EntryForm, VisitorPurpose, TokenDisplay, ExitConfirmation — they simply do not exist in the navigator for HM.
+
+### Guard vs HM behavior
+
+| Capability        | Guard | HM |
+| ----------------- | ----- | --- |
+| Create entry      | Yes   | No |
+| Token display     | Yes   | No |
+| Close ticket      | Yes   | No |
+| Gate operations   | Yes   | No |
+| View tickets      | Yes   | Yes |
+| View reports      | Yes   | Yes |
+| Profile           | Yes   | Yes |
+
+- HM never sees guard-only screens; the entry-creation form and “Close Ticket” button are hidden or disabled using the same permission map (action-level).
 
 ### If a different role is returned
 
-- If **no** role in the array is **guard** or **hm**, the user is **not** allowed. The app shows **NoRoleBlock** (“Access denied”; Logout). They cannot reach the main app.
-
-### Where the decision is made
-
-- **Root level only:** After OTP verify (and on app restore when user is already logged in), the app checks the stored roles **once** and decides: NoRoleBlock, NoHubBlock, or main app.
-- **Screen-level role checks are avoided** so that all “can this user be here?” logic stays in one place and does not scatter across screens.
+- If **no** role in the array is **guard** or **hm** / **hub_manager**, the user is **not** allowed. The app shows **NoRoleBlock** (“Access denied”; Logout). They cannot reach the main app.
 
 ---
 
@@ -271,10 +278,11 @@ Then: the app runs **one** refresh (single-flight: concurrent 401s share the sam
 
 ### How hub is attached to APIs
 
-- **selectedHubId** is stored in app state and also in a small **hub bridge** (global getter/setter) so non-React code can read it.
-- Every **authenticated** API request that goes through the central client adds the header:  
-  **x-hub-id: &lt;selectedHubId&gt;**  
-  when a hub is set. This scopes all requests to that hub.
+- **selectedHubId** is stored in app state and in a small **hub bridge** (`client/lib/hub-bridge.ts`) so the API client can read it.
+- Every **authenticated** request through the central client (`client/api/requestClient.ts`) injects **selectedHubId**:
+  - **GET:** as query parameters **hubId** and **hub_id**.
+  - **POST / PUT / PATCH:** as body fields **hubId** and **hub_id** (in addition to any other body data).
+- This scopes all requests to that hub. If no hub is assigned, the user is blocked by **NoHubBlock** and cannot use the app until a hub is assigned.
 
 ---
 
@@ -286,26 +294,31 @@ Then: the app runs **one** refresh (single-flight: concurrent 401s share the sam
   - Not authenticated → **Login** (LoginOtp).
   - Authenticated but **no** allowed role → **NoRoleBlock**.
   - Authenticated, allowed role, but **no** hub → **NoHubBlock**.
-  - Authenticated, allowed role, **and** hub → **Main app** (e.g. VisitorType as home).
+  - Authenticated, allowed role, **and** hub → **Main app** (VisitorType as home).
 
-### guard vs HM
+### Role-based screen registration
 
-- Both **guard** and **hm** are allowed into the **same** main stack in the current implementation (VisitorType, EntryForm, TokenDisplay, TicketList, etc.). The difference is “allowed vs not allowed”; HM-specific screens or tabs can be added later with the same root-level decision.
+- The **root stack** registers **only** the screens returned by **`getScreensForRole(allowedRole)`** from `client/permissions/rolePermissions.ts`.
+- **Guard** sees: LoginOtp, OTPVerification, NoRoleBlock, NoHubBlock, VisitorType, EntryForm, VisitorPurpose, TokenDisplay, ExitConfirmation, TicketList, TicketDetail, Profile.
+- **HM** sees: LoginOtp, OTPVerification, NoRoleBlock, NoHubBlock, VisitorType, TicketList, TicketDetail, Profile. EntryForm, VisitorPurpose, TokenDisplay, and ExitConfirmation are **not registered** for HM, so they are not reachable (even via deep links).
+- Access is enforced **by which screens exist** in the navigator, not by conditions inside screens.
+
+### Action-level permissions (UI)
+
+- For destructive or operational actions (e.g. Create Entry, Close Ticket), the UI uses **`usePermissions()`** so that:
+  - Buttons or forms are **hidden or disabled** when the role does not allow the action.
+  - The same permission map drives both navigation and UI; no scattered `if (role === 'guard')` in screens.
 
 ### Block screens
 
 - **NoRoleBlock** — “Access denied. Your account does not have permission to use this app.” Single action: **Logout** → Login screen.
 - **NoHubBlock** — “No hub is assigned to your account. Please contact support.” Single action: **Logout** → Login screen.
 
-### Why screen-level role checks are avoided
-
-- Role (and hub) are enforced **once** at the root. Screens do **not** re-check “am I guard?” or “am I HM?” for access. This keeps behavior consistent, avoids duplication, and prevents mistakes where a new screen forgets to check.
-
 ---
 
 ## 10. Offline & Backend Error Screens
 
-- **Offline** — No (or lost) internet. Shown by the **BackendGate** or equivalent when the health check fails due to network. Message: you’re offline; check connection; **Retry**.
+- **Offline** — No (or lost) internet. Shown when an API fails due to network (no dedicated health check). Message: you’re offline; check connection; **Retry**.
 - **Maintenance (503)** — Backend returns 503. Shown by the gate. Message: under maintenance; try again later; **Retry**.
 - **Server error (500 / timeout)** — Backend error or timeout. Message: something went wrong; **Retry**.
 
@@ -348,12 +361,11 @@ Then: the app runs **one** refresh (single-flight: concurrent 401s share the sam
 
 | Scenario                       | What happens                                                                                                                                                                                         |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **First time login**           | BackendGate passes → Login → user enters phone → Send OTP (guest token) → user enters OTP → Verify OTP → tokens + user + roles + hub stored → root checks role/hub → main app or NoRole/NoHub block. |
+| **First time login**           | App loads → Login (when guest token ready) → user enters phone → Send OTP (guest token) → user enters OTP → Verify OTP → tokens + user + roles + hub stored → root checks role/hub → main app or NoRole/NoHub block. |
 | **Access token expired**       | Next API call returns 401 with TOKEN_EXPIRED → app refreshes once → retries request with new token. If retry succeeds, user continues; if not, session expired → logout → Login.                     |
 | **Refresh token expired**      | Refresh call fails → app clears storage, sets session expired → redirect to Login → Identity fetches new guest token → user logs in again with OTP.                                                  |
 | **OTP verify failed**          | Logout → clear all tokens/role/hub → Identity fetches new guest token → redirect to Login with “Your session expired. Please request OTP again.” User requests a new OTP.                            |
-| **Backend down**               | BackendGate fails (e.g. 503 or network) → Offline or Maintenance screen → Login not shown until user taps Retry and check passes.                                                                    |
-| **Internet lost**              | BackendGate or later request fails with network error → Offline screen (or similar) → Retry when back online.                                                                                        |
+| **Backend down / network error** | Any API call can fail → Server Unavailable overlay may show → user taps Retry to dismiss and try again. No health check on startup. |
 | **User with unsupported role** | After verify, role list has no “guard” or “hm” → NoRoleBlock → “Access denied” → user can only Logout.                                                                                               |
 
 ---
@@ -365,14 +377,26 @@ Then: the app runs **one** refresh (single-flight: concurrent 401s share the sam
 - **Security first:** Guest token only for OTP; access token for APIs; refresh only for token refresh endpoint; OTP/login excluded from refresh/retry.
 - **Clear UX:** One message per situation (offline, maintenance, session expired); one primary action (Retry or Logout); no raw backend errors.
 - **Minimal assumptions:** Behavior is driven by backend (roles, hubs, error codes like TOKEN_EXPIRED); app only interprets and enforces rules (e.g. allowed roles, one hub at index 0).
+- **Single source of truth:** Role behavior lives in one permission map; navigation and UI actions both use it. No scattered role checks.
 
 ---
 
-## 14. Quick Summary (TL;DR)
+## 14. Project Structure (Key Folders)
+
+- **`client/permissions/`** — Single source of truth for role-based screens and actions. `rolePermissions.ts` defines which screens and actions each role has; `usePermissions.ts` is the hook used in screens for action-level checks (e.g. show/hide Close Ticket).
+- **`client/contexts/AuthContext.tsx`** — Auth state, tokens, **allowedRole**, **selectedHubId**, logout, OTP/refresh handling.
+- **`client/api/requestClient.ts`** — Central API client: auth retry (401 + TOKEN_EXPIRED), hub injection (hubId + hub_id), exclusion of OTP/identity/refresh from refresh logic.
+- **`client/navigation/RootStackNavigator.tsx`** — Root stack; registers only screens from **getScreensForRole(allowedRole)**. No role logic inside screens.
+- **`client/components/GlobalErrorScreen.tsx`** — Reusable screen for offline, maintenance, server error; user-driven Retry only.
+- **No BackendGate** — App does not run a health check on startup; backend is only called when the user performs an action.
+
+---
+
+## 15. Quick Summary (TL;DR)
 
 **Login flow**
 
-- BackendGate → backend reachable and guest token ready → Login screen.
+- Guest token ready → Login screen (no backend health check).
 - Send OTP (guest token) → Verify OTP (guest token) → store access + refresh + user + roles + hub → root decides: NoRole / NoHub block or main app.
 
 **Token handling**
@@ -383,17 +407,17 @@ Then: the app runs **one** refresh (single-flight: concurrent 401s share the sam
 
 **Role handling**
 
-- Roles from user (array); normalized lowercase; **guard** or **hm** → allowed; else NoRoleBlock. Decided at root only.
+- Roles from user (array); normalized lowercase; **guard** or **hm** / **hub_manager** → allowed; else NoRoleBlock. **Single permission map** (`client/permissions/rolePermissions.ts`) defines which screens and actions each role gets. Root navigator registers **only** allowed screens; no role checks inside screens.
 
 **Hub handling**
 
-- Hub from user (array); **index 0** → selectedHubId; sent as **x-hub-id** on APIs; no hub → NoHubBlock.
+- Hub from user (array); **index 0** → selectedHubId; injected into all authenticated requests as **hubId** and **hub_id** (query params for GET, body for POST/PUT/PATCH); no hub → NoHubBlock.
 
 **Error handling**
 
 - OTP/login error → logout + new guest token + Login with “session expired. Request OTP again.” No retry/refresh on OTP.
 - Refresh failure → logout + new guest token + Login.
-- Offline / 503 / 500 → global screens with Retry; no login until gate passes. Raw backend errors are not shown.
+- Offline / 503 / 500 → global Server Unavailable overlay; Retry dismisses it (no extra health-check call). Raw backend errors are not shown.
 
 ---
 

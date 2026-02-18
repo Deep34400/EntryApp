@@ -18,7 +18,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import RootStackNavigator from "@/navigation/RootStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SessionExpiredHandler } from "@/components/SessionExpiredHandler";
-import { BackendGate } from "@/components/BackendGate";
 import { ServerUnavailableProvider } from "@/contexts/ServerUnavailableContext";
 
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -43,13 +42,11 @@ export default function App() {
               <SafeAreaProvider>
                 <GestureHandlerRootView style={styles.root}>
                   <KeyboardProvider>
-                    <BackendGate>
-                      <ServerUnavailableProvider>
-                        <NavigationContainer ref={navigationRef}>
-                          <RootStackNavigator />
-                        </NavigationContainer>
-                      </ServerUnavailableProvider>
-                    </BackendGate>
+                    <ServerUnavailableProvider>
+                      <NavigationContainer ref={navigationRef}>
+                        <RootStackNavigator />
+                      </NavigationContainer>
+                    </ServerUnavailableProvider>
                     <StatusBarStyle />
                   </KeyboardProvider>
                 </GestureHandlerRootView>

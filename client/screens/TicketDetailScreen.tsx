@@ -24,6 +24,7 @@ import { getEntryAppDetailPath, getEntryAppUpdatePath } from "@/lib/api-endpoint
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { getEntryTypeDisplayLabel } from "@/utils/entryType";
+import { usePermissions } from "@/permissions/usePermissions";
 
 const FONT_POPPINS = "Poppins";
 
@@ -135,6 +136,7 @@ export default function TicketDetailScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const auth = useAuth();
+  const { canCloseTicket } = usePermissions();
 
   const {
     data: ticket,
@@ -311,7 +313,7 @@ export default function TicketDetailScreen() {
         </View>
       </ScrollView>
 
-      {!closed && (
+      {!closed && canCloseTicket && (
         <View style={[styles.closeButtonWrap, { paddingBottom: insets.bottom + 24 }]}>
           <Pressable
             onPress={handleCloseTicket}

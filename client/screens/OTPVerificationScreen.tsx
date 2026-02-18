@@ -25,7 +25,7 @@ import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { sendOtp, verifyOtp } from "@/lib/auth-api";
 
-const OTP_SESSION_EXPIRED_MSG = "Your session expired.\nPlease request OTP again.";
+const OTP_SESSION_EXPIRED_MSG = "Your session expired. Please request OTP again.";
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SEC = 30;

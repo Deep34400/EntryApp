@@ -35,6 +35,7 @@ import {
   isPhoneValid,
   PHONE_MAX_DIGITS,
 } from "@/utils/validation";
+import { usePermissions } from "@/permissions/usePermissions";
 
 const FONT_POPPINS = "Poppins";
 
@@ -151,6 +152,7 @@ function SegmentedToggle({
 export default function VisitorTypeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
+  const { canCreateEntry } = usePermissions();
   const [activeTab, setActiveTab] = useState<TabId>("driver_partner");
   const [formData, setFormData] = useState<EntryFormData>({
     phone: "",
@@ -220,81 +222,91 @@ export default function VisitorTypeScreen() {
           {/* Title */}
           <Text style={styles.title}>Create Visitor Entry</Text>
 
-          {/* Segmented Toggle */}
-          <View style={styles.toggleWrap}>
-            <SegmentedToggle value={activeTab} onChange={setActiveTab} />
-          </View>
-
-          {/* Form */}
-          <View style={styles.formSection}>
-            {/* Phone Number */}
-            <View style={styles.field}>
-              <Text style={styles.label}>Phone Number</Text>
-              <View style={styles.inputBox}>
-                <Text style={styles.prefix}>+91</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder=""
-                  placeholderTextColor={PREFIX_MUTED}
-                  keyboardType="phone-pad"
-                  value={formData.phone}
-                  onChangeText={(v) => updateField("phone", v)}
-                  maxLength={PHONE_MAX_DIGITS}
-                />
+          {canCreateEntry ? (
+            <>
+              {/* Segmented Toggle */}
+              <View style={styles.toggleWrap}>
+                <SegmentedToggle value={activeTab} onChange={setActiveTab} />
               </View>
-            </View>
 
-            <View style={{ height: FIELD_GAP }} />
+              {/* Form */}
+              <View style={styles.formSection}>
+                {/* Phone Number */}
+                <View style={styles.field}>
+                  <Text style={styles.label}>Phone Number</Text>
+                  <View style={styles.inputBox}>
+                    <Text style={styles.prefix}>+91</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder=""
+                      placeholderTextColor={PREFIX_MUTED}
+                      keyboardType="phone-pad"
+                      value={formData.phone}
+                      onChangeText={(v) => updateField("phone", v)}
+                      maxLength={PHONE_MAX_DIGITS}
+                    />
+                  </View>
+                </View>
 
-            {/* Name */}
-            <View style={styles.field}>
-              <Text style={styles.label}>Name</Text>
-              <TextInput
-                style={styles.inputBoxSingle}
-                placeholder="Enter name"
-                placeholderTextColor={PREFIX_MUTED}
-                value={formData.name}
-                onChangeText={(v) => updateField("name", v)}
-              />
-            </View>
+                <View style={{ height: FIELD_GAP }} />
 
-            <View style={{ height: FIELD_GAP }} />
+                {/* Name */}
+                <View style={styles.field}>
+                  <Text style={styles.label}>Name</Text>
+                  <TextInput
+                    style={styles.inputBoxSingle}
+                    placeholder="Enter name"
+                    placeholderTextColor={PREFIX_MUTED}
+                    value={formData.name}
+                    onChangeText={(v) => updateField("name", v)}
+                  />
+                </View>
 
-            {/* Vehicle Number (optional) */}
-            <View style={styles.field}>
-              <Text style={styles.label}>Vehicle Number (optional)</Text>
-              <TextInput
-                style={styles.inputBoxSingle}
-                placeholder="e.g. HR55AB3849"
-                placeholderTextColor={PREFIX_MUTED}
-                value={formData.vehicle_reg_number ?? ""}
-                onChangeText={(v) => updateField("vehicle_reg_number", v)}
-                autoCapitalize="characters"
-              />
-            </View>
+                <View style={{ height: FIELD_GAP }} />
 
-            <View style={{ height: FIELD_GAP + 8 }} />
+                {/* Vehicle Number (optional) */}
+                <View style={styles.field}>
+                  <Text style={styles.label}>Vehicle Number (optional)</Text>
+                  <TextInput
+                    style={styles.inputBoxSingle}
+                    placeholder="e.g. HR55AB3849"
+                    placeholderTextColor={PREFIX_MUTED}
+                    value={formData.vehicle_reg_number ?? ""}
+                    onChangeText={(v) => updateField("vehicle_reg_number", v)}
+                    autoCapitalize="characters"
+                  />
+                </View>
 
-            {/* Next CTA */}
-            <Pressable
-              onPress={handleNext}
-              disabled={!isFormValid}
-              style={({ pressed }) => [
-                styles.nextButton,
-                !isFormValid && styles.nextButtonDisabled,
-                pressed && isFormValid && styles.nextButtonPressed,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.nextButtonText,
-                  !isFormValid && styles.nextButtonTextDisabled,
-                ]}
-              >
-                Next
+                <View style={{ height: FIELD_GAP + 8 }} />
+
+                {/* Next CTA */}
+                <Pressable
+                  onPress={handleNext}
+                  disabled={!isFormValid}
+                  style={({ pressed }) => [
+                    styles.nextButton,
+                    !isFormValid && styles.nextButtonDisabled,
+                    pressed && isFormValid && styles.nextButtonPressed,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.nextButtonText,
+                      !isFormValid && styles.nextButtonTextDisabled,
+                    ]}
+                  >
+                    Next
+                  </Text>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <View style={styles.formSection}>
+              <Text style={styles.hmHint}>
+                Use the menu below to view tickets or open your profile.
               </Text>
-            </Pressable>
-          </View>
+            </View>
+          )}
         </ScrollView>
 
         <AppFooter activeTab="Entry" />
@@ -386,6 +398,13 @@ const styles = StyleSheet.create({
   },
   formSection: {
     paddingHorizontal: 0,
+  },
+  hmHint: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 15,
+    color: TOGGLE_INACTIVE_COLOR,
+    textAlign: "center",
+    paddingVertical: 24,
   },
   field: {
     gap: 8,
