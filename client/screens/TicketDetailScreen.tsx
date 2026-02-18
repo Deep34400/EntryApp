@@ -44,6 +44,7 @@ const CLOSE_BUTTON_RADIUS = 22;
 
 type TicketDetailRouteProp = RouteProp<RootStackParamList, "TicketDetail">;
 
+
 export interface TicketDetailResult {
   id: string;
   token_no: string;
@@ -62,7 +63,7 @@ export interface TicketDetailResult {
   purpose?: string;
   category?: string;
   subCategory?: string;
-  /** new_dp | old_dp | non_dp — for "Driver Partner" / "Staff" label */
+  /** From GET API (type or entry_type): new_dp | old_dp | non_dp — display as "Driver Partner" / "Staff" */
   type?: string;
 }
 
@@ -125,6 +126,8 @@ function formatWaitingHoursDecimal(entryTime?: string | null): string {
   return hours >= 1 ? (Math.round(hours * 10) / 10).toFixed(1) : "0";
 }
 
+
+
 export default function TicketDetailScreen() {
   const route = useRoute<TicketDetailRouteProp>();
   const navigation = useNavigation();
@@ -172,6 +175,9 @@ export default function TicketDetailScreen() {
 
   const closed = ticket ? isClosed(ticket.status) : false;
   const waitingHours = formatWaitingHoursDecimal(ticket?.entry_time);
+  
+  const isStaff = getEntryTypeDisplayLabel(ticket?.type) === "Staff";
+  
 
   const handleCall = () => {
     if (!ticket?.phone?.trim()) return;
@@ -247,7 +253,7 @@ export default function TicketDetailScreen() {
           </View>
           <View style={styles.divider} />
           <View style={styles.entryTimeRow}>
-            <Text style={styles.entryTimeLabel}>Entry Time</Text>
+            <Text style={styles.entryTimeLabel}>{isStaff ? "Out Time" : "Entry Time"}</Text>
             <Text style={styles.entryTimeValue}>{formatDateTime(ticket.entry_time)}</Text>
           </View>
           {closed && (
@@ -290,10 +296,14 @@ export default function TicketDetailScreen() {
             <Text style={styles.assignmentLabel}>Ticket</Text>
             <Text style={styles.assignmentValue}>{getCategoryLabel({ purpose: ticket.purpose, reason: ticket.reason, category: ticket.category, subCategory: ticket.subCategory }) || "—"}</Text>
           </View>
-          <View style={styles.assignmentRow}>
-            <Text style={styles.assignmentLabel}>Agent</Text>
-            <Text style={styles.assignmentValue}>{ticket.assignee ?? "—"}</Text>
-          </View>
+          {!isStaff && (
+            <View style={styles.assignmentRow}>
+              <Text style={styles.assignmentLabel}>Agent</Text>
+              <Text style={styles.assignmentValue}>
+                {ticket.assignee ?? "—"}
+              </Text>
+            </View>
+          )}
           <View style={styles.assignmentRow}>
             <Text style={styles.assignmentLabel}>Desk/Location</Text>
             <Text style={styles.assignmentValue}>{ticket.desk_location ?? "—"}</Text>
@@ -314,7 +324,7 @@ export default function TicketDetailScreen() {
             {closeMutation.isPending ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.closeButtonText}>Close Ticket (Mark Exit)</Text>
+              <Text style={styles.closeButtonText}>{isStaff ? "Close Ticket (Mark IN)" : "Close Ticket (Mark Exit)"}</Text>
             )}
           </Pressable>
         </View>

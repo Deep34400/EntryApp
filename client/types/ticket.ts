@@ -3,16 +3,17 @@
  * Change shape here → list and detail stay in sync.
  */
 
-/** API entry type: new_dp, old_dp, non_dp. Used to show "Driver Partner" or "Staff". */
+/**
+ * Ticket from GET API. Use `type` (or entry_type) as single source for "Staff" / "Driver Partner"
+ * via getEntryTypeDisplayLabel(type). API types: new_dp, old_dp, non_dp.
+ */
 export interface TicketListItem {
   id: string;
   token_no: string;
   name?: string;
   purpose?: string;
   reason?: string;
-  /** Category e.g. Maintenance, Settlement, Onboarding (from backend). */
   category?: string;
-  /** SubCategory e.g. Accident, DM collection (from backend). */
   subCategory?: string;
   entry_time?: string;
   exit_time?: string;
@@ -21,7 +22,7 @@ export interface TicketListItem {
   status?: string;
   regNumber?: string;
   phone?: string;
-  /** new_dp | old_dp | non_dp — for display label */
+  /** From GET API: new_dp | old_dp | non_dp — display as "Driver Partner" or "Staff" */
   type?: string;
 }
 

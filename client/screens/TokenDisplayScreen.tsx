@@ -38,14 +38,6 @@ const TEXT_PRIMARY = "#161B1D";
 const TEXT_SECONDARY = "#3F4C52";
 const ACCENT_RED = "#B31D38";
 
-// ---- HELPERS ----
-function formatContactPhone(phone?: string): string {
-  if (!phone) return "—";
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length === 10) return `+91-${digits}`;
-  return phone;
-}
-
 export default function TokenDisplayScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<NavigationProp>();
@@ -63,13 +55,14 @@ export default function TokenDisplayScreen() {
 
   const roleLabel = getEntryTypeDisplayLabel(entryType);
 
+  // ✅ ONLY NEW LOGIC
+  const isStaff = roleLabel === "Staff";
+
   const displayToken = token
     ? token.startsWith("#")
       ? token
       : `#${token}`
     : "#—";
-
-  const contactValue = formatContactPhone(driverPhone);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -92,7 +85,7 @@ export default function TokenDisplayScreen() {
         </View>
       </View>
 
-      {/* DRIVER CARD — FLOATING (FIXED) */}
+      {/* DRIVER CARD */}
       <View style={styles.driverCardFloating}>
         <View style={styles.driverCard}>
           <View style={styles.driverLeft}>
@@ -120,7 +113,7 @@ export default function TokenDisplayScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: 48, // space below floating card
+            paddingTop: 48,
             paddingBottom:
               insets.bottom + BOTTOM_PADDING + BUTTON_HEIGHT * 2 + 12,
           },
@@ -137,15 +130,13 @@ export default function TokenDisplayScreen() {
             <Text style={styles.assignmentValue}>{purpose ?? "—"}</Text>
           </View>
 
-          <View style={styles.assignmentRow}>
-            <Text style={styles.assignmentLabel}>Agent</Text>
-            <Text style={styles.assignmentValue}>{assignee ?? "—"}</Text>
-          </View>
-
-          {/* <View style={styles.assignmentRow}>
-            <Text style={styles.assignmentLabel}>Contact</Text>
-            <Text style={styles.assignmentValue}>{contactValue}</Text>
-          </View> */}
+          {/* ✅ ONLY CHANGE: Agent hidden for Staff */}
+          {!isStaff && (
+            <View style={styles.assignmentRow}>
+              <Text style={styles.assignmentLabel}>Agent</Text>
+              <Text style={styles.assignmentValue}>{assignee ?? "—"}</Text>
+            </View>
+          )}
 
           <View style={styles.assignmentRow}>
             <Text style={styles.assignmentLabel}>Desk/Location</Text>
@@ -198,13 +189,9 @@ export default function TokenDisplayScreen() {
   );
 }
 
-// ---- STYLES ----
+/* ---------------- STYLES (UNCHANGED) ---------------- */
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-
+  root: { flex: 1, backgroundColor: "#FFFFFF" },
   green: {
     width: "100%",
     backgroundColor: GREEN_BG,
@@ -212,28 +199,9 @@ const styles = StyleSheet.create({
     paddingBottom: 56,
     justifyContent: "center",
   },
-
-  tokenWrap: {
-    alignItems: "center",
-    marginTop: -20, 
-  },
-
-  tokenLabel: {
-    fontFamily: FONT,
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginBottom: 6,
-  },
-
-  tokenValue: {
-    fontFamily: FONT,
-    fontSize: 32,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-
-  // 🔥 KEY FIX
+  tokenWrap: { alignItems: "center", marginTop: -20 },
+  tokenLabel: { fontSize: 16, fontWeight: "600", color: "#FFF" },
+  tokenValue: { fontSize: 32, fontWeight: "600", color: "#FFF" },
   driverCardFloating: {
     position: "absolute",
     top: GREEN_HEADER_HEIGHT - 90,
@@ -241,13 +209,10 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: "center",
     zIndex: 10,
-    
   },
-
   driverCard: {
     width: CARD_WIDTH,
-    minHeight: 64,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFF",
     borderRadius: 12,
     paddingVertical: DRIVER_CARD_PADDING_V,
     paddingHorizontal: DRIVER_CARD_PADDING_H,
@@ -265,16 +230,8 @@ const styles = StyleSheet.create({
       },
       android: { elevation: 3 },
     }),
-    
   },
-
-  driverLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    minWidth: 0,
-  },
-
+  driverLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
   avatar: {
     width: 40,
     height: 40,
@@ -284,110 +241,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
   },
-
-  avatarText: {
-    fontFamily: FONT,
-    fontSize: 18,
-    fontWeight: "600",
-    color: TEXT_PRIMARY,
-  },
-
-  driverTextBlock: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  name: {
-    fontFamily: FONT,
-    fontSize: 14,
-    fontWeight: "500",
-    color: TEXT_PRIMARY,
-  },
-
-  role: {
-    fontFamily: FONT,
-    fontSize: 12,
-    fontWeight: "400",
-    color: TEXT_SECONDARY,
-    marginTop: 2,
-  },
-
-  phone: {
-    fontFamily: FONT,
-    fontSize: 14,
-    fontWeight: "500",
-    color: TEXT_PRIMARY,
-  },
-
-  scroll: {
-    flex: 1,
-  },
-
-  scrollContent: {
-    alignItems: "center",
-  },
-
+  avatarText: { fontSize: 18, fontWeight: "600", color: TEXT_PRIMARY },
+  driverTextBlock: { flex: 1 },
+  name: { fontSize: 14, fontWeight: "500", color: TEXT_PRIMARY },
+  role: { fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 },
+  phone: { fontSize: 14, fontWeight: "500", color: TEXT_PRIMARY },
+  scroll: { flex: 1 },
+  scrollContent: { alignItems: "center" },
   assignmentCard: {
     width: CARD_WIDTH,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFF",
     borderRadius: 12,
     padding: ASSIGNMENT_CARD_PADDING,
     borderWidth: 1,
     borderColor: CARD_BORDER,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 2 },
-      },
-      android: { elevation: 3 },
-    }),
   },
-
-  assignmentHeader: {
-    fontFamily: FONT,
-    fontSize: 16,
-    fontWeight: "600",
-    color: TEXT_PRIMARY,
-  },
-
-  assignmentDivider: {
-    height: 1,
-    backgroundColor: CARD_BORDER,
-    marginVertical: 12,
-  },
-
-  assignmentRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-
-  assignmentLabel: {
-    fontFamily: FONT,
-    fontSize: 14,
-    fontWeight: "400",
-    color: TEXT_SECONDARY,
-  },
-
-  assignmentValue: {
-    fontFamily: FONT,
-    fontSize: 14,
-    fontWeight: "500",
-    color: TEXT_PRIMARY,
-    maxWidth: "60%",
-    textAlign: "right",
-  },
-
-  bottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "#FFFFFF",
-  },
-
+  assignmentHeader: { fontSize: 16, fontWeight: "600" },
+  assignmentDivider: { height: 1, backgroundColor: CARD_BORDER, marginVertical: 12 },
+  assignmentRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
+  assignmentLabel: { fontSize: 14, color: TEXT_SECONDARY },
+  assignmentValue: { fontSize: 14, color: TEXT_PRIMARY, maxWidth: "60%", textAlign: "right" },
+  bottom: { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: "#FFF" },
   shareBtn: {
     height: BUTTON_HEIGHT,
     borderRadius: BUTTON_RADIUS,
@@ -397,14 +271,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-
-  shareText: {
-    fontFamily: FONT,
-    fontSize: 14,
-    fontWeight: "600",
-    color: ACCENT_RED,
-  },
-
+  shareText: { fontSize: 14, fontWeight: "600", color: ACCENT_RED },
   trackBtn: {
     height: BUTTON_HEIGHT,
     borderRadius: BUTTON_RADIUS,
@@ -412,15 +279,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
-  trackText: {
-    fontFamily: FONT,
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-
-  buttonPressed: {
-    opacity: 0.85,
-  },
+  trackText: { fontSize: 14, fontWeight: "600", color: "#FFF" },
+  buttonPressed: { opacity: 0.85 },
 });

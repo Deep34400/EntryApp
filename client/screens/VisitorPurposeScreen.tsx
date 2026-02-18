@@ -242,13 +242,14 @@ export default function VisitorPurposeScreen() {
           ? formatPurposeDisplay(String(cat), String(sub))
           : (raw.reason ?? raw.purpose);
       const purpose = purposeCombined != null ? String(purposeCombined) : undefined;
+      const apiType = raw.type ?? raw.entry_type ?? effectiveEntryType;
       navigation.navigate("TokenDisplay", {
         token: String(token),
         assignee: String(assignee),
         desk_location: String(desk_location),
         driverName: formData.name?.trim() || undefined,
         driverPhone: formData.phone?.trim() || undefined,
-        entryType: effectiveEntryType,
+        entryType: apiType != null ? String(apiType) : effectiveEntryType,
         purpose,
       });
     },
