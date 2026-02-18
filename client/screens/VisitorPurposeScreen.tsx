@@ -30,6 +30,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequestWithAuthRetry, UNAUTHORIZED_MSG } from "@/lib/query-client";
+import { SERVER_UNAVAILABLE_MSG } from "@/lib/server-unavailable";
 import { isApiError } from "@/lib/api-error";
 import { ENTRY_APP_CREATE_PATH } from "@/lib/api-endpoints";
 import { useUser } from "@/contexts/UserContext";
@@ -257,6 +258,9 @@ export default function VisitorPurposeScreen() {
       if (error.message === UNAUTHORIZED_MSG) {
         clearAuth();
         navigation.reset({ index: 0, routes: [{ name: "LoginOtp" }] });
+        return;
+      }
+      if (error.message === SERVER_UNAVAILABLE_MSG) {
         return;
       }
       const message = isApiError(error)

@@ -13,7 +13,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Animated, { FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -37,6 +37,8 @@ type Step = "phone" | "otp";
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SECONDS = 30;
 
+const SESSION_EXPIRED_MSG = "Your session expired. Please request OTP again.";
+
 /** Responsive OTP box constraints (no overflow on small screens, reasonable on tablets). */
 const OTP_BOX_MIN = 40;
 const OTP_BOX_MAX = 56;
@@ -50,11 +52,13 @@ const loginTokens = DesignTokens.login;
 
 export default function LoginOtpScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<RouteProp<RootStackParamList, "LoginOtp">>();
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const auth = useAuth();
   const { setUser: setUserContext } = useUser();
   const otpInputRef = useRef<TextInput>(null);
+  const sessionExpiredMessage = route.params?.message ?? null;
 
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
@@ -91,10 +95,16 @@ export default function LoginOtpScreen() {
     if (!auth.isRestored || !auth.isGuestReady) return;
     if (auth.accessToken && auth.user) {
       setUserContext({ name: auth.user.name, phone: auth.user.phone });
-      const t = setTimeout(() => navigation.replace("VisitorType"), 0);
+      const route =
+        !auth.hasValidRole
+          ? "NoRoleBlock"
+          : !auth.hasHub
+            ? "NoHubBlock"
+            : "VisitorType";
+      const t = setTimeout(() => navigation.replace(route), 0);
       return () => clearTimeout(t);
     }
-  }, [auth.isRestored, auth.isGuestReady, auth.accessToken, auth.user, setUserContext, navigation]);
+  }, [auth.isRestored, auth.isGuestReady, auth.accessToken, auth.user, auth.hasValidRole, auth.hasHub, setUserContext, navigation]);
 
   const hasUser = auth.isRestored && auth.isGuestReady && auth.accessToken && auth.user;
 
@@ -139,10 +149,11 @@ export default function LoginOtpScreen() {
             phone: primaryPhone,
           });
         }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Invalid OTP. Please try again.");
+      } catch (_e) {
+        auth.logout();
+        setStep("phone");
+        setError(SESSION_EXPIRED_MSG);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        verifyTriggeredRef.current = false;
       } finally {
         setLoading(false);
       }
@@ -160,8 +171,9 @@ export default function LoginOtpScreen() {
       setOtp("");
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to send OTP");
+    } catch (_e) {
+      auth.logout();
+      setError(SESSION_EXPIRED_MSG);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -178,8 +190,9 @@ export default function LoginOtpScreen() {
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
       setOtp("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to resend OTP");
+    } catch (_e) {
+      auth.logout();
+      setError(SESSION_EXPIRED_MSG);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -266,9 +279,9 @@ export default function LoginOtpScreen() {
               <ThemedText type="body" style={styles.otpSubtitle} numberOfLines={1}>
                 OTP sent to {phoneTrimmed || "..."}
               </ThemedText>
-              {error ? (
+              {(sessionExpiredMessage || error) ? (
                 <View style={[styles.errorBanner, { backgroundColor: theme.backgroundTertiary, borderColor: theme.border, marginTop: Spacing.lg, marginBottom: Layout.contentGap }]}>
-                  <ThemedText type="small" numberOfLines={3} style={{ color: theme.error }}>{error}</ThemedText>
+                  <ThemedText type="small" numberOfLines={3} style={{ color: theme.error }}>{sessionExpiredMessage || error}</ThemedText>
                 </View>
               ) : null}
               <Pressable
@@ -397,9 +410,9 @@ export default function LoginOtpScreen() {
                 <ThemedText style={styles.welcomeTitle} numberOfLines={1}>Welcome</ThemedText>
                 <ThemedText style={styles.welcomeSubtitle} numberOfLines={1}>Entry/ Exit Application</ThemedText>
               </View>
-              {error ? (
+              {(sessionExpiredMessage || error) ? (
                 <View style={[styles.errorBanner, { backgroundColor: theme.backgroundTertiary, borderColor: theme.border }]}>
-                  <ThemedText type="small" numberOfLines={3} style={{ color: theme.error }}>{error}</ThemedText>
+                  <ThemedText type="small" numberOfLines={3} style={{ color: theme.error }}>{sessionExpiredMessage || error}</ThemedText>
                 </View>
               ) : null}
               <View style={[styles.phoneInputWrap, { borderColor: inputBorderColor }]}>

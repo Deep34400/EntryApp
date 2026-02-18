@@ -8,6 +8,8 @@ import { HomeHeaderButton } from "@/components/HomeHeaderButton";
 import { ThemeToggleHeaderButton } from "@/components/ThemeToggleHeaderButton";
 import LoginOtpScreen from "@/screens/LoginOtpScreen";
 import OTPVerificationScreen from "@/screens/OTPVerificationScreen";
+import NoRoleBlockScreen from "@/screens/NoRoleBlockScreen";
+import NoHubBlockScreen from "@/screens/NoHubBlockScreen";
 import VisitorTypeScreen from "@/screens/VisitorTypeScreen";
 import EntryFormScreen from "@/screens/EntryFormScreen";
 import VisitorPurposeScreen from "../screens/VisitorPurposeScreen";
@@ -32,8 +34,10 @@ export interface EntryFormData {
 }
 
 export type RootStackParamList = {
-  LoginOtp: undefined;
+  LoginOtp: { message?: string } | undefined;
   OTPVerification: { phone: string };
+  NoRoleBlock: undefined;
+  NoHubBlock: undefined;
   VisitorType: undefined;
   EntryForm: { entryType: EntryType };
   VisitorPurpose: { entryType: EntryType; formData: EntryFormData };
@@ -93,6 +97,16 @@ export default function RootStackNavigator() {
         name="OTPVerification"
         component={OTPVerificationScreen}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="NoRoleBlock"
+        component={NoRoleBlockScreen}
+        options={{ headerShown: false, gestureEnabled: false }}
+      />
+      <Stack.Screen
+        name="NoHubBlock"
+        component={NoHubBlockScreen}
+        options={{ headerShown: false, gestureEnabled: false }}
       />
       <Stack.Screen
         name="VisitorType"

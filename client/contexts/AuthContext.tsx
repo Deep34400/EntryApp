@@ -2,8 +2,13 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetchIdentity, refreshTokens, isTokenVersionMismatch, type VerifyOtpResponse } from "@/lib/auth-api";
 import { setRefreshHandler } from "@/lib/auth-bridge";
+import { setHubId } from "@/lib/hub-bridge";
 
 const AUTH_STORAGE_KEY = "@entry_app_auth";
+
+/** Allowed app roles (lowercase). If ANY role in user array matches, user is allowed. */
+const ALLOWED_ROLES = ["guard", "hub_manager"] as const;
+export type AllowedRole = (typeof ALLOWED_ROLES)[number];
 
 export type AuthUser = {
   id: string;
@@ -19,6 +24,10 @@ type StoredAuth = {
   refreshToken: string;
   tokenVersion: number;
   user: AuthUser | null;
+  /** Normalized role names (lowercase). Source: user.roles[].name or user.userRoles[].role.name. */
+  roles: string[];
+  /** Hub id at index 0 only. Source: user.hubs[0] or user.userHubs[0]. */
+  selectedHubId: string | null;
 };
 
 const defaultStored: StoredAuth = {
@@ -28,11 +37,49 @@ const defaultStored: StoredAuth = {
   refreshToken: "",
   tokenVersion: 1,
   user: null,
+  roles: [],
+  selectedHubId: null,
 };
 
-/** After logout/session expired: no guestToken (must fetch new one). */
+/** After logout/session expired: no guestToken (must fetch new one). Clear hub globally. */
 function clearedStored(keepIdentityId = ""): StoredAuth {
   return { ...defaultStored, guestToken: "", identityId: keepIdentityId };
+}
+
+/** Extract role names from verify response user; normalize to lowercase. */
+function extractRoles(user: NonNullable<VerifyOtpResponse["data"]>["user"]): string[] {
+  const fromRoles = user.roles?.map((r) => (r.name ?? "").trim().toLowerCase()).filter(Boolean) ?? [];
+  const fromUserRoles = user.userRoles?.map((ur) => (ur.role?.name ?? "").trim().toLowerCase()).filter(Boolean) ?? [];
+  const set = new Set<string>([...fromRoles, ...fromUserRoles]);
+  return Array.from(set);
+}
+
+/** Pick hub at index 0 only. */
+function extractSelectedHubId(user: NonNullable<VerifyOtpResponse["data"]>["user"]): string | null {
+  const fromHubs = user.hubs?.[0]?.id?.trim();
+  if (fromHubs) return fromHubs;
+  const first = user.userHubs?.[0];
+  if (first?.hubId?.trim()) return first.hubId.trim();
+  if (first?.hub?.id?.trim()) return first.hub.id.trim();
+  return null;
+}
+
+/** First allowed role in array (guard or hm); used globally for navigation. */
+function getAllowedRole(roles: string[]): AllowedRole | null {
+  for (const r of roles) {
+    if (ALLOWED_ROLES.includes(r as AllowedRole)) return r as AllowedRole;
+  }
+  return null;
+}
+
+/** Given verify response data, return allowedRole and whether user has a hub. Use after setTokensAfterVerify to decide navigation without waiting for context update. */
+export function getRoleAndHubFromVerifyData(data: NonNullable<VerifyOtpResponse["data"]>): {
+  allowedRole: AllowedRole | null;
+  hasHub: boolean;
+} {
+  const roles = extractRoles(data.user);
+  const selectedHubId = extractSelectedHubId(data.user);
+  return { allowedRole: getAllowedRole(roles), hasHub: !!selectedHubId };
 }
 
 type AuthContextValue = {
@@ -54,6 +101,14 @@ type AuthContextValue = {
   guestToken: string | null;
   /** Valid access token when logged in. Use for authenticated API calls. */
   accessToken: string | null;
+  /** Role used for global navigation: guard | hm | null. From roles[] (any match allows). */
+  allowedRole: AllowedRole | null;
+  /** Hub id at index 0; attached as x-hub-id on API requests. */
+  selectedHubId: string | null;
+  /** True if allowedRole is guard or hm. */
+  hasValidRole: boolean;
+  /** True if selectedHubId is set (required for app usage). */
+  hasHub: boolean;
   /** Ensure we have a valid guest token (call identity if needed). Call once at app start / before login. */
   ensureGuestToken: () => Promise<void>;
   /** After OTP verify: save user + tokens and persist. Returns a Promise; await so storage is written before navigating. */
@@ -73,6 +128,8 @@ function loadStored(): Promise<StoredAuth> {
     if (!raw) return defaultStored;
     try {
       const parsed = JSON.parse(raw) as Partial<StoredAuth>;
+      const roles = Array.isArray(parsed.roles) ? parsed.roles.filter((r) => typeof r === "string") : [];
+      const selectedHubId = typeof parsed.selectedHubId === "string" && parsed.selectedHubId.trim() ? parsed.selectedHubId.trim() : null;
       return {
         guestToken: typeof parsed.guestToken === "string" ? parsed.guestToken : "",
         identityId: typeof parsed.identityId === "string" ? parsed.identityId : "",
@@ -80,6 +137,8 @@ function loadStored(): Promise<StoredAuth> {
         refreshToken: typeof parsed.refreshToken === "string" ? parsed.refreshToken : "",
         tokenVersion: typeof parsed.tokenVersion === "number" ? parsed.tokenVersion : 1,
         user: parsed.user && parsed.user.id && parsed.user.name ? parsed.user : null,
+        roles,
+        selectedHubId,
       };
     } catch {
       return defaultStored;
@@ -115,6 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const refreshToken = stored.refreshToken?.trim();
     if (!refreshToken) {
+      setHubId(null);
       setAuthError("Your session expired. Please sign in again.");
       setSessionExpired(true);
       setIsGuestReady(false);
@@ -132,11 +192,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           tokenVersion: stored.tokenVersion,
           guestToken: "",
           identityId: stored.identityId,
+          roles: stored.roles,
+          selectedHubId: stored.selectedHubId,
         });
         return tokens.accessToken;
       } catch (e) {
         const statusCode = (e as { statusCode?: number }).statusCode;
         if (statusCode === 401 || isTokenVersionMismatch(e)) {
+          setHubId(null);
           setAuthError("Your session expired. Please sign in again.");
           setSessionExpired(true);
           setIsGuestReady(false);
@@ -222,6 +285,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStored(s);
       setIsRestored(true);
       setAuthError(null);
+      if (s.selectedHubId?.trim()) setHubId(s.selectedHubId);
 
       const hasRefresh = !!s.refreshToken?.trim();
       const hasGuest = !!s.guestToken?.trim();
@@ -282,6 +346,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         phone: primaryPhone,
         userType: data.user.userType,
       };
+      const roles = extractRoles(data.user);
+      const selectedHubId = extractSelectedHubId(data.user);
       const next: StoredAuth = {
         ...stored,
         guestToken: "",
@@ -290,13 +356,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshToken: data.refreshToken,
         tokenVersion: stored.tokenVersion + 1,
         user,
+        roles,
+        selectedHubId,
       };
       await persist(next);
+      setHubId(selectedHubId);
     },
     [stored, persist],
   );
 
   const logout = useCallback(() => {
+    setHubId(null);
     setIsGuestReady(false);
     persist(clearedStored(stored.identityId));
   }, [stored.identityId, persist]);
@@ -309,6 +379,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [stored, persist],
   );
 
+  const allowedRole = getAllowedRole(stored.roles);
   const value: AuthContextValue = {
     isRestored,
     isGuestReady,
@@ -319,6 +390,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user: stored.user,
     guestToken: stored.guestToken || null,
     accessToken: stored.accessToken || null,
+    allowedRole,
+    selectedHubId: stored.selectedHubId ?? null,
+    hasValidRole: allowedRole != null,
+    hasHub: !!(stored.selectedHubId?.trim()),
     ensureGuestToken,
     setTokensAfterVerify,
     setAccessToken,
@@ -342,6 +417,10 @@ export function useAuth(): AuthContextValue {
       user: null,
       guestToken: null,
       accessToken: null,
+      allowedRole: null,
+      selectedHubId: null,
+      hasValidRole: false,
+      hasHub: false,
       ensureGuestToken: async () => {},
       setTokensAfterVerify: () => Promise.resolve(),
       setAccessToken: () => {},

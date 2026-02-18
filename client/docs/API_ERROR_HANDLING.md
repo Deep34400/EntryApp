@@ -10,7 +10,7 @@ All API errors are handled **centrally**. The UI never sees raw JSON, paths, or 
    - `message` as object with nested `message` (e.g. NestJS-style) → use `message.message`.
    - `message` as array → use first element.
    - `message` missing → try `error` string.
-   - Otherwise → default fallback: *"Something went wrong. Please try again."*
+   - Otherwise → default fallback: _"Something went wrong. Please try again."_
 3. **No technical details**: Only `statusCode` and the extracted user-facing string are used. `path`, `timestamp`, and stack are never passed to the UI.
 
 ## Consistent UI error object
@@ -31,13 +31,13 @@ Every API error thrown to the app is an **`ApiError`** with:
 ## Mapping rules (status → title)
 
 | Status | Title (user-facing) |
-|--------|----------------------|
-| 400    | Invalid request      |
-| 401    | Session expired      |
-| 403    | Access denied        |
-| 404    | Not found            |
-| 500    | Server error         |
-| Other  | Error                |
+| ------ | ------------------- |
+| 400    | Invalid request     |
+| 401    | Session expired     |
+| 403    | Access denied       |
+| 404    | Not found           |
+| 500    | Server error        |
+| Other  | Error               |
 
 Message text always comes from the backend payload when possible (with the extraction rules above), then fallback.
 
@@ -53,9 +53,9 @@ onError: (error: Error) => {
   }
   const message = isApiError(error)
     ? error.message
-    : (error.message || "Something went wrong. Please try again.");
+    : error.message || "Something went wrong. Please try again.";
   setSubmitError(message);
-}
+};
 ```
 
 ## Files

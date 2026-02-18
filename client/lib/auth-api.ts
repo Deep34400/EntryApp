@@ -40,6 +40,27 @@ export function isTokenVersionMismatch(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return /version|mismatch|invalid token/i.test(msg);
 }
+
+/** Backend error code for unauthorized → treat as invalid guest session (logout + identity). */
+export const ERROR_CODE_UNAUTHORIZED = "UNAUTHORIZED";
+
+/**
+ * True if error should be treated as invalid guest session during OTP/login.
+ * Then: logout → clear all tokens/role/hub → call Identity API → LoginOtpScreen with message.
+ * No retry, no refresh. Covers: HTTP 401, errorCode UNAUTHORIZED, Token Version Mismatch,
+ * Invalid guest token, Session expired, network error during OTP verify.
+ */
+export function isInvalidGuestSessionError(err: unknown): boolean {
+  const e = err as AuthError;
+  if (e?.statusCode === 401) return true;
+  if (e?.errorCode === ERROR_CODE_UNAUTHORIZED) return true;
+  if (isTokenVersionMismatch(err)) return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/token version mismatch|invalid guest token|session expired/i.test(msg)) return true;
+  if (/failed to fetch|network request failed|network error/i.test(msg)) return true;
+  return false;
+}
+
 import { getApiUrl } from "./query-client";
 import {
   IDENTITY_PATH,
@@ -50,6 +71,8 @@ import {
   APP_TYPE,
   APP_VERSION,
 } from "./api-endpoints";
+import { isServerUnavailableError, SERVER_UNAVAILABLE_MSG } from "./server-unavailable";
+import { showServerUnavailable } from "./server-unavailable-bridge";
 
 const DEVICE_ID_KEY = "@entry_app_device_id";
 
@@ -109,11 +132,20 @@ export async function fetchIdentity(params: {
   };
 
   const baseUrl = getApiUrl();
-  const res = await fetch(new URL(IDENTITY_PATH, baseUrl).href, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(new URL(IDENTITY_PATH, baseUrl).href, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    if (isServerUnavailableError(e)) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
+    throw e;
+  }
 
   const text = await res.text();
   if (!res.ok) {
@@ -139,14 +171,23 @@ export type RefreshResponse = {
 export async function refreshTokens(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
   const token = String(refreshToken).trim();
   const baseUrl = getApiUrl();
-  const res = await fetch(new URL(REFRESH_TOKEN_PATH, baseUrl).href, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ refreshToken: token, refresh_token: token }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(new URL(REFRESH_TOKEN_PATH, baseUrl).href, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ refreshToken: token, refresh_token: token }),
+    });
+  } catch (e) {
+    if (isServerUnavailableError(e)) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
+    throw e;
+  }
 
   const text = await res.text();
   if (!res.ok) {
@@ -167,33 +208,34 @@ export async function refreshTokens(refreshToken: string): Promise<{ accessToken
 export async function sendOtp(phoneNo: string, guestToken: string): Promise<void> {
   const deviceId = await getOrCreateDeviceId();
   const baseUrl = getApiUrl();
-  const res = await fetch(new URL(LOGIN_OTP_PATH, baseUrl).href, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "device-id": deviceId,
-      "app-type": APP_TYPE,
-      "app-version": String(APP_VERSION),
-      Authorization: `Bearer ${guestToken}`,
-    },
-    body: JSON.stringify({ phoneNo: String(phoneNo).trim() }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(new URL(LOGIN_OTP_PATH, baseUrl).href, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "device-id": deviceId,
+        "app-type": APP_TYPE,
+        "app-version": String(APP_VERSION),
+        Authorization: `Bearer ${guestToken}`,
+      },
+      body: JSON.stringify({ phoneNo: String(phoneNo).trim() }),
+    });
+  } catch (e) {
+    if (isServerUnavailableError(e)) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
+    throw e;
+  }
 
   const text = await res.text();
   if (!res.ok) {
-    let message = res.statusText;
-    try {
-      const data = JSON.parse(text) as Record<string, unknown>;
-      const m = (data.message ?? data.error) as string | undefined;
-      if (typeof m === "string" && m.trim()) message = m;
-    } catch {
-      if (text.length < 300) message = text;
-    }
-    throw new Error(message);
+    throw parseAuthError(text, res.status);
   }
 }
 
-/** Verify OTP and return user + tokens. */
+/** Verify OTP and return user + tokens. Roles/hubs: source of truth for global role and hub (array-based). */
 export type VerifyOtpResponse = {
   success: boolean;
   data?: {
@@ -203,6 +245,13 @@ export type VerifyOtpResponse = {
       userType?: string;
       status?: string;
       userContacts?: Array<{ phoneNo: string; isPrimary?: boolean }>;
+      /** Role names; allowed: guard, hm (normalized to lowercase). */
+      roles?: Array<{ name: string }>;
+      /** Alternative: userRoles[].role.name */
+      userRoles?: Array<{ role: { name: string } }>;
+      /** Hub ids; we use index 0 only for selectedHubId. */
+      hubs?: Array<{ id: string }>;
+      userHubs?: Array<{ hubId?: string; hub?: { id: string } }>;
     };
     accessToken: string;
     refreshToken: string;
@@ -218,32 +267,33 @@ export async function verifyOtp(
 ): Promise<VerifyOtpResponse["data"]> {
   const deviceId = await getOrCreateDeviceId();
   const baseUrl = getApiUrl();
-  const res = await fetch(new URL(LOGIN_OTP_VERIFY_PATH, baseUrl).href, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "device-id": deviceId,
-      "app-type": APP_TYPE,
-      "app-version": String(APP_VERSION),
-      Authorization: `Bearer ${guestToken}`,
-    },
-    body: JSON.stringify({
-      phoneNo: String(phoneNo).trim(),
-      otp: String(otp).trim(),
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(new URL(LOGIN_OTP_VERIFY_PATH, baseUrl).href, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "device-id": deviceId,
+        "app-type": APP_TYPE,
+        "app-version": String(APP_VERSION),
+        Authorization: `Bearer ${guestToken}`,
+      },
+      body: JSON.stringify({
+        phoneNo: String(phoneNo).trim(),
+        otp: String(otp).trim(),
+      }),
+    });
+  } catch (e) {
+    if (isServerUnavailableError(e)) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
+    throw e;
+  }
 
   const text = await res.text();
   if (!res.ok) {
-    let message = res.statusText;
-    try {
-      const data = JSON.parse(text) as Record<string, unknown>;
-      const m = (data.message ?? data.error) as string | undefined;
-      if (typeof m === "string" && m.trim()) message = m;
-    } catch {
-      if (text.length < 300) message = text;
-    }
-    throw new Error(message);
+    throw parseAuthError(text, res.status);
   }
 
   const json = JSON.parse(text) as VerifyOtpResponse;

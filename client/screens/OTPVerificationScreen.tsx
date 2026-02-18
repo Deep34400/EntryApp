@@ -20,10 +20,12 @@ import { ThemedText } from "@/components/ThemedText";
 import { BackArrow } from "@/components/BackArrow";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, getRoleAndHubFromVerifyData } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { sendOtp, verifyOtp, isTokenVersionMismatch } from "@/lib/auth-api";
+import { sendOtp, verifyOtp } from "@/lib/auth-api";
+
+const OTP_SESSION_EXPIRED_MSG = "Your session expired.\nPlease request OTP again.";
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SEC = 30;
@@ -100,16 +102,19 @@ export default function OTPVerificationScreen() {
             name: data.user.name?.trim() || primaryPhone,
             phone: primaryPhone,
           });
-          navigation.replace("VisitorType");
+          const { allowedRole, hasHub } = getRoleAndHubFromVerifyData(data);
+          if (!allowedRole) {
+            navigation.replace("NoRoleBlock");
+          } else if (!hasHub) {
+            navigation.replace("NoHubBlock");
+          } else {
+            navigation.replace("VisitorType");
+          }
         }
-      } catch (e) {
-        if (isTokenVersionMismatch(e)) {
-          auth.logout();
-          navigation.replace("LoginOtp");
-          return;
-        }
-        setError(e instanceof Error ? e.message : "Invalid OTP. Please try again.");
-        verifyTriggeredRef.current = false;
+      } catch (_e) {
+        // OTP/login error → logout + identity; no retry, no refresh. Hard stop.
+        auth.logout();
+        navigation.replace("LoginOtp", { message: OTP_SESSION_EXPIRED_MSG });
       } finally {
         setLoading(false);
       }
@@ -174,8 +179,9 @@ export default function OTPVerificationScreen() {
     try {
       await sendOtp(phone, auth.guestToken);
       setResendSec(RESEND_COOLDOWN_SEC);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to resend OTP");
+    } catch (_e) {
+      auth.logout();
+      navigation.replace("LoginOtp", { message: OTP_SESSION_EXPIRED_MSG });
     } finally {
       setResendLoading(false);
     }

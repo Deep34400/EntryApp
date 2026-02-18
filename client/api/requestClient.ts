@@ -1,12 +1,27 @@
 /**
  * Central API client with auth retry (interceptor-style).
  * - Single-flight refresh: multiple 401s share one refresh call.
- * - On 401: refresh once, retry original request with new token.
+ * - On 401 + TOKEN_EXPIRED only: refresh once, retry original request. No refresh on 403, 500, 503, offline.
  * - On refresh failure: auth-bridge returns null; AuthContext clears state and sets sessionExpired → redirect to Login.
  */
 
 import { tryRefreshToken } from "@/lib/auth-bridge";
+import { getHubId } from "@/lib/hub-bridge";
 import { parseApiErrorFromResponse } from "@/lib/api-error";
+import {
+  IDENTITY_PATH,
+  LOGIN_OTP_PATH,
+  LOGIN_OTP_VERIFY_PATH,
+  REFRESH_TOKEN_PATH,
+} from "@/lib/api-endpoints";
+import {
+  isServerUnavailableError,
+  SERVER_UNAVAILABLE_MSG,
+} from "@/lib/server-unavailable";
+import { showServerUnavailable } from "@/lib/server-unavailable-bridge";
+
+/** Backend error code indicating access token expiry — only then we refresh. Do NOT refresh on 403, 500, 503, or generic 401. */
+export const ERROR_CODE_TOKEN_EXPIRED = "TOKEN_EXPIRED";
 
 /** Base URL from EXPO_PUBLIC_API_URL. */
 export function getApiUrl(): string {
@@ -27,10 +42,37 @@ export async function throwIfResNotOk(res: Response): Promise<void> {
   }
 }
 
+/** OTP/login/identity/refresh APIs: excluded from refresh and retry. 401 → hard stop (reject), no interceptor replay. */
+function isAuthApi(route: string): boolean {
+  return (
+    route.includes(IDENTITY_PATH) ||
+    route.includes(LOGIN_OTP_PATH) ||
+    route.includes(LOGIN_OTP_VERIFY_PATH) ||
+    route.includes(REFRESH_TOKEN_PATH)
+  );
+}
+
+/** Parse 401 response body: return true only when error indicates token expiry (so we may refresh). Do not refresh on other 401s. */
+export async function is401TokenExpired(res: Response): Promise<boolean> {
+  try {
+    const text = await res.clone().text();
+    if (!text?.trim()) return false;
+    const body = JSON.parse(text) as Record<string, unknown>;
+    const code =
+      (typeof body.errorCode === "string" ? body.errorCode : null) ??
+      (typeof body.code === "string" ? body.code : null);
+    if (code === ERROR_CODE_TOKEN_EXPIRED) return true;
+    if (typeof code === "string" && /token.?expired|access.?token.?expired/i.test(code)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // ----- Refresh queue: only one refresh in flight -----
 let refreshPromise: Promise<string | null> | null = null;
 
-/** Single-flight refresh. All concurrent 401s wait on the same promise. Returns new access token or null (session expired). */
+/** Single-flight refresh. All concurrent 401s (with TOKEN_EXPIRED) wait on the same promise. Returns new access token or null (session expired). */
 async function getNewAccessTokenAfter401(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
   refreshPromise = tryRefreshToken();
@@ -42,36 +84,86 @@ async function getNewAccessTokenAfter401(): Promise<string | null> {
 }
 
 /**
- * Authenticated request with 401 → refresh → retry.
- * - Request is sent with Authorization: Bearer <accessToken>.
- * - On 401: runs refresh once (shared across concurrent calls), then retries this request once with new token.
- * - If still 401 after retry (or refresh failed), throws Error(UNAUTHORIZED_MSG). AuthContext/sessionExpired flow handles redirect.
+ * Authenticated request with 401 + TOKEN_EXPIRED → refresh → retry (once).
+ * - Request is sent with Authorization: Bearer <accessToken>. Hub id is sent in payload (body or query), NOT in header.
+ * - On 401: only if response body indicates TOKEN_EXPIRED we refresh once and retry. Otherwise throw (logout, no refresh).
+ * - Do NOT refresh on 403, 500, 503, or offline/timeout.
  */
 export async function requestWithAuthRetry(
   method: string,
   route: string,
   data?: unknown,
   accessToken?: string | null,
+  hubId?: string | null,
 ): Promise<Response> {
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
+  const effectiveHubId = (hubId ?? getHubId())?.trim() || null;
 
   const doRequest = (token: string | null): Promise<Response> => {
-    const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+    const headers: Record<string, string> = {};
     if (token?.trim()) headers.Authorization = `Bearer ${token.trim()}`;
-    return fetch(url, {
+
+    const isGet = method.toUpperCase() === "GET";
+    if (isGet) {
+      if (effectiveHubId) url.searchParams.set("hubId", effectiveHubId);
+      return fetch(url.toString(), {
+        method,
+        headers,
+        credentials: "omit",
+      });
+    }
+
+    if (data != null && typeof data === "object" && !Array.isArray(data)) {
+      headers["Content-Type"] = "application/json";
+      const payload = { ...(data as Record<string, unknown>) };
+      if (effectiveHubId) payload.hubId = effectiveHubId;
+      return fetch(url.toString(), {
+        method,
+        headers,
+        body: JSON.stringify(payload),
+        credentials: "omit",
+      });
+    }
+
+    headers["Content-Type"] = "application/json";
+    const body = data != null ? JSON.stringify(data) : undefined;
+    return fetch(url.toString(), {
       method,
       headers,
-      body: data ? JSON.stringify(data) : undefined,
+      body: body ?? (effectiveHubId ? JSON.stringify({ hubId: effectiveHubId }) : undefined),
       credentials: "omit",
     });
   };
 
-  let res = await doRequest(accessToken ?? null);
+  let res: Response;
+  try {
+    res = await doRequest(accessToken ?? null);
+  } catch (e) {
+    if (isServerUnavailableError(e)) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
+    throw e;
+  }
   if (res.status === 401) {
-    const newToken = await getNewAccessTokenAfter401();
-    if (newToken) {
-      res = await doRequest(newToken);
+    if (isAuthApi(route)) {
+      await throwIfResNotOk(res);
+    }
+    const shouldRefresh = await is401TokenExpired(res);
+    if (shouldRefresh) {
+      try {
+        const newToken = await getNewAccessTokenAfter401();
+        if (newToken) {
+          res = await doRequest(newToken);
+        }
+      } catch (e) {
+        if (isServerUnavailableError(e)) {
+          showServerUnavailable();
+          throw new Error(SERVER_UNAVAILABLE_MSG);
+        }
+        throw e;
+      }
     }
     if (res.status === 401) {
       throw new Error(UNAUTHORIZED_MSG);

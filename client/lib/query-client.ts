@@ -1,9 +1,12 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getApiUrl, throwIfResNotOk, UNAUTHORIZED_MSG, requestWithAuthRetry } from "@/api/requestClient";
 import { ENTRY_APP_COUNTS_PATH, getDriverDetailsPath } from "./api-endpoints";
+import { isServerUnavailableError, SERVER_UNAVAILABLE_MSG } from "./server-unavailable";
+import { showServerUnavailable } from "./server-unavailable-bridge";
 
 // Re-export for callers that still use query-client for URL/errors
 export { getApiUrl, UNAUTHORIZED_MSG } from "@/api/requestClient";
+export { SERVER_UNAVAILABLE_MSG } from "./server-unavailable";
 
 export async function apiRequest(
   method: string,
@@ -13,12 +16,21 @@ export async function apiRequest(
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
 
-  const res = await fetch(url, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "omit",
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers: data ? { "Content-Type": "application/json" } : {},
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "omit",
+    });
+  } catch (e) {
+    if (isServerUnavailableError(e)) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
+    throw e;
+  }
 
   await throwIfResNotOk(res);
   return res;
@@ -39,12 +51,21 @@ export async function apiRequestWithAuth(
     headers.Authorization = `Bearer ${accessToken.trim()}`;
   }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "omit",
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "omit",
+    });
+  } catch (e) {
+    if (isServerUnavailableError(e)) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
+    throw e;
+  }
 
   if (res.status === 401) {
     throw new Error(UNAUTHORIZED_MSG);
@@ -115,7 +136,15 @@ export async function fetchWithAuthRetry(
   }
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
-  return fetch(url.toString(), { method: "GET", credentials: "omit" });
+  try {
+    return await fetch(url.toString(), { method: "GET", credentials: "omit" });
+  } catch (e) {
+    if (isServerUnavailableError(e)) {
+      showServerUnavailable();
+      throw new Error(SERVER_UNAVAILABLE_MSG);
+    }
+    throw e;
+  }
 }
 
 /** Fetch open/closed/delayed counts. GET /api/v1/entry-app?view=counts → { success, data: { open, closed, delayed } }. On 401 tries refresh then retries. */
