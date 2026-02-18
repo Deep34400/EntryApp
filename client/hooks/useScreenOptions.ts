@@ -2,8 +2,6 @@ import { Platform } from "react-native";
 import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 
 import { useTheme } from "@/hooks/useTheme";
-// import { Layout } from "@/constants/theme";
-
 
 interface UseScreenOptionsParams {
   transparent?: boolean;

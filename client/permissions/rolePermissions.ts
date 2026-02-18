@@ -1,7 +1,8 @@
 /**
- * Single source of truth for role-based screens and actions.
- * All role logic is centralized here — no scattered checks in screens or APIs.
- * Use AllowedRole from AuthContext (guard | hub_manager). "hm" is normalized to hub_manager.
+ * ROLE CONFIG — single source of truth for screens and actions per role.
+ * Change this file only to: add a screen, restrict a screen to a role, or add a new role.
+ * No role checks in screens; access is enforced by which screens are registered in navigation.
+ * Roles: guard | hub_manager (hm is normalized to hub_manager).
  */
 
 import type { AllowedRole } from "@/contexts/AuthContext";

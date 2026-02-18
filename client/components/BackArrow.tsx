@@ -7,7 +7,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "@/hooks/useTheme";
 
 /** Prevent double navigation */
-const TAP_guard_MS = 400;
+const TAP_GUARD_MS = 400;
 
 /** Mobile-standard sizes */
 const TOUCH_SIZE = 44;
@@ -33,7 +33,7 @@ export function BackArrow({
 
   const handlePress = () => {
     const now = Date.now();
-    if (now - lastTapRef.current < TAP_guard_MS) return;
+    if (now - lastTapRef.current < TAP_GUARD_MS) return;
     lastTapRef.current = now;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

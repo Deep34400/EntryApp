@@ -101,26 +101,4 @@ export const DesignTokens = {
   },
 } as const;
 
-const DESIGN = {
-  background: "#F6F7F9",        // screen bg
-  surface: "#FFFFFF",           // card bg
-  mutedBg: "#EBEDF1",            // segmented control bg
-  cardBorder: "#E2E5E9",
-  iconRed: "#B31D38",
-  buttonRed: "#B31D38",
-  nameSize: 14,
-  roleSize: 12,
-  sectionTitleSize: 16,
-  labelSize: 12,
-  cardMinHeight: 80,
-  headerHeight: 56,
-  buttonHeight: 48,
-  buttonRadius: 24,
-  avatarSize: 40,
-  cardRadius: 12,
-  shadowOpacity: 0.08,
-  shadowRadius: 12,
-} as const;
-
-
 export type DesignTokensType = typeof DesignTokens;
