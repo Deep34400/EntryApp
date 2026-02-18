@@ -61,20 +61,27 @@ export const PURPOSE_DISPLAY_LABELS: Record<string, string> = {
 
 /** Icons for purpose grid cards (Feather icon names). */
 export const PURPOSE_ICONS: Record<string, string> = {
+  // Settlement
   "DM collection": "credit-card",
-  Settlement: "file-text",
+  Settlement: "dollar-sign",
   "Car Drop": "truck",
-  "Car Exchange": "repeat",
-  "Scheme Change": "sliders",
-  Rejoining: "user-plus",
-  Accident: "alert-triangle",
-  PMS: "settings",
-  "Running Repair": "tool",
+  "Car Exchange": "refresh-cw",
+  "Scheme Change": "rotate-cw",
+  Rejoining: "user-check",
+
+  // Maintenance
+  Accident: "alert-octagon",
+  PMS: "tool",
+  "Running Repair": "settings",
   Washing: "droplet",
+
+  // Onboarding
   Enquiry: "help-circle",
   "New Registration": "user-plus",
-  Training: "book-open",
+  Training: "book",
   Documentation: "file-text",
+
+  // Staff / Non-DP
   "Self Recovery (QC)": "shield",
   Abscond: "alert-circle",
   Testing: "activity",

@@ -56,8 +56,8 @@ export function getEntryAppUpdatePath(id: string): string {
 
 /** Map visitor type to API purpose (for create body). */
 export const VISITOR_PURPOSE: Record<string, string> = {
-  sourcing: "DRIVER MANAGER",
-  maintenance: "FLEET MANAGER",
+  sourcing: "ONBOARDING",
+  maintenance: "FLEET EXECUTIVE",
   collection: "DRIVER MANAGER",
 };
 

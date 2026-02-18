@@ -177,11 +177,12 @@ export default function VisitorPurposeScreen() {
     return (icon ?? "circle") as keyof typeof Feather.glyphMap;
   };
 
-  /** assignee: Settlement/Onboarding → DRIVER MANAGER, Maintenance → FLEET MANAGER, Non DP → empty */
+  /** assignee: Settlement/Onboarding → DRIVER MANAGER, Maintenance → FLEET EXECUTIVE, Non DP → empty */
   const getPurpose = (categoryTitle: string | null): string => {
-    if (categoryTitle === "Maintenance") return "FLEET MANAGER";
-    if (categoryTitle === "Settlement" || categoryTitle === "Onboarding") return "DRIVER MANAGER";
-    return ""; // non_dp
+    if (categoryTitle === "Maintenance") return "FLEET EXECUTIVE";
+    else if (categoryTitle === "Settlement") return "DRIVER MANAGER";
+    else if (categoryTitle === "Onboarding") return "ONBOARDING";
+    else return ""; // non_dp
   };
 
   /** reason: combined like "Maintenance - Accident", "Settlement - DM collection"; non_dp just the item */
