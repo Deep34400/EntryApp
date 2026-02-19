@@ -13,3 +13,5 @@ export {
 } from "./ticket/ticket.api";
 
 export { getDriverDetails, type DriverDetails } from "./driver/driver.api";
+
+export { getPurposeConfig } from "./config/config.api";

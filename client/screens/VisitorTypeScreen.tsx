@@ -79,7 +79,7 @@ function SegmentedToggle({
   value: TabId;
   onChange: (tab: TabId) => void;
 }) {
-  const tabIndex = value === "staff" ? 0 : 1;
+  const tabIndex = value === "driver_partner" ? 0 : 1;
   const translateX = useSharedValue(0);
   const [segmentWidthPx, setSegmentWidthPx] = useState(0);
 
@@ -115,7 +115,7 @@ function SegmentedToggle({
           pointerEvents="none"
         />
         <View style={styles.toggleTabsRow}>
-          {(["staff", "driver_partner"] as TabId[]).map((tab) => (
+          {(["driver_partner", "staff"] as TabId[]).map((tab) => (
             <Pressable
               key={tab}
               style={styles.toggleTab}
@@ -130,7 +130,7 @@ function SegmentedToggle({
                   value === tab && styles.toggleLabelActive,
                 ]}
               >
-                {tab === "staff" ? "Staff" : "Driver Partner"}
+                {tab === "driver_partner" ? "Driver Partner" : "Staff"}
               </Text>
             </Pressable>
           ))}

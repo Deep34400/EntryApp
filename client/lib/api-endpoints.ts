@@ -68,6 +68,10 @@ export const VISITOR_REASON: Record<string, string> = {
   collection: "collection",
 };
 
+// ----- Config API -----
+/** GET — Config by key. Response: { success, data: { key, value, ... } }. */
+export const CONFIG_KEY_PATH = "/api/v1/config/key/PURPOSE_CONFIG";
+
 // ----- GET: Driver details by reg_number or phone (auto-fill form) -----
 // Path: GET /api/v1/testRoutes/ticket/driverDetails?reg_number=... OR ?phone=...
 // Response: { status, message, results: { driver_name, phone, vehicles?: [{ reg_number }] } }

@@ -41,16 +41,10 @@ import {
   EntryFormData,
 } from "@/navigation/RootStackNavigator";
 import { isPhoneValid, phoneForApi } from "@/utils/validation";
-import {
-  DP_ONBOARDING,
-  DP_SETTLEMENT,
-  DP_MAINTENANCE,
-  RUNNING_REPAIR_SUB_ITEMS,
-  NON_DP_PURPOSES,
-  PURPOSE_DISPLAY_LABELS,
-  PURPOSE_ICONS,
-  formatPurposeDisplay,
-} from "@/constants/entryPurpose";
+import { formatPurposeDisplay } from "@/constants/entryPurpose";
+import { usePurposeConfig } from "@/hooks/usePurposeConfig";
+import { PurposeGridShimmer } from "@/components/Shimmer";
+import type { PurposeConfigItem, PurposeConfigSubItem } from "@/types/purposeConfig";
 
 /** Screen-specific design tokens (purpose selection UI). */
 const DESIGN = {
@@ -172,12 +166,17 @@ export default function VisitorPurposeScreen() {
   const displayPhone = (formData.phone ?? "").trim() || (user?.phone ?? "").trim() || "—";
   const displayRole = isDp ? "Driver Partner" : "Staff";
 
-  const getDisplayTitle = (item: string) => PURPOSE_DISPLAY_LABELS[item] ?? item;
+  const { data: purposeConfig, isLoading: configLoading, isRefetching: configRefetching, isError: configError, error: configErrorObj, refetch: refetchConfig } = usePurposeConfig();
 
-  const getPurposeIcon = (item: string): keyof typeof Feather.glyphMap => {
-    const icon = PURPOSE_ICONS[item];
-    return (icon ?? "circle") as keyof typeof Feather.glyphMap;
-  };
+  const newDpCategory = purposeConfig?.find((c) => c.dp_type === "new_dp");
+  const settlementCategory = purposeConfig?.find((c) => c.key === "settlement");
+  const maintenanceCategory = purposeConfig?.find((c) => c.key === "maintenance");
+  const staffCategory = purposeConfig?.find((c) => c.dp_type === "staff");
+  const runningRepairSubItems: PurposeConfigSubItem[] =
+    maintenanceCategory?.items.find((i) => i.key === "Running Repair")?.sub_items ?? [];
+
+  const getPurposeIcon = (iconKey: string): keyof typeof Feather.glyphMap =>
+    (iconKey && Feather.glyphMap[iconKey as keyof typeof Feather.glyphMap] ? iconKey : "circle") as keyof typeof Feather.glyphMap;
 
   /** assignee: Settlement/Onboarding → DRIVER MANAGER, Maintenance → FLEET EXECUTIVE, Non DP → empty */
   const getPurpose = (categoryTitle: string | null): string => {
@@ -287,10 +286,10 @@ export default function VisitorPurposeScreen() {
     submitMutation.mutate(selectedPurpose);
   };
 
-  const handleRunningRepairSubSelect = (subItem: string) => {
+  const handleRunningRepairSubSelect = (subItem: PurposeConfigSubItem) => {
     setShowRunningRepairModal(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    submitMutation.mutate({ categoryTitle: "Maintenance", item: `Running Repair - ${subItem}` });
+    submitMutation.mutate({ categoryTitle: "Maintenance", item: `Running Repair - ${subItem.key}` });
   };
 
 
@@ -341,107 +340,87 @@ export default function VisitorPurposeScreen() {
             </ThemedText>
           )}
 
-          {isDp ? (
-            /* old_dp (vehicle number given): Settlement + Maintenance tabs — same design as above (user card, section title, grid cards, sticky Next). Functionality unchanged (Running Repair modal, assignee/reason). */
-            effectiveEntryType === "old_dp" ? (
+          {(configLoading || configRefetching) && !purposeConfig ? (
+            <PurposeGridShimmer />
+          ) : configError ? (
+            <View style={styles.errorWrap}>
+              <ThemedText type="small" style={[styles.errorText, { color: theme.error }]}>
+                {configErrorObj?.message ?? "Failed to load options. Please try again."}
+              </ThemedText>
+              <Pressable onPress={() => refetchConfig()} style={styles.retryButton}>
+                <ThemedText type="label" style={styles.retryButtonText}>Retry</ThemedText>
+              </Pressable>
+            </View>
+          ) : purposeConfig && (isDp ? (
+            effectiveEntryType === "old_dp" && settlementCategory && maintenanceCategory ? (
               <>
                 <View style={styles.tabBar}>
                   <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedCategoryTab("Settlement");
-                    }}
-                    style={[
-                      styles.tabButton,
-                      selectedCategoryTab === "Settlement" && styles.tabButtonSelected,
-                      selectedCategoryTab !== "Settlement" && styles.tabButtonDefault,
-                    ]}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedCategoryTab("Settlement"); }}
+                    style={[styles.tabButton, selectedCategoryTab === "Settlement" && styles.tabButtonSelected, selectedCategoryTab !== "Settlement" && styles.tabButtonDefault]}
                   >
-                    <ThemedText
-                      type="body"
-                      style={[
-                        styles.tabButtonText,
-                        selectedCategoryTab === "Settlement" && styles.tabButtonTextSelected,
-                        selectedCategoryTab !== "Settlement" && styles.tabButtonTextDefault,
-                      ]}
-                    >
-                      Settlement 
+                    <ThemedText type="body" style={[styles.tabButtonText, selectedCategoryTab === "Settlement" && styles.tabButtonTextSelected, selectedCategoryTab !== "Settlement" && styles.tabButtonTextDefault]}>
+                      Settlement
                     </ThemedText>
                   </Pressable>
                   <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedCategoryTab("Maintenance");
-                    }}
-                    style={[
-                      styles.tabButton,
-                      selectedCategoryTab === "Maintenance" && styles.tabButtonSelected,
-                      selectedCategoryTab !== "Maintenance" && styles.tabButtonDefault,
-                    ]}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedCategoryTab("Maintenance"); }}
+                    style={[styles.tabButton, selectedCategoryTab === "Maintenance" && styles.tabButtonSelected, selectedCategoryTab !== "Maintenance" && styles.tabButtonDefault]}
                   >
-                    <ThemedText
-                      type="body"
-                      style={[
-                        styles.tabButtonText,
-                        selectedCategoryTab === "Maintenance" && styles.tabButtonTextSelected,
-                        selectedCategoryTab !== "Maintenance" && styles.tabButtonTextDefault,
-                      ]}
-                    >
+                    <ThemedText type="body" style={[styles.tabButtonText, selectedCategoryTab === "Maintenance" && styles.tabButtonTextSelected, selectedCategoryTab !== "Maintenance" && styles.tabButtonTextDefault]}>
                       Maintenance
                     </ThemedText>
                   </Pressable>
                 </View>
                 <View style={styles.grid}>
-                  {(selectedCategoryTab === "Settlement" ? DP_SETTLEMENT.items : DP_MAINTENANCE.items).map(
-                    (item, index) => {
-                      const categoryTitle = selectedCategoryTab;
-                      const isRunningRepair = categoryTitle === "Maintenance" && item === "Running Repair";
-                      return (
-                        <PurposeGridCard
-                          key={item}
-                          title={item}
-                          displayTitle={getDisplayTitle(item)}
-                          icon={getPurposeIcon(item)}
-                          delay={80 + index * 50}
-                          onPress={() => handleCardPress(categoryTitle, item)}
-                          selected={!isRunningRepair && isSelected(categoryTitle, item)}
-                          showArrow={isRunningRepair}
-                        />
-                      );
-                    }
-                  )}
+                  {(selectedCategoryTab === "Settlement" ? settlementCategory.items : maintenanceCategory.items).map((item: PurposeConfigItem, index: number) => {
+                    const categoryTitle = selectedCategoryTab;
+                    const isRunningRepair = categoryTitle === "Maintenance" && item.key === "Running Repair";
+                    return (
+                      <PurposeGridCard
+                        key={item.key}
+                        title={item.key}
+                        displayTitle={item.label}
+                        icon={getPurposeIcon(item.icon_key)}
+                        delay={80 + index * 50}
+                        onPress={() => handleCardPress(categoryTitle, item.key)}
+                        selected={!isRunningRepair && isSelected(categoryTitle, item.key)}
+                        showArrow={isRunningRepair}
+                      />
+                    );
+                  })}
                 </View>
               </>
-            ) : (
+            ) : newDpCategory ? (
               <View style={styles.grid}>
-                {DP_ONBOARDING.items.map((item, index) => (
+                {newDpCategory.items.map((item: PurposeConfigItem, index: number) => (
                   <PurposeGridCard
-                    key={item}
-                    title={item}
-                    displayTitle={getDisplayTitle(item)}
-                    icon={getPurposeIcon(item)}
+                    key={item.key}
+                    title={item.key}
+                    displayTitle={item.label}
+                    icon={getPurposeIcon(item.icon_key)}
                     delay={80 + index * 50}
-                    onPress={() => handleCardPress("Onboarding", item)}
-                    selected={isSelected("Onboarding", item)}
+                    onPress={() => handleCardPress("Onboarding", item.key)}
+                    selected={isSelected("Onboarding", item.key)}
                   />
                 ))}
               </View>
-            )
-          ) : (
+            ) : null
+          ) : staffCategory ? (
             <View style={styles.grid}>
-              {NON_DP_PURPOSES.map((item, index) => (
+              {staffCategory.items.map((item: PurposeConfigItem, index: number) => (
                 <PurposeGridCard
-                  key={item}
-                  title={item}
-                  displayTitle={getDisplayTitle(item)}
-                  icon={getPurposeIcon(item)}
+                  key={item.key}
+                  title={item.key}
+                  displayTitle={item.label}
+                  icon={getPurposeIcon(item.icon_key)}
                   delay={80 + index * 50}
-                  onPress={() => handleCardPress(null, item)}
-                  selected={isSelected(null, item)}
+                  onPress={() => handleCardPress(null, item.key)}
+                  selected={isSelected(null, item.key)}
                 />
               ))}
             </View>
-          )}
+          ) : null)}
 
           {submitMutation.isPending && (
             <View style={styles.loadingWrap}>
@@ -456,7 +435,7 @@ export default function VisitorPurposeScreen() {
         <View style={[styles.stickyBottom, { paddingBottom: insets.bottom + Spacing.sm }]}>
           <Pressable
             onPress={handleNextPress}
-            disabled={!selectedPurpose || submitMutation.isPending}
+            disabled={!selectedPurpose || submitMutation.isPending || configLoading || !!configError || !purposeConfig}
             style={({ pressed }) => [
               styles.nextButton,
               (!selectedPurpose || submitMutation.isPending) ? styles.nextButtonDisabled : {},
@@ -499,9 +478,9 @@ export default function VisitorPurposeScreen() {
               Select the type of running repair
             </ThemedText>
             <View style={styles.modalItems}>
-              {RUNNING_REPAIR_SUB_ITEMS.map((subItem) => (
+              {runningRepairSubItems.map((subItem) => (
                 <Pressable
-                  key={subItem}
+                  key={subItem.key}
                   onPress={() => handleRunningRepairSubSelect(subItem)}
                   style={({ pressed }) => [
                     styles.modalItemCard,
@@ -513,7 +492,7 @@ export default function VisitorPurposeScreen() {
                   ]}
                 >
                   <ThemedText type="body" style={{ color: theme.text }}>
-                    {subItem}
+                    {subItem.label}
                   </ThemedText>
                 </Pressable>
               ))}
@@ -612,6 +591,21 @@ const styles = StyleSheet.create({
   errorText: {
     marginBottom: Spacing.md,
     textAlign: "center",
+  },
+  errorWrap: {
+    alignItems: "center",
+    paddingVertical: Spacing["2xl"],
+  },
+  retryButton: {
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: DESIGN.brandRed,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
   tabBar: {
     flexDirection: "row",

@@ -25,6 +25,7 @@ import { formatEntryTime, formatDurationHours } from "@/lib/format";
 import type { TicketListItem } from "@/types/ticket";
 import { getWaitingMinutes } from "@/lib/ticket-utils";
 import { getEntryTypeDisplayLabel } from "@/utils/entryType";
+import { TicketListShimmer } from "@/components/Shimmer";
 
 export type { TicketListItem } from "@/types/ticket";
 
@@ -228,12 +229,13 @@ export default function TicketListScreen() {
   }, [navigation]);
 
   const tabs: { id: TabId; label: string; count: number }[] = [
-    { id: "Delayed", label: "Delayed", count: delayedCount },
     { id: "Open", label: "Open", count: openCount },
+    { id: "Delayed", label: "Delayed", count: delayedCount },
     { id: "Closed", label: "Closed", count: closedCount },
   ];
 
   const listContentPaddingBottom = APP_FOOTER_HEIGHT + insets.bottom + Spacing["2xl"];
+  const showShimmer = isLoading || isRefetching;
 
   return (
     <View style={styles.screen}>
@@ -267,11 +269,8 @@ export default function TicketListScreen() {
         </View>
       </View>
 
-      {isLoading ? (
-        <View style={[styles.centered, { paddingBottom: listContentPaddingBottom }]}>
-          <ActivityIndicator size="large" color={primaryRed} />
-          <Text style={styles.loadingText} numberOfLines={1}>Loading tickets…</Text>
-        </View>
+      {showShimmer ? (
+        <TicketListShimmer count={6} />
       ) : (
         <FlatList
           style={styles.list}

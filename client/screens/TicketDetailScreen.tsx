@@ -1,4 +1,4 @@
-import React, { useLayoutEffect } from "react";
+import React, { useCallback, useLayoutEffect } from "react";
 import {
   View,
   Text,
@@ -8,11 +8,10 @@ import {
   RefreshControl,
   Pressable,
   Platform,
-  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
@@ -20,11 +19,58 @@ import { BackArrow } from "@/components/BackArrow";
 import { formatDateTime } from "@/lib/format";
 import { getWaitingMinutes, getCategoryLabel } from "@/lib/ticket-utils";
 import { getTicketById, updateTicket } from "@/apis";
-import type { TicketDetailResult } from "@/types/ticket";
+import type { TicketDetailResult, TicketListItem } from "@/types/ticket";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { getEntryTypeDisplayLabel } from "@/utils/entryType";
 import { usePermissions } from "@/permissions/usePermissions";
+
+type InfiniteListData = { pages: { list: TicketListItem[] }[] };
+
+/** Find ticket in list cache (open/delayed/closed) to avoid duplicate API call when navigating from list. */
+function getTicketFromListCache(
+  queryClient: QueryClient,
+  ticketId: string,
+): TicketDetailResult | null {
+  const listKeys = [
+    ["ticket-list", "open"],
+    ["ticket-list", "delayed"],
+    ["ticket-list", "closed"],
+  ] as const;
+  for (const key of listKeys) {
+    const queriesData = queryClient.getQueriesData<InfiniteListData>({ queryKey: key });
+    for (const [, data] of queriesData) {
+      const pages = data?.pages;
+      if (!pages) continue;
+      for (const page of pages) {
+        const found = page.list?.find((item) => item.id === ticketId);
+        if (found) return listItemToDetailResult(found);
+      }
+    }
+  }
+  return null;
+}
+
+function listItemToDetailResult(item: TicketListItem): TicketDetailResult {
+  return {
+    id: item.id,
+    token_no: item.token_no,
+    name: item.name,
+    phone: item.phone,
+    reason: item.reason,
+    status: item.status,
+    entry_time: item.entry_time,
+    exit_time: item.exit_time,
+    assignee: item.agent_name,
+    desk_location: item.desk_location,
+    purpose: item.purpose,
+    category: item.category,
+    subCategory: item.subCategory,
+    type: item.type,
+  };
+}
+
+
 
 const FONT_POPPINS = "Poppins";
 
@@ -38,8 +84,6 @@ const TIME_BADGE_PADDING_V = 6;
 const TIME_BADGE_PADDING_H = 12;
 const TIME_BADGE_RADIUS = 8;
 const AVATAR_SIZE = 40;
-const CALL_BUTTON_HEIGHT = 40;
-const CALL_BUTTON_RADIUS = 22;
 const CLOSE_BUTTON_HEIGHT = 48;
 const CLOSE_BUTTON_RADIUS = 22;
 
@@ -67,6 +111,12 @@ export default function TicketDetailScreen() {
   const auth = useAuth();
   const { canCloseTicket } = usePermissions();
 
+  const ticketDetailQueryFn = useCallback(async (): Promise<TicketDetailResult | null> => {
+    const fromCache = getTicketFromListCache(queryClient, ticketId);
+    if (fromCache) return fromCache;
+    return getTicketById(ticketId, auth.accessToken);
+  }, [queryClient, ticketId, auth.accessToken]);
+
   const {
     data: ticket,
     isLoading,
@@ -74,7 +124,7 @@ export default function TicketDetailScreen() {
     refetch,
   } = useQuery({
     queryKey: ["ticket-detail", ticketId, auth.accessToken],
-    queryFn: () => getTicketById(ticketId, auth.accessToken),
+    queryFn: ticketDetailQueryFn,
     staleTime: 30_000,
   });
 
@@ -103,13 +153,6 @@ export default function TicketDetailScreen() {
   const waitingHours = formatWaitingHoursDecimal(ticket?.entry_time);
   
   const isStaff = getEntryTypeDisplayLabel(ticket?.type) === "Staff";
-  
-
-  const handleCall = () => {
-    if (!ticket?.phone?.trim()) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Linking.openURL(`tel:${ticket.phone.trim()}`);
-  };
 
   const handleCloseTicket = () => {
     closeMutation.mutate();
@@ -205,13 +248,6 @@ export default function TicketDetailScreen() {
               <Text style={styles.driverRole}>{getEntryTypeDisplayLabel(ticket.type)}</Text>
             </View>
           </View>
-          <Pressable
-            onPress={handleCall}
-            style={({ pressed }) => [styles.callButton, pressed && styles.callButtonPressed]}
-          >
-            <Feather name="phone" size={20} color="#B31D38" style={styles.callButtonIcon} />
-            <Text style={styles.callButtonText}>Call</Text>
-          </Pressable>
         </View>
 
         {/* Card 3 — Assignment */}
@@ -222,14 +258,10 @@ export default function TicketDetailScreen() {
             <Text style={styles.assignmentLabel}>Ticket</Text>
             <Text style={styles.assignmentValue}>{getCategoryLabel({ purpose: ticket.purpose, reason: ticket.reason, category: ticket.category, subCategory: ticket.subCategory }) || "—"}</Text>
           </View>
-          {!isStaff && (
-            <View style={styles.assignmentRow}>
-              <Text style={styles.assignmentLabel}>Agent</Text>
-              <Text style={styles.assignmentValue}>
-                {ticket.assignee ?? "—"}
-              </Text>
-            </View>
-          )}
+          <View style={styles.assignmentRow}>
+            <Text style={styles.assignmentLabel}>Agent</Text>
+            <Text style={styles.assignmentValue}>{ticket.assignee ?? "—"}</Text>
+          </View>
           <View style={styles.assignmentRow}>
             <Text style={styles.assignmentLabel}>Desk/Location</Text>
             <Text style={styles.assignmentValue}>{ticket.desk_location ?? "—"}</Text>
@@ -439,29 +471,6 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     color: "#3F4C52",
     marginTop: 2,
-  },
-  callButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    height: CALL_BUTTON_HEIGHT,
-    borderWidth: 1,
-    borderColor: "#B31D38",
-    borderRadius: CALL_BUTTON_RADIUS,
-    backgroundColor: "#FFFFFF",
-    marginTop: 16,
-  },
-  callButtonPressed: {
-    opacity: 0.9,
-  },
-  callButtonIcon: {
-    marginRight: 8,
-  },
-  callButtonText: {
-    fontFamily: FONT_POPPINS,
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#B31D38",
   },
   assignmentTitle: {
     fontFamily: FONT_POPPINS,

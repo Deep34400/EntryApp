@@ -75,7 +75,9 @@ export function normalizeTicketListItem(item: Record<string, unknown>): TicketLi
         ? String(item.agentName)
         : item.agent_name != null
           ? String(item.agent_name)
-          : undefined,
+          : item.assignee != null
+            ? String(item.assignee)
+            : undefined,
     desk_location:
       item.deskLocation != null
         ? String(item.deskLocation)

@@ -60,20 +60,6 @@ function isAuthApi(route: string): boolean {
   );
 }
 
-async function is401TokenExpired(res: Response): Promise<boolean> {
-  try {
-    const text = await res.clone().text();
-    if (!text?.trim()) return false;
-    const body = JSON.parse(text) as Record<string, unknown>;
-    const code =
-      (typeof body.errorCode === "string" ? body.errorCode : null) ??
-      (typeof body.code === "string" ? body.code : null);
-    return code === ERROR_CODE_TOKEN_EXPIRED;
-  } catch {
-    return false;
-  }
-}
-
 let refreshPromise: Promise<string | null> | null = null;
 
 async function getNewAccessToken(): Promise<string | null> {
@@ -164,20 +150,18 @@ export async function requestWithAuthRetry(
       notifyUnauthorized();
       throw new UnauthorizedError();
     }
-    const shouldRefresh = await is401TokenExpired(res);
-    if (shouldRefresh) {
-      try {
-        const newToken = await getNewAccessToken();
-        if (newToken) {
-          res = await doRequest(newToken);
-        }
-      } catch (e) {
-        if (e instanceof ServerUnavailableError || isServerUnavailableError(e)) {
-          showServerUnavailable();
-          throw new ServerUnavailableError();
-        }
-        throw e;
+    // For any 401 on non-auth routes: try refresh once; if refresh fails or still 401 then logout.
+    try {
+      const newToken = await getNewAccessToken();
+      if (newToken) {
+        res = await doRequest(newToken);
       }
+    } catch (e) {
+      if (e instanceof ServerUnavailableError || isServerUnavailableError(e)) {
+        showServerUnavailable();
+        throw new ServerUnavailableError();
+      }
+      throw e;
     }
     if (res.status === 401) {
       notifyUnauthorized();
