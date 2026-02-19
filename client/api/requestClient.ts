@@ -1,7 +1,8 @@
 /**
- * API client: inject access token; on 401 with TOKEN_EXPIRED → refresh once, retry once.
- * Still 401 → UnauthorizedError. 5xx/network → ServerUnavailableError.
- * Single-flight refresh. Never logout or clear storage.
+ * API client: inject access token; on 401 (non-auth routes) → refresh once, retry once.
+ * Uses HTTP status code only — no message or errorCode from body.
+ * One API call per request; at most one retry after refresh (no duplicate calls).
+ * Single-flight refresh. Never logout or clear storage from here (notifyUnauthorized only).
  */
 
 import { getApiUrl } from "@/lib/api-url";
@@ -21,9 +22,6 @@ import {
   showServerUnavailable,
   ServerUnavailableError,
 } from "@/lib/server-unavailable";
-
-export const ERROR_CODE_TOKEN_EXPIRED = "TOKEN_EXPIRED";
-export const UNAUTHORIZED_MSG = "UNAUTHORIZED";
 
 function isHtmlContentType(res: Response): boolean {
   const ct = res.headers.get("content-type")?.toLowerCase() ?? "";
@@ -62,21 +60,26 @@ function isAuthApi(route: string): boolean {
 
 let refreshPromise: Promise<string | null> | null = null;
 
+/**
+ * Single-flight refresh: only one refresh runs at a time; all concurrent 401s wait for the same promise.
+ * Clears refreshPromise on failure so subsequent 401s can trigger a new refresh; clears on success after return.
+ */
 async function getNewAccessToken(): Promise<string | null> {
   const refresh = getRefreshHandler();
   if (!refresh) return null;
   if (refreshPromise) return refreshPromise;
-  refreshPromise = refresh();
+  const promise = refresh();
+  refreshPromise = promise;
   try {
-    return await refreshPromise;
+    return await promise;
   } finally {
-    refreshPromise = null;
+    if (refreshPromise === promise) refreshPromise = null;
   }
 }
 
 export class UnauthorizedError extends Error {
   constructor() {
-    super(UNAUTHORIZED_MSG);
+    super("UNAUTHORIZED");
     this.name = "UnauthorizedError";
   }
 }
@@ -125,6 +128,7 @@ export async function requestWithAuthRetry(
     return fetch(url.toString(), { method, headers, body, credentials: "omit" });
   };
 
+  let hasRetried = false;
   let res: Response;
   try {
     res = await doRequest(accessToken ?? null);
@@ -145,23 +149,32 @@ export async function requestWithAuthRetry(
     throw new ServerUnavailableError();
   }
 
+  // 401 handling: use status code only. Do not read message or errorCode from body — message can be anything.
   if (res.status === 401) {
     if (isAuthApi(route)) {
       notifyUnauthorized();
       throw new UnauthorizedError();
     }
-    // For any 401 on non-auth routes: try refresh once; if refresh fails or still 401 then logout.
+    if (hasRetried) {
+      notifyUnauthorized();
+      throw new UnauthorizedError();
+    }
     try {
       const newToken = await getNewAccessToken();
-      if (newToken) {
-        res = await doRequest(newToken);
+      if (!newToken) {
+        notifyUnauthorized();
+        throw new UnauthorizedError();
       }
+      hasRetried = true;
+      res = await doRequest(newToken);
     } catch (e) {
+      if (e instanceof UnauthorizedError) throw e;
       if (e instanceof ServerUnavailableError || isServerUnavailableError(e)) {
         showServerUnavailable();
         throw new ServerUnavailableError();
       }
-      throw e;
+      notifyUnauthorized();
+      throw new UnauthorizedError();
     }
     if (res.status === 401) {
       notifyUnauthorized();

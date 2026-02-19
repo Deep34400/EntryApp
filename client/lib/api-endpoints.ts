@@ -16,7 +16,7 @@ export const LOGIN_OTP_PATH = "/api/v1/users/login/otp";
 /** POST /api/v1/users/login/otp/verify — verify OTP. Same headers. Body: { phoneNo, otp }. Returns user, accessToken, refreshToken, identity. */
 export const LOGIN_OTP_VERIFY_PATH = "/api/v1/users/login/otp/verify";
 
-/** POST /api/v1/auth/refresh — get new access (and optionally refresh) token. Body: { refreshToken }. Returns { accessToken, refreshToken }. */
+/** POST /api/v1/users/login/refresh — get new access token. Header only: Authorization: Bearer <refresh_token>. No body. Returns { accessToken, refreshToken }. */
 export const REFRESH_TOKEN_PATH = "/api/v1/users/login/refresh";
 
 /** App type for all auth/identity: identity body and login OTP/verify headers. Backend only handles OPS_PORTAL. */

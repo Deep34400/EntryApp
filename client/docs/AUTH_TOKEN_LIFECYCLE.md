@@ -4,6 +4,19 @@ This doc describes the **source of truth** for tokens, the **golden rule**, and 
 
 ---
 
+## Login system flow (correct cycle)
+
+1. **App start** → No tokens → call **Identity** API → get **guest token** → save in local store.
+2. **Login** → User enters phone → **Send OTP** with guest token (Bearer) → OTP sent.
+3. **OTP verify** → User enters OTP → **Verify OTP** API with guest token → get **access token** and **refresh token** → save **both** in local store.
+4. **Any app API** → Use **access token** (Bearer). If API returns **401** → call **Refresh** API: `POST /api/v1/users/login/refresh` with **Authorization: Bearer \<refresh_token\>**, no body → get new **access token**.
+5. **After refresh success** → Save **new access token** in store only; **do not change refresh token** (refresh has longer validity; keep same one).
+6. **If refresh fails** (401 / expired / invalid) → **Logout** (clear all tokens) → call **Identity** again (new guest) → user must **login again** (phone → OTP) → new access + refresh saved. No interruption other than re-entering OTP when refresh is expired.
+
+This gives a stable login system: access token is refreshed in the background when it expires; only when the refresh token itself expires does the user re-login.
+
+---
+
 ## Where to change when backend adds a new code or message
 
 | Goal                                                               | Where to change                                                                                              | What to do                                                                                                                                                        |
@@ -65,15 +78,17 @@ There are **no** infinite retry or refresh cycles.
 
 ## 4. Refresh Token Flow (Where Errors Occur)
 
-**Files:** `client/contexts/AuthContext.tsx`, `client/lib/auth-bridge.ts`, `client/api/requestClient.ts`
+**Files:** `client/contexts/AuthContext.tsx`, `client/lib/auth.ts`, `client/api/requestClient.ts`
 
 - When refresh **is** allowed (see above), the app runs **one** refresh request (single-flight via `refreshPromise` / `refreshInFlightRef`).
+- **Refresh API:** `POST /api/v1/users/login/refresh` with **Authorization: Bearer \<refresh_token\>**, no body. Response: new access token (and optionally refresh token; app keeps existing refresh token).
+- **On refresh success:** Save **only the new access token** in store; **keep the existing refresh token** (longer validity; do not overwrite).
 - **On any refresh failure** (401, token version mismatch, timeout, network, invalid response):
   - AuthContext: clear all tokens, clear hub, set `sessionExpired`, set `authError`, `persist(clearedStored(...))`, return `null`.
   - **No** second refresh attempt, **no** rethrow from refresh handler.
-- Request client: if `tryRefreshToken()` returns `null`, it does not retry; original 401 remains → throw `UNAUTHORIZED_MSG` → session-expired path.
+- Request client: if refresh returns `null`, it does not retry; original 401 remains → notifyUnauthorized → logout → identity → user logs in again.
 
-**Where errors occur:** Inside `refreshTokens()` in `auth-api.ts` (network, 401, 4xx/5xx, or parse failure).  
+**Where errors occur:** Inside `refreshToken()` in `client/lib/auth.ts` (network, 401, 4xx/5xx, or parse failure).  
 **Handling:** Single catch in `refreshAccessToken`: **any** error → clear session, set sessionExpired, return null → logout and redirect to Login.
 
 ---

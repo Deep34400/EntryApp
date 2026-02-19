@@ -124,6 +124,10 @@ function parseAuthError(text: string, statusCode: number): AuthError {
   return err;
 }
 
+/**
+ * Refresh: POST with Authorization: Bearer <refresh_token> only. No body/payload.
+ * On 401/invalid → throws; caller (AuthContext) logs out and triggers identity.
+ */
 export async function refreshToken(
   refreshTokenValue: string
 ): Promise<{ accessToken: string; refreshToken: string }> {
@@ -134,10 +138,9 @@ export async function refreshToken(
     res = await fetch(new URL(REFRESH_TOKEN_PATH, baseUrl).href, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ refreshToken: token, refresh_token: token }),
+      body: undefined,
     });
   } catch (e) {
     if (isServerUnavailableError(e)) {
@@ -203,6 +206,7 @@ export async function sendOtp(phoneNo: string, guestToken: string): Promise<void
   }
 }
 
+/** Backend may return tokens at data level and/or inside data.identity. We normalize to top-level. */
 export type VerifyOtpResponseData = {
   user: {
     id: string;
@@ -217,7 +221,7 @@ export type VerifyOtpResponseData = {
   };
   accessToken: string;
   refreshToken: string;
-  identity?: { id: string };
+  identity?: { id: string; guestToken?: string; accessToken?: string; refreshToken?: string };
   isNewUser?: boolean;
 };
 
@@ -261,9 +265,25 @@ export async function verifyOtp(
     throw parseAuthError(text, res.status);
   }
 
-  const json = JSON.parse(text) as { success?: boolean; data?: VerifyOtpResponseData };
-  if (!json.success || !json.data?.accessToken || !json.data?.refreshToken) {
-    throw new Error("Invalid verify response");
-  }
-  return json.data;
+  const json = JSON.parse(text) as {
+    success?: boolean;
+    data?: VerifyOtpResponseData & { identity?: { accessToken?: string; refreshToken?: string; guestToken?: string } };
+  };
+  const raw = json.data;
+  if (!json.success || !raw?.user) throw new Error("Invalid verify response");
+
+  // Prefer top-level tokens; fallback to data.identity for backend consistency
+  const accessToken =
+    (raw as { accessToken?: string }).accessToken ?? raw.identity?.accessToken ?? "";
+  const refreshToken =
+    (raw as { refreshToken?: string }).refreshToken ?? raw.identity?.refreshToken ?? "";
+  if (!accessToken || !refreshToken) throw new Error("Invalid verify response: missing tokens");
+
+  return {
+    user: raw.user,
+    accessToken,
+    refreshToken,
+    identity: raw.identity ? { id: raw.identity.id } : undefined,
+    isNewUser: raw.isNewUser,
+  };
 }

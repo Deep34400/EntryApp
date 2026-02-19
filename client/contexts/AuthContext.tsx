@@ -1,6 +1,7 @@
 /**
  * Auth state machine: loading | guest | authenticated | unauthenticated.
- * Registers refresh and unauthorized handlers for requestClient. Identity runs once when no access/refresh/guest.
+ * Registers refresh and unauthorized handlers for requestClient.
+ * Identity runs ONLY in one guarded useEffect (no identity in logout, refresh, requestClient, or retry handler).
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
@@ -137,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [stored, setStored] = useState<StoredAuth>(defaultStored);
+  const [retryIdentityKey, setRetryIdentityKey] = useState(0);
   const identityStartedRef = useRef(false);
   const refreshInFlightRef = useRef<Promise<string | null> | null>(null);
 
@@ -161,35 +163,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     identityStartedRef.current = false;
     await clearAuth(stored.identityId);
     setStored({ ...defaultStored, guestToken: "", identityId: stored.identityId });
-
-    // Immediately get new guest so app can show login again.
-    try {
-      const data = await fetchIdentity({
-        guestToken: "",
-        accessToken: undefined,
-        refreshToken: undefined,
-        tokenVersion: stored.tokenVersion ?? 1,
-      });
-      if (data?.guestToken && data?.id) {
-        const next: StoredAuth = { ...defaultStored, guestToken: data.guestToken, identityId: data.id };
-        setStored(next);
-        await saveAuth(next);
-        setStatus("guest");
-      }
-    } catch {
-      // Server error: don't logout again; status stays unauthenticated, retry will re-run identity.
-    }
-  }, [stored.identityId, stored.tokenVersion]);
+    // Do NOT call fetchIdentity here. Identity runs only in the single guarded useEffect.
+  }, [stored.identityId]);
 
   const handleUnauthorized = useCallback(() => {
     logout();
   }, [logout]);
 
+  /**
+   * Single-flight refresh. On success: save only new access token; keep existing refresh token (longer validity).
+   * On failure (e.g. 401/expired): return null → requestClient calls notifyUnauthorized() → logout → identity → user logs in again (phone → OTP).
+   */
   const refreshAccessToken = useCallback((): Promise<string | null> => {
     if (refreshInFlightRef.current) return refreshInFlightRef.current;
     const refreshTokenValue = stored.refreshToken?.trim();
     if (!refreshTokenValue) {
-      logout();
       return Promise.resolve(null);
     }
     const promise = (async (): Promise<string | null> => {
@@ -198,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const next: StoredAuth = {
           ...stored,
           accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
+          refreshToken: refreshTokenValue,
           guestToken: "",
         };
         setStored(next);
@@ -206,7 +194,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return tokens.accessToken;
       } catch (e) {
         if (e instanceof ServerUnavailableError || isServerUnavailableError(e)) throw e;
-        logout();
         return null;
       } finally {
         refreshInFlightRef.current = null;
@@ -214,7 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
     refreshInFlightRef.current = promise;
     return promise;
-  }, [stored, logout]);
+  }, [stored]);
 
   useEffect(() => {
     registerRefreshHandler(refreshAccessToken);
@@ -247,7 +234,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, []);
 
-  // Identity: only when no access, no refresh, no guest. Ref prevents loop.
+  // Identity: ONLY place that runs fetchIdentity for initial guest. Never in logout/refresh/requestClient.
+  // Runs when: storage restored, no access, no refresh, no guest, identityStartedRef false.
   useEffect(() => {
     if (!isRestored) return;
     const hasAccess = !!stored.accessToken?.trim();
@@ -280,32 +268,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       });
     return () => { cancelled = true; };
-  }, [isRestored, stored.accessToken, stored.refreshToken, stored.guestToken, stored.tokenVersion]);
+  }, [isRestored, stored.accessToken, stored.refreshToken, stored.guestToken, stored.tokenVersion, retryIdentityKey]);
 
   const retryGuestIdentity = useCallback(() => {
-    identityStartedRef.current = false;
     const hasAccess = !!stored.accessToken?.trim();
     const hasRefresh = !!stored.refreshToken?.trim();
-    const hasGuest = !!stored.guestToken?.trim();
     if (hasAccess || hasRefresh) return;
-    fetchIdentity({
-      guestToken: stored.guestToken?.trim() || "",
-      accessToken: undefined,
-      refreshToken: undefined,
-      tokenVersion: stored.tokenVersion ?? 1,
-    })
-      .then((data) => {
-        if (!data?.guestToken || !data?.id) return;
-        const next: StoredAuth = { ...defaultStored, guestToken: data.guestToken, identityId: data.id };
-        setStored(next);
-        saveAuth(next);
-        setStatus("guest");
-      })
-      .catch((e) => {
-        if (e instanceof ServerUnavailableError || isServerUnavailableError(e)) return;
-        setAuthError(e instanceof Error ? e.message : "Failed to prepare login");
-      });
-  }, [stored.guestToken, stored.tokenVersion, stored.accessToken, stored.refreshToken]);
+    identityStartedRef.current = false;
+    setRetryIdentityKey((k) => k + 1);
+  }, [stored.accessToken, stored.refreshToken]);
 
   const ensureGuestToken = useCallback(async () => {
     setAuthError(null);

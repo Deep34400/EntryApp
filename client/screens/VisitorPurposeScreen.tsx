@@ -30,7 +30,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { createTicket } from "@/apis";
-import { UNAUTHORIZED_MSG } from "@/api/requestClient";
+import { UnauthorizedError } from "@/api/requestClient";
 import { SERVER_UNAVAILABLE_MSG } from "@/lib/server-unavailable";
 import { isApiError } from "@/lib/api-error";
 import { useUser } from "@/contexts/UserContext";
@@ -254,7 +254,7 @@ export default function VisitorPurposeScreen() {
       });
     },
     onError: (error: Error) => {
-      if (error.message === UNAUTHORIZED_MSG) {
+      if (error instanceof UnauthorizedError) {
         clearAuth();
         navigation.reset({ index: 0, routes: [{ name: "LoginOtp" }] });
         return;

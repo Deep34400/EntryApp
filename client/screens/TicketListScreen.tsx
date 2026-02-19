@@ -129,98 +129,98 @@ export default function TicketListScreen() {
   const auth = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabId>("Open");
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(new Set(["Open"]));
 
-  const { data: counts = { open: 0, closed: 0, delayed: 0 }, isLoading: loadingCounts, isRefetching: refetchingCounts, refetch: refetchCounts } = useQuery({
-    queryKey: ["ticket-counts", auth.accessToken],
+  const handleTabSwitch = (tab: TabId) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setVisitedTabs((prev) => new Set(prev).add(tab));
+    setActiveTab(tab);
+  };
+
+  /*
+   * Lazy-loading API strategy:
+   * 1. On screen open: 2 APIs — counts + open list (default tab). No accessToken in queryKey so token refresh does NOT refire all queries.
+   * 2. Delayed/Closed list: fetched ONLY when user taps that tab (visitedTabs).
+   * 3. Next page: scroll-to-bottom via fetchNextPage.
+   * 4. Cache: staleTime Infinity; pull-to-refresh refetches counts + active tab only.
+   * 5. Token refresh: only counts + active tab are enabled; no refetch unless key changed (we don't put token in key).
+   */
+
+  // ── Counts (accessToken only in queryFn, not in key — token refresh won't refire) ─
+  const {
+    data: counts = { open: 0, closed: 0, delayed: 0 },
+    isLoading: loadingCounts,
+    isRefetching: refetchingCounts,
+    refetch: refetchCounts,
+  } = useQuery({
+    queryKey: ["ticket-counts"],
     queryFn: () => getTicketCounts(auth.accessToken),
     staleTime: 15_000,
   });
 
+  // ── Open list (only when user has visited Open AND is on Open tab) ───────────
   const openQuery = useInfiniteQuery({
-    queryKey: ["ticket-list", "open", auth.accessToken],
+    queryKey: ["ticket-list", "open"],
     queryFn: ({ pageParam }) => getTicketList("open", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,
-    staleTime: 15_000,
+    staleTime: Infinity,
+    enabled: visitedTabs.has("Open") && activeTab === "Open",
   });
 
+  // ── Delayed list (only when user has tapped Delayed tab) ─────────────────────
   const delayedQuery = useInfiniteQuery({
-    queryKey: ["ticket-list", "delayed", auth.accessToken],
+    queryKey: ["ticket-list", "delayed"],
     queryFn: ({ pageParam }) => getTicketList("delayed", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,
-    staleTime: 15_000,
+    staleTime: Infinity,
+    enabled: visitedTabs.has("Delayed") && activeTab === "Delayed",
   });
 
+  // ── Closed list (only when user has tapped Closed tab) ──────────────────────
   const closedQuery = useInfiniteQuery({
-    queryKey: ["ticket-list", "closed", auth.accessToken],
+    queryKey: ["ticket-list", "closed"],
     queryFn: ({ pageParam }) => getTicketList("closed", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,
-    staleTime: 15_000,
+    staleTime: Infinity,
+    enabled: visitedTabs.has("Closed") && activeTab === "Closed",
   });
 
-  const delayedCount = counts.delayed;
-  const openCount = counts.open;
-  const closedCount = counts.closed;
+  // ── Active query — derived from current tab ──────────────────────────────
+  const activeQuery = useMemo(() => {
+    if (activeTab === "Delayed") return delayedQuery;
+    if (activeTab === "Closed") return closedQuery;
+    return openQuery;
+  }, [activeTab, openQuery, delayedQuery, closedQuery]);
 
-  const { currentList, fetchNextPage, hasNextPage, isFetchingNextPage } = useMemo(() => {
-    switch (activeTab) {
-      case "Delayed":
-        return {
-          currentList: delayedQuery.data?.pages.flatMap((p) => p.list) ?? [],
-          fetchNextPage: delayedQuery.fetchNextPage,
-          hasNextPage: delayedQuery.hasNextPage ?? false,
-          isFetchingNextPage: delayedQuery.isFetchingNextPage,
-        };
-      case "Open":
-        return {
-          currentList: openQuery.data?.pages.flatMap((p) => p.list) ?? [],
-          fetchNextPage: openQuery.fetchNextPage,
-          hasNextPage: openQuery.hasNextPage ?? false,
-          isFetchingNextPage: openQuery.isFetchingNextPage,
-        };
-      case "Closed":
-        return {
-          currentList: closedQuery.data?.pages.flatMap((p) => p.list) ?? [],
-          fetchNextPage: closedQuery.fetchNextPage,
-          hasNextPage: closedQuery.hasNextPage ?? false,
-          isFetchingNextPage: closedQuery.isFetchingNextPage,
-        };
-    }
-  }, [
-    activeTab,
-    openQuery.data?.pages,
-    delayedQuery.data?.pages,
-    closedQuery.data?.pages,
-    openQuery.fetchNextPage,
-    delayedQuery.fetchNextPage,
-    closedQuery.fetchNextPage,
-    openQuery.hasNextPage,
-    delayedQuery.hasNextPage,
-    closedQuery.hasNextPage,
-    openQuery.isFetchingNextPage,
-    delayedQuery.isFetchingNextPage,
-    closedQuery.isFetchingNextPage,
-  ]);
+  // ── FIX: isLoading/isRefetching only checks active tab, not all 3 ───────
+  const isLoading = loadingCounts || activeQuery.isLoading;
+  const isRefetching = refetchingCounts || activeQuery.isRefetching;
 
-  const isLoading =
-    loadingCounts || openQuery.isLoading || delayedQuery.isLoading || closedQuery.isLoading;
-  const isRefetching =
-    refetchingCounts ||
-    openQuery.isRefetching ||
-    delayedQuery.isRefetching ||
-    closedQuery.isRefetching;
-
+  // ── FIX: refetch only refetches counts + active tab, not all 3 ──────────
   const refetch = () => {
     refetchCounts();
-    openQuery.refetch();
-    delayedQuery.refetch();
-    closedQuery.refetch();
+    activeQuery.refetch();
   };
+
+  const { currentList, fetchNextPage, hasNextPage, isFetchingNextPage } = useMemo(() => {
+    return {
+      currentList: activeQuery.data?.pages.flatMap((p) => p.list) ?? [],
+      fetchNextPage: activeQuery.fetchNextPage,
+      hasNextPage: activeQuery.hasNextPage ?? false,
+      isFetchingNextPage: activeQuery.isFetchingNextPage,
+    };
+  }, [
+    activeQuery.data?.pages,
+    activeQuery.fetchNextPage,
+    activeQuery.hasNextPage,
+    activeQuery.isFetchingNextPage,
+  ]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -229,9 +229,9 @@ export default function TicketListScreen() {
   }, [navigation]);
 
   const tabs: { id: TabId; label: string; count: number }[] = [
-    { id: "Open", label: "Open", count: openCount },
-    { id: "Delayed", label: "Delayed", count: delayedCount },
-    { id: "Closed", label: "Closed", count: closedCount },
+    { id: "Open", label: "Open", count: counts.open },
+    { id: "Delayed", label: "Delayed", count: counts.delayed },
+    { id: "Closed", label: "Closed", count: counts.closed },
   ];
 
   const listContentPaddingBottom = APP_FOOTER_HEIGHT + insets.bottom + Spacing["2xl"];
@@ -250,10 +250,7 @@ export default function TicketListScreen() {
               <Pressable
                 key={tab.id}
                 style={[styles.tab, isActive && styles.tabActive]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setActiveTab(tab.id);
-                }}
+                onPress={() => handleTabSwitch(tab.id)}
               >
                 <Text
                   style={[
