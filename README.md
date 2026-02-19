@@ -87,9 +87,11 @@ To add “logout on 403” or another rule: add handling in requestClient and ca
 
 ## 8. Folder structure (client)
 
-- **api/** — `requestClient.ts`: central API client, auth retry, 401 handling, hub id on requests.
+- **api/** — **requestClient.ts**: the only networking engine. Access token injection, 401 TOKEN_EXPIRED → refresh once and retry, final 401 → notifyUnauthorized(), 5xx/HTML/network → showServerUnavailable(). No duplicate fetch or auth logic elsewhere.
+- **apis/** — All backend calls in one place. **apis/ticket/ticket.api.ts** (getTicketCounts, getTicketList, getTicketById, createTicket, updateTicket), **apis/driver/driver.api.ts** (getDriverDetails). Each calls `requestWithAuthRetry` only — no direct fetch, no auth/server logic in apis. Screens import from **apis/** and never call requestClient directly.
+- **query/** — **queryClient.ts**: React Query config only (default options, no fetch, no auth).
 - **contexts/** — AuthContext (auth state, tokens, logout, refresh), UserContext (name/phone for forms), ThemeContext, ServerUnavailableContext.
-- **lib/** — **storage.ts** (load/save/clear auth tokens only), **auth.ts** (identity, refresh, sendOtp, verifyOtp API only), api-url, hub-bridge, api-error, server-unavailable, api-endpoints, query-client, etc. No auth state in lib; AuthContext holds state.
+- **lib/** — **storage.ts**, **auth.ts** (identity, OTP, refresh API only), **api-url.ts**, **hub-bridge**, **api-error**, **server-unavailable**, **api-endpoints**. No business APIs in lib.
 - **navigation/** — **RootStackNavigator** only (single stack; role-based screen list). No tabs in use.
 - **permissions/** — **rolePermissions.ts** (role config: screens + actions), **usePermissions.ts** (hook), **index.ts** (re-exports).
 - **screens/** — One folder for all screens; no auth logic, only UI and data calls.
@@ -107,5 +109,6 @@ Keep each folder focused; avoid “misc” or duplicate helpers. Navigation stay
 - **Entry point**: `client/index.js` → `App.tsx`.
 - **Role config**: `client/permissions/rolePermissions.ts`.
 - **Auth**: `client/docs/AUTH_README.md` (login, refresh, logout, identity, file roles). Auth files: `client/lib/storage.ts`, `client/lib/auth.ts`, `client/api/requestClient.ts`, `client/contexts/AuthContext.tsx`.
+- **Networking**: One engine — **client/api/requestClient.ts**. All backend calls go through **client/apis/** (ticket.api, driver.api); screens call apis only, never requestClient directly. React Query config: **client/query/queryClient.ts**.
 
 A boring, obvious, lightweight codebase is a good codebase. Prefer deletion over abstraction and explicit logic over magic.

@@ -26,6 +26,29 @@ export interface TicketListItem {
   type?: string;
 }
 
+/** Single ticket detail from GET by id. */
+export interface TicketDetailResult {
+  id: string;
+  token_no: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  reason?: string;
+  agent_id?: string;
+  status?: string;
+  entry_time?: string;
+  exit_time?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  assignee?: string;
+  desk_location?: string;
+  purpose?: string;
+  category?: string;
+  subCategory?: string;
+  /** From GET API (type or entry_type): new_dp | old_dp | non_dp — display as "Driver Partner" / "Staff" */
+  type?: string;
+}
+
 /** Normalize API item (camelCase or snake_case) to TicketListItem. */
 export function normalizeTicketListItem(item: Record<string, unknown>): TicketListItem {
   const id =

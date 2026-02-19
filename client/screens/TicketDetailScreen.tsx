@@ -19,8 +19,8 @@ import * as Haptics from "expo-haptics";
 import { BackArrow } from "@/components/BackArrow";
 import { formatDateTime } from "@/lib/format";
 import { getWaitingMinutes, getCategoryLabel } from "@/lib/ticket-utils";
-import { fetchWithAuthRetry, apiRequestWithAuthRetry } from "@/lib/query-client";
-import { getEntryAppDetailPath, getEntryAppUpdatePath } from "@/lib/api-endpoints";
+import { getTicketById, updateTicket } from "@/apis";
+import type { TicketDetailResult } from "@/types/ticket";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { getEntryTypeDisplayLabel } from "@/utils/entryType";
@@ -44,77 +44,6 @@ const CLOSE_BUTTON_HEIGHT = 48;
 const CLOSE_BUTTON_RADIUS = 22;
 
 type TicketDetailRouteProp = RouteProp<RootStackParamList, "TicketDetail">;
-
-
-export interface TicketDetailResult {
-  id: string;
-  token_no: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  reason?: string;
-  agent_id?: string;
-  status?: string;
-  entry_time?: string;
-  exit_time?: string | null;
-  created_at?: string;
-  updated_at?: string;
-  assignee?: string;
-  desk_location?: string;
-  purpose?: string;
-  category?: string;
-  subCategory?: string;
-  /** From GET API (type or entry_type): new_dp | old_dp | non_dp — display as "Driver Partner" / "Staff" */
-  type?: string;
-}
-
-async function fetchTicketDetail(
-  ticketId: string,
-  _hubId?: string,
-  accessToken?: string | null,
-): Promise<TicketDetailResult | null> {
-  try {
-    const path = getEntryAppDetailPath(ticketId);
-    const res = await fetchWithAuthRetry(path, accessToken);
-    const json = (await res.json()) as { success?: boolean; data?: Record<string, unknown> };
-    const d = json.data;
-    if (!d) return null;
-    const tokenNo = d.tokenNo ?? d.token_no ?? d.token;
-    const entryTime = d.entryTime ?? d.entry_time;
-    const exitTime = d.exitTime ?? d.exit_time;
-    const createdAt = d.createdAt ?? d.created_at;
-    const updatedAt = d.updatedAt ?? d.updated_at;
-    const assignee = d.assignee ?? d.assignee_name;
-    const deskLocation = d.deskLocation ?? d.desk_location;
-    const agentId = d.agentId ?? d.agent_id;
-    const purpose = d.purpose != null ? String(d.purpose) : undefined;
-    const type = d.type ?? d.entry_type;
-    const category = d.category ?? d.category_name;
-    const subCategory = d.subCategory ?? d.sub_category;
-    return {
-      id: String(d.id ?? ""),
-      token_no: String(tokenNo ?? ""),
-      name: d.name != null ? String(d.name) : undefined,
-      email: d.email != null ? String(d.email) : undefined,
-      phone: d.phone != null ? String(d.phone) : undefined,
-      reason: d.reason != null ? String(d.reason) : undefined,
-      purpose: purpose != null ? String(purpose) : undefined,
-      category: category != null ? String(category) : undefined,
-      subCategory: subCategory != null ? String(subCategory) : undefined,
-      agent_id: agentId != null ? String(agentId) : undefined,
-      status: d.status != null ? String(d.status) : undefined,
-      entry_time: entryTime != null ? String(entryTime) : undefined,
-      exit_time: exitTime != null ? String(exitTime) : undefined,
-      created_at: createdAt != null ? String(createdAt) : undefined,
-      updated_at: updatedAt != null ? String(updatedAt) : undefined,
-      assignee: assignee != null ? String(assignee) : undefined,
-      desk_location: deskLocation != null ? String(deskLocation) : undefined,
-      type: type != null ? String(type) : undefined,
-    };
-  } catch {
-    return null;
-  }
-}
 
 const isClosed = (status: string | undefined) =>
   status != null && (status.toUpperCase() === "CLOSED" || status === "closed");
@@ -145,18 +74,13 @@ export default function TicketDetailScreen() {
     refetch,
   } = useQuery({
     queryKey: ["ticket-detail", ticketId, auth.accessToken],
-    queryFn: () => fetchTicketDetail(ticketId, undefined, auth.accessToken),
+    queryFn: () => getTicketById(ticketId, auth.accessToken),
     staleTime: 30_000,
   });
 
   const closeMutation = useMutation({
     mutationFn: async () => {
-      await apiRequestWithAuthRetry(
-        "PUT",
-        getEntryAppUpdatePath(ticketId),
-        { status: "CLOSED" },
-        auth.accessToken,
-      );
+      await updateTicket(ticketId, { status: "CLOSED" }, auth.accessToken);
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

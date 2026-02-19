@@ -29,10 +29,10 @@ import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
-import { apiRequestWithAuthRetry, UNAUTHORIZED_MSG } from "@/lib/query-client";
+import { createTicket } from "@/apis";
+import { UNAUTHORIZED_MSG } from "@/api/requestClient";
 import { SERVER_UNAVAILABLE_MSG } from "@/lib/server-unavailable";
 import { isApiError } from "@/lib/api-error";
-import { ENTRY_APP_CREATE_PATH } from "@/lib/api-endpoints";
 import { useUser } from "@/contexts/UserContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -226,13 +226,13 @@ export default function VisitorPurposeScreen() {
         const regNumber = (formData.vehicle_reg_number ?? "").trim();
         if (regNumber) body.regNumber = regNumber;
       }
-      const response = await apiRequestWithAuthRetry("POST", ENTRY_APP_CREATE_PATH, body, accessToken);
-      return response.json();
+      const response = await createTicket(body, accessToken);
+      return response;
     },
     onSuccess: (data) => {
       setSubmitError(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const raw = data.data ?? data.results ?? data;
+      const raw = (data.data ?? data.results ?? data) as Record<string, unknown>;
       const token = raw.tokenNo ?? raw.token_no ?? raw.token ?? raw.id ?? "";
       const assignee = raw.assignee ?? raw.assignee_name ?? raw.agent ?? "—";
       const desk_location = raw.deskLocation ?? raw.desk_location ?? raw.gate ?? raw.gate_name ?? "—";
@@ -308,7 +308,7 @@ export default function VisitorPurposeScreen() {
             styles.scrollContentFullScreen,
             {
               paddingTop:Spacing.lg,
-              paddingBottom: Spacing.md,
+              paddingBottom: 140,
             },
           ]}
           showsVerticalScrollIndicator={false}

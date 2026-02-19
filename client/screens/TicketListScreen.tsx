@@ -18,13 +18,11 @@ import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { DesignTokens } from "@/constants/designTokens";
-import { fetchWithAuthRetry, fetchTicketCountsSafe } from "@/lib/query-client";
-import { getEntryAppListPath } from "@/lib/api-endpoints";
+import { getTicketCounts, getTicketList } from "@/apis";
 import { useAuth } from "@/contexts/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { formatEntryTime, formatDurationHours } from "@/lib/format";
 import type { TicketListItem } from "@/types/ticket";
-import { normalizeTicketListItem } from "@/types/ticket";
 import { getWaitingMinutes } from "@/lib/ticket-utils";
 import { getEntryTypeDisplayLabel } from "@/utils/entryType";
 
@@ -38,39 +36,6 @@ type TicketListRouteProp = RouteProp<RootStackParamList, "TicketList">;
 const FONT_POPPINS = "Poppins";
 const primaryRed = DesignTokens.login.headerRed;
 const PAGE_SIZE = 50;
-
-/** API response: { success, data: { data: [], total, page, limit } } */
-export type TicketListPageResult = {
-  list: TicketListItem[];
-  total: number;
-  page: number;
-  limit: number;
-};
-
-async function fetchTicketListPage(
-  filter: "open" | "closed" | "delayed",
-  accessToken: string | null | undefined,
-  page: number,
-): Promise<TicketListPageResult> {
-  try {
-    const path = getEntryAppListPath(filter, PAGE_SIZE, page);
-    const res = await fetchWithAuthRetry(path, accessToken);
-    if (!res.ok) return { list: [], total: 0, page: 1, limit: PAGE_SIZE };
-    const json = (await res.json()) as {
-      success?: boolean;
-      data?: { data?: unknown[]; total?: number; page?: number; limit?: number };
-    };
-    const payload = json.data;
-    const rawList = Array.isArray(payload?.data) ? (payload.data as Record<string, unknown>[]) : [];
-    const list = rawList.map((item) => normalizeTicketListItem(item));
-    const total = Number(payload?.total ?? 0) || 0;
-    const pageNum = Number(payload?.page ?? page) || page;
-    const limitNum = Number(payload?.limit ?? PAGE_SIZE) || PAGE_SIZE;
-    return { list, total, page: pageNum, limit: limitNum };
-  } catch {
-    return { list: [], total: 0, page: 1, limit: PAGE_SIZE };
-  }
-}
 
 function formatWaitingLabel(entryTime?: string | null): string {
   const mins = getWaitingMinutes(entryTime);
@@ -166,13 +131,13 @@ export default function TicketListScreen() {
 
   const { data: counts = { open: 0, closed: 0, delayed: 0 }, isLoading: loadingCounts, isRefetching: refetchingCounts, refetch: refetchCounts } = useQuery({
     queryKey: ["ticket-counts", auth.accessToken],
-    queryFn: () => fetchTicketCountsSafe(undefined, auth.accessToken),
+    queryFn: () => getTicketCounts(auth.accessToken),
     staleTime: 15_000,
   });
 
   const openQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "open", auth.accessToken],
-    queryFn: ({ pageParam }) => fetchTicketListPage("open", auth.accessToken, pageParam),
+    queryFn: ({ pageParam }) => getTicketList("open", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,
@@ -181,7 +146,7 @@ export default function TicketListScreen() {
 
   const delayedQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "delayed", auth.accessToken],
-    queryFn: ({ pageParam }) => fetchTicketListPage("delayed", auth.accessToken, pageParam),
+    queryFn: ({ pageParam }) => getTicketList("delayed", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,
@@ -190,7 +155,7 @@ export default function TicketListScreen() {
 
   const closedQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "closed", auth.accessToken],
-    queryFn: ({ pageParam }) => fetchTicketListPage("closed", auth.accessToken, pageParam),
+    queryFn: ({ pageParam }) => getTicketList("closed", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,

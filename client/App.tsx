@@ -10,7 +10,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/query-client";
+import { queryClient } from "@/query/queryClient";
 
 import { ThemeProvider, useThemeContext } from "@/contexts/ThemeContext";
 import { UserProvider } from "@/contexts/UserContext";

@@ -2,7 +2,7 @@
  * API endpoints — YOUR BACKEND must implement these.
  * Set EXPO_PUBLIC_API_URL in .env to your backend base URL (e.g. https://your-api.com).
  *
- * All requests use the base URL from getApiUrl() in query-client.ts.
+ * All requests use the base URL from getApiUrl() in api/requestClient (re-exported from lib/api-url.ts).
  * Same pattern for GET (details) and POST (create/close): use apiRequest(method, path, body?).
  */
 
