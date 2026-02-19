@@ -17,8 +17,8 @@ React Native (Expo) app for guards and hub managers: visitor entry, OTP login, t
 
 ## 2. Login & OTP flow
 
-1. User enters phone on **LoginOtpScreen** → **send OTP** (auth-api: `sendOtp`) with guest token in `Authorization`.
-2. User enters OTP → **verify OTP** (auth-api: `verifyOtp`) → backend returns `accessToken`, `refreshToken`, user, roles, hub.
+1. User enters phone on **LoginOtpScreen** → **send OTP** (`auth.ts`: `sendOtp`) with guest token in `Authorization`.
+2. User enters OTP → **verify OTP** (`auth.ts`: `verifyOtp`) → backend returns `accessToken`, `refreshToken`, user, roles, hub.
 3. **AuthContext.setTokensAfterVerify(data)** saves tokens, user, roles, selectedHubId to state and AsyncStorage; **hub-bridge** gets the hub id for API calls.
 4. **OTPVerificationScreen** uses **getRoleAndHubFromVerifyData** to decide where to navigate: no role → `NoRoleBlock`, no hub → `NoHubBlock`, else → `VisitorType`.
 
@@ -29,8 +29,8 @@ Guest token is only for identity + send OTP + verify OTP. After verify, we use a
 ## 3. Token refresh flow
 
 - **Tokens**: Guest (anonymous/OTP only), Access (authenticated APIs), Refresh (used only to get a new access token).
-- **client/api/requestClient.ts**: On 401, if the response body has error code **TOKEN_EXPIRED** (see **client/lib/auth-error-codes.ts**), the client calls **auth-bridge.tryRefreshToken()** once, then retries the request once with the new access token.
-- **AuthContext** registers **refreshAccessToken** with the auth-bridge. Refresh uses only the refresh token (no guest). If refresh fails for any reason (401, network, invalid response), AuthContext clears session, sets **sessionExpired**, and SessionExpiredHandler sends the user to LoginOtp.
+- **client/api/requestClient.ts**: On 401, if the response body has **TOKEN_EXPIRED**, the client calls the refresh handler (registered by **AuthContext**) once, then retries the request once with the new access token.
+- **AuthContext** registers the refresh handler. Refresh uses **auth.ts** `refreshToken()`. If refresh fails (e.g. 401), AuthContext runs logout; if server error, requestClient throws and does not logout. SessionExpiredHandler sends the user to LoginOtp when **sessionExpired** is set.
 - Only one refresh runs at a time (single-flight); concurrent 401s share the same refresh promise.
 
 ---
@@ -47,8 +47,8 @@ Guest token is only for identity + send OTP + verify OTP. After verify, we use a
 
 - **401 + TOKEN_EXPIRED** → refresh once → retry once (see Token refresh flow).
 - **401 (generic or after failed refresh)** → logout (sessionExpired → LoginOtp).
-- **OTP / login / identity errors** (invalid guest, token version mismatch, etc.) → logout + new identity; user must request OTP again. See **client/lib/auth-api.ts** (`isInvalidGuestSessionError`, `isTokenVersionMismatch`).
-- **Offline / 500 / 503 / timeout / Failed to fetch** → **ServerUnavailableContext** shows the global “Server temporarily unavailable” screen (via **server-unavailable-bridge**). requestClient and auth-api call **showServerUnavailable()** instead of showing raw errors.
+- **OTP / login / identity errors** (invalid guest, token version mismatch, etc.) → logout + new identity; user must request OTP again. Handled in **AuthContext** (e.g. `ensureGuestToken` catches and **auth.ts** throws; token version mismatch → logout).
+- **Offline / 500 / 503 / timeout / Failed to fetch** → **ServerUnavailableContext** shows the global “Server temporarily unavailable” screen. **client/lib/server-unavailable.ts** exposes **showServerUnavailable()**; requestClient and **auth.ts** call it, then throw; no logout.
 - **ErrorBoundary** catches render errors and shows **ErrorFallback** (with reset option).
 
 ---
@@ -57,12 +57,12 @@ Guest token is only for identity + send OTP + verify OTP. After verify, we use a
 
 | What                                                  | File                                                                                                                                                                      |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Refresh on 401 only when backend says “token expired” | **client/lib/auth-error-codes.ts** — `REFRESH_ON_401_CODES` (e.g. `TOKEN_EXPIRED`). Add codes here to allow refresh for more 401 responses.                               |
-| 401 → refresh once + retry, then 401 → logout         | **client/api/requestClient.ts** — `requestWithAuthRetry`, `is401TokenExpired`.                                                                                            |
-| Refresh handler + logout on unauthorized              | **client/contexts/AuthContext.tsx** — `refreshAccessToken`, `handleUnauthorized`; registered with **client/lib/auth-bridge.ts**.                                          |
-| OTP/login/identity errors → logout + new identity     | **client/lib/auth-api.ts** — `isInvalidGuestSessionError`, `isTokenVersionMismatch`, and error codes like `ERROR_CODE_UNAUTHORIZED`, `ERROR_CODE_TOKEN_VERSION_MISMATCH`. |
+| Refresh on 401 only when backend says “token expired” | **client/api/requestClient.ts** — 401 body is checked for `TOKEN_EXPIRED`; single place, no separate error-codes file.                                                   |
+| 401 → refresh once + retry, then 401 → logout         | **client/api/requestClient.ts** — `requestWithAuthRetry`, inline `is401TokenExpired`.                                                                                     |
+| Refresh handler + logout on unauthorized              | **client/contexts/AuthContext.tsx** — `refreshAccessToken`, `handleUnauthorized`; exported `getRefreshHandler` / `notifyUnauthorized` used by requestClient.              |
+| OTP/login/identity errors → logout + new identity     | **client/contexts/AuthContext.tsx** — e.g. `ensureGuestToken` and `isTokenVersionMismatch`; **client/lib/auth.ts** for API only (no logout, no storage).                  |
 
-To add “logout on 403” or another rule: add handling in requestClient (or auth-api for auth routes) and call **auth-bridge.notifyUnauthorized()** when the new condition is met; AuthContext already clears session when that is called.
+To add “logout on 403” or another rule: add handling in requestClient and call **notifyUnauthorized()** (from AuthContext) when the condition is met; AuthContext clears session when that is called.
 
 ---
 
@@ -89,7 +89,7 @@ To add “logout on 403” or another rule: add handling in requestClient (or au
 
 - **api/** — `requestClient.ts`: central API client, auth retry, 401 handling, hub id on requests.
 - **contexts/** — AuthContext (auth state, tokens, logout, refresh), UserContext (name/phone for forms), ThemeContext, ServerUnavailableContext.
-- **lib/** — auth-api, auth-bridge, hub-bridge, api-error, server-unavailable, server-unavailable-bridge, api-endpoints, query-client, format, ticket-utils, etc. No auth state; only helpers and bridges.
+- **lib/** — **storage.ts** (load/save/clear auth tokens only), **auth.ts** (identity, refresh, sendOtp, verifyOtp API only), api-url, hub-bridge, api-error, server-unavailable, api-endpoints, query-client, etc. No auth state in lib; AuthContext holds state.
 - **navigation/** — **RootStackNavigator** only (single stack; role-based screen list). No tabs in use.
 - **permissions/** — **rolePermissions.ts** (role config: screens + actions), **usePermissions.ts** (hook), **index.ts** (re-exports).
 - **screens/** — One folder for all screens; no auth logic, only UI and data calls.
@@ -106,6 +106,6 @@ Keep each folder focused; avoid “misc” or duplicate helpers. Navigation stay
 - **Env**: Set `EXPO_PUBLIC_API_URL` to your backend base URL (no trailing slash).
 - **Entry point**: `client/index.js` → `App.tsx`.
 - **Role config**: `client/permissions/rolePermissions.ts`.
-- **Auth rules**: `client/lib/auth-error-codes.ts` (refresh vs logout), `client/api/requestClient.ts` (retry), `client/contexts/AuthContext.tsx` (refresh + logout).
+- **Auth**: `client/docs/AUTH_README.md` (login, refresh, logout, identity, file roles). Auth files: `client/lib/storage.ts`, `client/lib/auth.ts`, `client/api/requestClient.ts`, `client/contexts/AuthContext.tsx`.
 
 A boring, obvious, lightweight codebase is a good codebase. Prefer deletion over abstraction and explicit logic over magic.

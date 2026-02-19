@@ -1,17 +1,15 @@
 /**
- * Global Server Unavailable screen when any API fails with network/timeout/Failed to fetch.
- * Retry: clear both serverUnavailable and sessionExpired so identity/refresh can re-run cleanly (no bounce).
+ * Global Server Unavailable screen when any API fails with 5xx/network.
+ * Retry: hide screen and re-run identity so user can continue.
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { setServerUnavailableHandler, clearServerUnavailableFlag } from "@/lib/server-unavailable-bridge";
+import { setServerUnavailableHandler } from "@/lib/server-unavailable";
 import { GlobalErrorScreen } from "@/components/GlobalErrorScreen";
 import { useAuth } from "@/contexts/AuthContext";
 
 type ContextValue = {
-  /** True when global Server Unavailable screen is shown. */
   serverUnavailable: boolean;
-  /** User taps Retry: clear server + session-expired state so only one error state; re-run flows. */
   retry: () => void;
 };
 
@@ -22,8 +20,6 @@ export function ServerUnavailableProvider({ children }: { children: React.ReactN
   const auth = useAuth();
 
   const retry = useCallback(() => {
-    clearServerUnavailableFlag();
-    auth.clearSessionExpiredFlag();
     setServerUnavailable(false);
     auth.retryGuestIdentity();
   }, [auth]);

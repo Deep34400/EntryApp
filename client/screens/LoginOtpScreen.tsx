@@ -28,7 +28,7 @@ import { DesignTokens } from "@/constants/designTokens";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { sendOtp, verifyOtp } from "@/lib/auth-api";
+import { sendOtp, verifyOtp } from "@/lib/auth";
 import { normalizePhoneInput, isPhoneValid as checkPhoneValid, PHONE_MAX_DIGITS } from "@/utils/validation";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "LoginOtp">;

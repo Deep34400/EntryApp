@@ -23,7 +23,7 @@ import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { useAuth, getRoleAndHubFromVerifyData } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { sendOtp, verifyOtp } from "@/lib/auth-api";
+import { sendOtp, verifyOtp } from "@/lib/auth";
 
 const OTP_SESSION_EXPIRED_MSG = "Your session expired. Please request OTP again.";
 

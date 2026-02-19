@@ -1,8 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getApiUrl, throwIfResNotOk, UNAUTHORIZED_MSG, requestWithAuthRetry } from "@/api/requestClient";
 import { ENTRY_APP_COUNTS_PATH, getDriverDetailsPath } from "./api-endpoints";
-import { isServerUnavailableError, SERVER_UNAVAILABLE_MSG } from "./server-unavailable";
-import { showServerUnavailable } from "./server-unavailable-bridge";
+import { isServerUnavailableError, SERVER_UNAVAILABLE_MSG, showServerUnavailable } from "./server-unavailable";
 
 // Re-export for callers that still use query-client for URL/errors
 export { getApiUrl, UNAUTHORIZED_MSG } from "@/api/requestClient";
