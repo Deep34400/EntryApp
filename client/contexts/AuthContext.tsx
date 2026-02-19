@@ -1,7 +1,29 @@
+/**
+ * Auth lifecycle: one AuthContext, one identity effect, single-flight refresh, atomic logout.
+ *
+ * Token model:
+ * - Guest: Identity / Send OTP / Verify OTP only. Invalid → logout + identity effect re-runs when needsGuest.
+ * - Access: All authenticated APIs. 401 + TOKEN_EXPIRED → refresh once → retry once (requestClient). Else logout.
+ * - Refresh: Only to get new access token. Fail → logout. Never retry refresh. Never refresh while serverUnavailable.
+ *
+ * Server vs auth: Server errors (5xx/HTML/CORS/fetch) → show Server Unavailable, never logout. Auth errors (401, refresh fail) → doLogout, never server screen. handleUnauthorized no-ops when isServerUnavailableActive().
+ *
+ * Identity: Runs only when no access, no refresh, no guest, and !identityInFlight (module-level). One effect; retryGuestIdentity() is a one-off call with same guard. No retry trigger; no loop.
+ *
+ * Logout: doLogout clears state; performLogout() guards with logoutInProgress so multiple calls are no-ops. Server errors never call logout.
+ */
+
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetchIdentity, refreshTokens, isTokenVersionMismatch, type VerifyOtpResponse } from "@/lib/auth-api";
-import { setRefreshHandler, setOnUnauthorizedHandler } from "@/lib/auth-bridge";
+import {
+  setRefreshHandler,
+  setOnUnauthorizedHandler,
+  getIdentityInFlight,
+  setIdentityInFlight,
+  getLogoutInProgress,
+  setLogoutInProgress,
+} from "@/lib/auth-bridge";
 import { setHubId } from "@/lib/hub-bridge";
 import { isServerUnavailableError } from "@/lib/server-unavailable";
 import { isServerUnavailableActive } from "@/lib/server-unavailable-bridge";
@@ -174,18 +196,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthError(null);
   }, []);
 
-  /** Refresh access token using refresh token only. Never use guestToken. Returns new access token or null (session expired). Single flight. */
+  /** Inner: clear tokens, hub, user, roles; set sessionExpired. No guard. */
+  const doLogout = useCallback(() => {
+    setHubId(null);
+    setAuthError("Your session expired. Please sign in again.");
+    setSessionExpired(true);
+    setIsGuestReady(false);
+    persist(clearedStored(stored.identityId));
+  }, [stored.identityId, persist]);
+
+  /** Logout with guard: prevents multiple simultaneous logouts (module-level logoutInProgress). */
+  const performLogout = useCallback(() => {
+    if (getLogoutInProgress()) return;
+    setLogoutInProgress(true);
+    doLogout();
+    setTimeout(() => setLogoutInProgress(false), 0);
+  }, [doLogout]);
+
+  /** Single-flight refresh: one refresh in flight; concurrent 401s wait. Server error → rethrow (no logout). */
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
-    if (refreshInFlightRef.current) {
-      return refreshInFlightRef.current;
-    }
+    if (refreshInFlightRef.current) return refreshInFlightRef.current;
     const refreshToken = stored.refreshToken?.trim();
     if (!refreshToken) {
-      setHubId(null);
-      setAuthError("Your session expired. Please sign in again.");
-      setSessionExpired(true);
-      setIsGuestReady(false);
-      persist(clearedStored(stored.identityId));
+      performLogout();
       return null;
     }
     const promise = (async (): Promise<string | null> => {
@@ -204,14 +237,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         return tokens.accessToken;
       } catch (e) {
-        // 503 / 5xx / network / timeout → do NOT logout. Rethrow so requestClient shows Server Unavailable.
         if (isServerUnavailableError(e)) throw e;
-        // Real auth failure (401, invalid token, etc.) → logout.
-        setHubId(null);
-        setAuthError("Your session expired. Please sign in again.");
-        setSessionExpired(true);
-        setIsGuestReady(false);
-        persist(clearedStored(stored.identityId));
+        performLogout();
         return null;
       } finally {
         refreshInFlightRef.current = null;
@@ -219,40 +246,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
     refreshInFlightRef.current = promise;
     return promise;
-  }, [stored, persist]);
+  }, [stored, persist, performLogout]);
 
   useEffect(() => {
     setRefreshHandler(refreshAccessToken);
     return () => setRefreshHandler(null);
   }, [refreshAccessToken]);
 
-  /** When requestClient gets 401 Unauthorized (generic or after failed refresh), clear session and set sessionExpired so app redirects to Login. If Server Unavailable is active, do nothing (server has priority; avoids startup race). */
+  /** 401 / refresh failed: logout only if Server Unavailable not active. Uses same performLogout guard. */
   const handleUnauthorized = useCallback(() => {
     if (isServerUnavailableActive()) return;
-    setHubId(null);
-    setAuthError("Your session expired. Please sign in again.");
-    setSessionExpired(true);
-    setIsGuestReady(false);
-    persist(clearedStored(stored.identityId));
-  }, [stored.identityId, persist]);
+    performLogout();
+  }, [performLogout]);
 
   useEffect(() => {
     setOnUnauthorizedHandler(handleUnauthorized);
     return () => setOnUnauthorizedHandler(null);
   }, [handleUnauthorized]);
 
-  const [identityRetryTrigger, setIdentityRetryTrigger] = useState(0);
-
-  /** When no tokens (after logout/session expired or fresh install): fetch new guestToken. Re-runs when retryGuestIdentity() is called (e.g. after Server Unavailable Retry). */
+  /**
+   * Identity runs only once per session when: no access, no refresh, no guest, and not already in-flight.
+   * Module-level identityInFlight prevents multiple effect runs from starting parallel requests (fixes infinite loop).
+   */
   useEffect(() => {
-    const noAuth = isRestored && !stored.accessToken?.trim() && !stored.refreshToken?.trim();
-    const needsGuest = noAuth && !stored.guestToken?.trim() && !isGuestReady;
-    const retryTriggered = identityRetryTrigger > 0 && noAuth;
-    if (!needsGuest && !retryTriggered) return;
+    const hasAccess = !!stored.accessToken?.trim();
+    const hasRefresh = !!stored.refreshToken?.trim();
+    const hasGuest = !!stored.guestToken?.trim();
+    const needsGuest = isRestored && !hasAccess && !hasRefresh && !hasGuest;
+    if (!needsGuest || getIdentityInFlight()) return;
+
     let cancelled = false;
-    let skipSetGuestReady = false;
+    let wasServerError = false;
+    setIdentityInFlight(true);
     fetchIdentity({
-      guestToken: stored.guestToken?.trim() || "",
+      guestToken: "",
       accessToken: undefined,
       refreshToken: undefined,
       tokenVersion: stored.tokenVersion ?? 1,
@@ -265,17 +292,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .catch((e) => {
         if (cancelled) return;
-        if (isServerUnavailableError(e)) {
-          skipSetGuestReady = true;
-          return;
-        }
-        setAuthError("Failed to prepare login");
+        if (isServerUnavailableError(e)) wasServerError = true;
+        else setAuthError("Failed to prepare login");
       })
       .finally(() => {
-        if (!cancelled && !skipSetGuestReady) setIsGuestReady(true);
+        setIdentityInFlight(false);
+        if (!cancelled && !wasServerError) setIsGuestReady(true);
       });
     return () => { cancelled = true; };
-  }, [isRestored, stored.accessToken, stored.refreshToken, stored.guestToken, identityRetryTrigger]);
+  }, [isRestored, stored.accessToken, stored.refreshToken, stored.guestToken]);
 
   /** Fetch or validate guest token. When we have access+refresh we only validate (do not store guestToken). When we have no access+refresh we fetch guest token. On 5xx/HTML/CORS/fetch failure: do NOT set sessionExpired, authError, or isGuestReady (showServerUnavailable already called). */
   const ensureGuestToken = useCallback(async () => {
@@ -297,25 +322,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setIsGuestReady(true);
     } catch (e) {
-      if (isServerUnavailableError(e)) {
+      if (isServerUnavailableError(e)) return;
+      if (isTokenVersionMismatch(e)) {
+        performLogout();
         return;
       }
-      if (isTokenVersionMismatch(e)) {
-        setSessionExpired(true);
-        setIsGuestReady(false);
-        persist(clearedStored(stored.identityId));
-      } else {
-        setAuthError(e instanceof Error ? e.message : "Failed to get guest token");
-      }
+      setAuthError(e instanceof Error ? e.message : "Failed to get guest token");
       setIsGuestReady(true);
     }
-  }, [stored, persist]);
+  }, [stored, persist, performLogout]);
 
+  /** One-off identity call (e.g. after Retry on Server Unavailable). Guarded by identityInFlight so never stacks. */
   const retryGuestIdentity = useCallback(() => {
-    setIdentityRetryTrigger((t) => t + 1);
-  }, []);
+    if (getIdentityInFlight()) return;
+    let wasServerError = false;
+    setIdentityInFlight(true);
+    fetchIdentity({
+      guestToken: stored.guestToken?.trim() || "",
+      accessToken: undefined,
+      refreshToken: undefined,
+      tokenVersion: stored.tokenVersion ?? 1,
+    })
+      .then((data) => {
+        if (!data?.guestToken || !data?.id) return;
+        const next: StoredAuth = { ...defaultStored, guestToken: data.guestToken, identityId: data.id };
+        setStored(next);
+        saveStored(next);
+      })
+      .catch((e) => {
+        if (isServerUnavailableError(e)) wasServerError = true;
+        else setAuthError(e instanceof Error ? e.message : "Failed to prepare login");
+      })
+      .finally(() => {
+        setIdentityInFlight(false);
+        if (!wasServerError) setIsGuestReady(true);
+      });
+  }, [stored.guestToken, stored.tokenVersion]);
 
-  /** App start: load storage. If we have access+refresh, use them (no refresh on startup — refresh only when API returns 401). If only guest, validate. If none, fetch new guest. */
+  /**
+   * App start: load auth from storage only. No identity call here.
+   * - If we have refreshToken → treat as ready (refresh only when API returns 401).
+   * - If we have guestToken → treat as ready (identity effect runs only when no guest; see below).
+   * - If no guest → set isGuestReady false so single identity effect can run when needsGuest.
+   */
   useEffect(() => {
     let cancelled = false;
     loadStored().then((s) => {
@@ -324,57 +373,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsRestored(true);
       setAuthError(null);
       if (s.selectedHubId?.trim()) setHubId(s.selectedHubId);
-
       const hasRefresh = !!s.refreshToken?.trim();
       const hasGuest = !!s.guestToken?.trim();
-
-      if (hasRefresh) {
-        setIsGuestReady(true);
-        return;
-      }
-
-      if (!hasGuest) {
-        setIsGuestReady(false);
-        return;
-      }
-
-      let skipSetGuestReady = false;
-      fetchIdentity({
-        guestToken: s.guestToken!,
-        accessToken: undefined,
-        refreshToken: undefined,
-        tokenVersion: s.tokenVersion,
-      })
-        .then((data) => {
-          if (cancelled || !data?.guestToken || !data?.id) return;
-          const next: StoredAuth = { ...s, guestToken: data.guestToken, identityId: data.id };
-          setStored(next);
-          saveStored(next);
-        })
-        .catch((e) => {
-          if (cancelled) return;
-          if (isServerUnavailableError(e)) {
-            skipSetGuestReady = true;
-            return;
-          }
-          if (isTokenVersionMismatch(e)) {
-            const next = clearedStored(s.identityId);
-            setStored(next);
-            saveStored(next);
-            setSessionExpired(true);
-            setIsGuestReady(false);
-          } else {
-            setAuthError(e instanceof Error ? e.message : "Failed to get guest token");
-          }
-          setIsGuestReady(true);
-        })
-        .finally(() => {
-          if (!cancelled && !skipSetGuestReady) setIsGuestReady(true);
-        });
+      if (hasRefresh || hasGuest) setIsGuestReady(true);
+      else setIsGuestReady(false);
     });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   const setTokensAfterVerify = useCallback(
@@ -408,12 +412,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [stored, persist],
   );
 
-  /** Logout: clear all tokens (guest, access, refresh), user, role, hub. Resets to login; Identity will be called for new guest token. */
+  /** Logout: guarded so multiple calls are no-ops. Identity effect will run once when needsGuest (no access/refresh/guest). */
   const logout = useCallback(() => {
-    setHubId(null);
-    setIsGuestReady(false);
-    persist(clearedStored(stored.identityId));
-  }, [stored.identityId, persist]);
+    performLogout();
+  }, [performLogout]);
 
   const setAccessToken = useCallback(
     (accessToken: string) => {

@@ -1,13 +1,13 @@
 /**
- * Central API client with auth retry (interceptor-style).
- * - Single-flight refresh: multiple 401s share one refresh call.
- * - On 401 + TOKEN_EXPIRED only: refresh once, retry original request. No refresh on 403, 500, 503, offline.
- * - On refresh failure: auth-bridge returns null; AuthContext clears state and sets sessionExpired → redirect to Login.
+ * Central API client. Single-flight refresh, strict server vs auth separation.
  *
- * IMPORTANT — Auth errors log the user out. Server errors never do.
- * 503 / 5xx / HTML error pages are SERVER_UNAVAILABLE: we show the global "Server temporarily unavailable"
- * screen and never call notifyUnauthorized() or set sessionExpired. This avoids logging users out when the
- * backend is down or a proxy returns an HTML error page (e.g. 503 Service Temporarily Unavailable).
+ * Lifecycle:
+ * 1. Before any 401: if isServerUnavailableActive() → showServerUnavailable(), throw. Never notifyUnauthorized when server screen is active.
+ * 2. 5xx / Content-Type text/html / body starts with <html → server error → showServerUnavailable(), throw. Do not reach 401 logic.
+ * 3. 401 with HTML body → server error (gateway) → showServerUnavailable(), throw.
+ * 4. 401 (real): Auth/OTP/identity/refresh routes → notifyUnauthorized(), throw (no refresh). Other routes: if TOKEN_EXPIRED → refresh once (single flight), retry once; if still 401 or generic 401 → notifyUnauthorized(), throw.
+ *
+ * Server errors never logout. Auth errors always logout (via notifyUnauthorized). No infinite retry; one refresh in flight, one retry per request.
  */
 
 import { tryRefreshToken, notifyUnauthorized } from "@/lib/auth-bridge";
@@ -110,10 +110,9 @@ export async function is401TokenExpired(res: Response): Promise<boolean> {
   }
 }
 
-// ----- Refresh queue: only one refresh in flight -----
+// ----- Single-flight refresh: one refresh at a time; concurrent 401s wait; no nested refresh, no infinite retry -----
 let refreshPromise: Promise<string | null> | null = null;
 
-/** Single-flight refresh. All concurrent 401s (with TOKEN_EXPIRED) wait on the same promise. Returns new access token or null (session expired). */
 async function getNewAccessTokenAfter401(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
   refreshPromise = tryRefreshToken();
