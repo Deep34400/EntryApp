@@ -381,10 +381,6 @@ export default function VisitorTypeScreen() {
     </View>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: {
@@ -423,7 +419,7 @@ const styles = StyleSheet.create({
     borderRadius: TOGGLE_RADIUS,
     backgroundColor: TOGGLE_BG,
     justifyContent: "center",
-    padding: 2
+    padding: 4
   },
   toggleTabsRow: {
     flexDirection: "row",
