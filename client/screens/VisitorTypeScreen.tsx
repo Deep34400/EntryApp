@@ -1,40 +1,16 @@
 /**
  * VisitorTypeScreen — Create Visitor Entry
- *
- * Features:
- * - Pull to refresh → resets the whole form
- * - Vehicle bottom sheet: search, sections, tap to select instantly
- * - Remove vehicle option inside sheet + on trigger
- * - Editable manual reg if not in list
- * - Auto-selects first vehicle from API
- * - Simple clean code, all functionality intact
  */
 import React, { useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
-  View,
-  StyleSheet,
-  Text,
-  Pressable,
-  ScrollView,
-  TextInput,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Keyboard,
-  Modal,
-  Animated,
-  Easing,
-  TouchableWithoutFeedback,
-  RefreshControl,
+  View, StyleSheet, Text, Pressable, ScrollView, TextInput,
+  Image, KeyboardAvoidingView, Platform, Keyboard, Animated, Easing, RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import ReAnimated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated";
+import ReAnimated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
@@ -43,16 +19,16 @@ import { normalizePhoneInput, isPhoneValid, PHONE_MAX_DIGITS } from "@/utils/val
 import { usePermissions } from "@/permissions/usePermissions";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDriverDetails, type DriverDetails } from "@/apis/driver/driver.api";
+import { getReferralNames, getReferralDisplayLabel, type ReferralNameItem } from "@/apis/referral/referral.api";
 
 // ─── Tokens ──────────────────────────────────────────────────────────────────
-const FONT    = "Poppins";
-const RED     = "#B31D38";
-const RED_BG  = "rgba(179,29,56,0.07)";
-const BORDER  = "#D4D8DA";
-const TEXT    = "#161B1D";
-const MUTED   = "#77878E";
-const WHITE   = "#FFFFFF";
-const SURFACE = "#F5F6F8";
+const FONT   = "Poppins";
+const RED    = "#B31D38";
+const RED_BG = "rgba(179,29,56,0.06)";
+const BORDER = "#D4D8DA";
+const TEXT   = "#161B1D";
+const MUTED  = "#77878E";
+const WHITE  = "#FFFFFF";
 
 const INPUT_H = 50;
 const INPUT_R = 12;
@@ -61,13 +37,14 @@ const GAP     = 20;
 
 type TabId   = "staff" | "driver_partner";
 type NavProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
+type Vehicle = { regNumber: string; modelName?: string };
 
-const EMPTY_FORM: EntryFormData = { phone: "", name: "", vehicle_reg_number: "" };
+const EMPTY: EntryFormData = { phone: "", name: "", vehicle_reg_number: "" };
 
 // ─── SegmentedToggle ─────────────────────────────────────────────────────────
 function SegmentedToggle({ value, onChange }: { value: TabId; onChange: (t: TabId) => void }) {
-  const idx        = value === "driver_partner" ? 0 : 1;
-  const tx         = useSharedValue(0);
+  const idx = value === "driver_partner" ? 0 : 1;
+  const tx  = useSharedValue(0);
   const [segW, setSegW] = useState(0);
 
   React.useEffect(() => {
@@ -77,14 +54,13 @@ function SegmentedToggle({ value, onChange }: { value: TabId; onChange: (t: TabI
   const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }] }));
 
   return (
-    <View
-      onLayout={(e) => { const w = e.nativeEvent.layout.width; if (w > 0) setSegW((w - 8) / 2); }}
-    >
+    <View onLayout={(e) => { const w = e.nativeEvent.layout.width; if (w > 0) setSegW((w - 8) / 2); }}>
       <View style={s.track}>
         <ReAnimated.View style={[s.pill, pillStyle, segW > 0 && { width: segW }]} pointerEvents="none" />
         <View style={s.tabsRow}>
           {(["driver_partner", "staff"] as TabId[]).map((tab) => (
-            <Pressable key={tab} style={s.tab} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange(tab); }}>
+            <Pressable key={tab} style={s.tab}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange(tab); }}>
               <Text style={[s.tabTxt, value === tab && s.tabTxtOn]}>
                 {tab === "driver_partner" ? "Driver Partner" : "Staff"}
               </Text>
@@ -96,228 +72,350 @@ function SegmentedToggle({ value, onChange }: { value: TabId; onChange: (t: TabI
   );
 }
 
-// ─── FormInput ───────────────────────────────────────────────────────────────
+// ─── FormInput ────────────────────────────────────────────────────────────────
 function FormInput({ label, prefix, ...props }: React.ComponentProps<typeof TextInput> & { label: string; prefix?: string }) {
   const [focused, setFocused] = useState(false);
-  const bc = focused ? RED : BORDER;
   return (
     <View style={s.field}>
       <Text style={s.label}>{label}</Text>
       {prefix ? (
-        <View style={[s.inputRow, { borderColor: bc }]}>
+        <View style={[s.inputRow, focused && s.inputRowFocused]}>
           <Text style={s.prefix}>{prefix}</Text>
-          <TextInput style={s.input} placeholderTextColor={MUTED} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} {...props} />
+          <TextInput style={s.input} placeholderTextColor={MUTED}
+            onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+            selectionColor={RED} {...props} />
         </View>
       ) : (
-        <TextInput style={[s.inputSingle, { borderColor: bc }]} placeholderTextColor={MUTED} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} {...props} />
+        <TextInput style={[s.inputSingle, focused && s.inputSingleFocused]}
+          placeholderTextColor={MUTED} onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)} selectionColor={RED} {...props} />
       )}
     </View>
   );
 }
 
-// ─── VehicleTrigger — what shows on the main form ────────────────────────────
-function VehicleTrigger({
-  vehicles, selectedReg, onOpen, onClear, onCustomChange, onBlur,
+// ─── VehicleField ─────────────────────────────────────────────────────────────
+function VehicleField({
+  vehicles, selectedReg, onSelect, onClear, onCustomChange, onBlur,
 }: {
-  vehicles: { regNumber: string }[];
-  selectedReg: string;
-  onOpen: () => void;
-  onClear: () => void;
-  onCustomChange: (v: string) => void;
-  onBlur?: () => void;
+  vehicles: Vehicle[]; selectedReg: string;
+  onSelect: (reg: string) => void; onClear: () => void;
+  onCustomChange: (v: string) => void; onBlur?: () => void;
 }) {
+  const [query, setQuery]     = useState(selectedReg ?? "");
+  const [open, setOpen]       = useState(false);
   const [focused, setFocused] = useState(false);
-  const hasVehicles  = vehicles.length > 0;
-  const isFromList   = vehicles.some((v) => v.regNumber === selectedReg);
-  const bc           = focused ? RED : selectedReg ? RED : BORDER;
+  const heightAnim = useRef(new Animated.Value(0)).current;
+  const inputRef   = useRef<TextInput>(null);
 
-  // No API vehicles → plain editable input
-  if (!hasVehicles) {
+  React.useEffect(() => { setQuery(selectedReg ?? ""); }, [selectedReg]);
+
+  const openDrop  = useCallback(() => { setOpen(true);  Animated.timing(heightAnim, { toValue: 1, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(); }, []);
+  const closeDrop = useCallback(() => { Animated.timing(heightAnim, { toValue: 0, duration: 150, easing: Easing.in(Easing.cubic),  useNativeDriver: false }).start(() => setOpen(false)); }, []);
+
+  const pick = useCallback((reg: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setQuery(reg); onSelect(reg); closeDrop(); inputRef.current?.blur();
+  }, [onSelect, closeDrop]);
+
+  const handleFocus  = useCallback(() => { setFocused(true); setQuery(""); openDrop(); }, [openDrop]);
+  const handleBlur   = useCallback(() => {
+    setFocused(false);
+    const t = query.trim().toUpperCase();
+    if (t && !vehicles.some((v) => v.regNumber === t)) onCustomChange(t);
+    onBlur?.(); closeDrop();
+  }, [query, vehicles, onCustomChange, onBlur, closeDrop]);
+  const handleChange = useCallback((text: string) => {
+    const u = text.toUpperCase(); setQuery(u); onCustomChange(u);
+    if (!open) openDrop();
+  }, [open, openDrop, onCustomChange]);
+
+  if (vehicles.length === 0) {
     return (
       <View style={s.field}>
         <Text style={s.label}>Vehicle Number (optional)</Text>
-        <TextInput
-          style={[s.inputSingle, { borderColor: bc }]}
-          placeholder="e.g. HR55AB3849"
-          placeholderTextColor={MUTED}
-          value={selectedReg}
-          onChangeText={onCustomChange}
-          onBlur={onBlur}
-          onFocus={() => setFocused(true)}
-          autoCapitalize="characters"
-          returnKeyType="done"
-        />
+        <View style={[s.inputRow, focused && s.inputRowFocused]}>
+          <TextInput style={s.input} placeholder="e.g. HR55AB3849" placeholderTextColor={MUTED}
+            value={query} onChangeText={handleChange}
+            onFocus={() => setFocused(true)} onBlur={() => { setFocused(false); onBlur?.(); }}
+            autoCapitalize="characters" returnKeyType="done" selectionColor={RED} />
+          {query.length > 0 && (
+            <Pressable onPress={() => { setQuery(""); onClear(); }} hitSlop={10}>
+              <View style={s.clearCircle}><Text style={s.clearX}>✕</Text></View>
+            </Pressable>
+          )}
+        </View>
       </View>
     );
   }
 
+  const filtered  = query.trim() ? vehicles.filter((v) => v.regNumber.includes(query.trim().toUpperCase())) : vehicles;
+  const isCustom  = query.trim().length > 0 && !vehicles.some((v) => v.regNumber === query.trim().toUpperCase());
+  const listH     = heightAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 252] });
+  const listAlpha = heightAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] });
+  const isOpen    = focused || open;
+
   return (
-    <View style={s.field}>
-      <View style={s.labelRow}>
-        <Text style={s.label}>Vehicle Number (optional)</Text>
-        {selectedReg ? (
-          <Pressable onPress={onClear} hitSlop={8}>
-            <Text style={s.removeLink}>Remove</Text>
-          </Pressable>
-        ) : null}
+    <View style={s.vehicleWrapper}>
+      <Text style={s.label}>Vehicle Number (optional)</Text>
+      <View style={[s.unifiedBox, isOpen && s.unifiedBoxOpen]}>
+        <View style={s.vehicleInputRow}>
+          <TextInput ref={inputRef} style={s.vehicleSearchInput}
+            placeholder="Search or type reg number..." placeholderTextColor={MUTED}
+            value={query} onChangeText={handleChange} onFocus={handleFocus} onBlur={handleBlur}
+            autoCapitalize="characters" autoCorrect={false} returnKeyType="done" selectionColor={RED} />
+          {query.length > 0 ? (
+            <Pressable onPress={() => { setQuery(""); onClear(); inputRef.current?.focus(); }} hitSlop={10}>
+              <View style={s.clearCircle}><Text style={s.clearX}>✕</Text></View>
+            </Pressable>
+          ) : (
+            <Text style={[s.chevron, isOpen && s.chevronUp]}>▼</Text>
+          )}
+        </View>
+        {open && (
+          <Animated.View style={[s.dropInner, { maxHeight: listH, opacity: listAlpha }]}>
+            <View style={s.dropSeparator} />
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+              bounces={false} contentContainerStyle={{ paddingVertical: 4 }}>
+              {isCustom && (
+                <Pressable onPress={() => pick(query.trim().toUpperCase())}
+                  style={({ pressed }) => [s.dropRow, pressed && { opacity: 0.65 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.dropCustomLabel}>Use "{query.trim().toUpperCase()}"</Text>
+                    <Text style={s.dropCustomHint}>Tap to confirm</Text>
+                  </View>
+                  <Text style={s.dropPlus}>＋</Text>
+                </Pressable>
+              )}
+              {filtered.length === 0 && !isCustom ? (
+                <View style={s.dropEmpty}><Text style={s.dropEmptyTxt}>No registered vehicles</Text></View>
+              ) : (
+                filtered.map((v, idx) => {
+                  const sel = selectedReg === v.regNumber;
+                  return (
+                    <React.Fragment key={v.regNumber}>
+                      <Pressable onPress={() => pick(v.regNumber)}
+                        style={({ pressed }) => [s.dropRow, sel && s.dropRowSel, pressed && { opacity: 0.6 }]}>
+                        <Text style={[s.dropRowReg, sel && s.dropRowRegSel]}>{v.regNumber}</Text>
+                        {v.modelName ? <Text style={s.dropRowModel}>{v.modelName}</Text> : null}
+                        {sel && <Text style={s.dropTick}>✓</Text>}
+                      </Pressable>
+                      {idx < filtered.length - 1 && <View style={s.dropRowDivider} />}
+                    </React.Fragment>
+                  );
+                })
+              )}
+              {selectedReg.length > 0 && (
+                <>
+                  <View style={s.dropSectionDivider} />
+                  <Pressable onPress={() => { onClear(); setQuery(""); closeDrop(); inputRef.current?.blur(); }}
+                    style={({ pressed }) => [s.dropRemoveRow, pressed && { opacity: 0.55 }]}>
+                    <Text style={s.dropRemoveTxt}>✕  Remove vehicle</Text>
+                  </Pressable>
+                </>
+              )}
+            </ScrollView>
+          </Animated.View>
+        )}
       </View>
-
-      {/* Tap to open sheet */}
-      <Pressable onPress={onOpen} style={[s.inputRow, { borderColor: bc, paddingRight: 12 }]}>
-        <Text style={[s.input, selectedReg ? { color: RED, fontWeight: "600" } : { color: MUTED }]} numberOfLines={1}>
-          {selectedReg || "Tap to select vehicle"}
-        </Text>
-        <Text style={{ fontSize: 12, color: MUTED }}>▼</Text>
-      </Pressable>
-
-      {/* If manually typed reg (not from API list), show editable input below */}
-      {selectedReg && !isFromList && (
-        <TextInput
-          style={[s.inputSingle, { borderColor: RED, marginTop: 8 }]}
-          placeholder="Edit vehicle number"
-          placeholderTextColor={MUTED}
-          value={selectedReg}
-          onChangeText={onCustomChange}
-          onBlur={onBlur}
-          autoCapitalize="characters"
-          returnKeyType="done"
-        />
-      )}
     </View>
   );
 }
 
-// ─── Vehicle Bottom Sheet ─────────────────────────────────────────────────────
-function VehicleSheet({
-  visible, vehicles, selectedReg, onSelect, onClose,
+// ─── ReferralNameField ────────────────────────────────────────────────────────
+// ┌─ HOW IT WORKS ─────────────────────────────────────────────────────────────┐
+// │ 1. Parent fetches full list ONCE when user taps "Yes" → passes as `allNames`│
+// │ 2. Typing filters allNames locally — ZERO extra API calls                   │
+// │ 3. Same interaction model as VehicleField dropdown                          │
+// └─────────────────────────────────────────────────────────────────────────────┘
+function ReferralNameField({
+  allNames,
+  loading,
+  selectedName,
+  onSelect,
+  onClear,
+  onCustomChange,
 }: {
-  visible: boolean;
-  vehicles: { regNumber: string; modelName?: string }[];
-  selectedReg: string;
-  onSelect: (r: string) => void;
-  onClose: () => void;
+  allNames: ReferralNameItem[];   // full list, loaded once
+  loading: boolean;               // spinner while list is being fetched
+  selectedName: string;           // confirmed selection
+  onSelect: (item: ReferralNameItem) => void;
+  onClear: () => void;
+  onCustomChange: (v: string) => void;
 }) {
-  const insets      = useSafeAreaInsets();
-  const slide       = useRef(new Animated.Value(600)).current;
-  const [query, setQuery] = useState("");
+  const [query, setQuery]     = useState(selectedName ?? "");
+  const [open, setOpen]       = useState(false);
+  const [focused, setFocused] = useState(false);
+  const heightAnim            = useRef(new Animated.Value(0)).current;
+  const inputRef              = useRef<TextInput>(null);
+  // ── Critical: prevents onBlur from wiping a selection that was just made ────
+  const didPickRef = useRef(false);
 
-  React.useEffect(() => {
-    if (visible) {
-      setQuery("");
-      Animated.spring(slide, { toValue: 0, useNativeDriver: true, tension: 65, friction: 12 }).start();
-    } else {
-      Animated.timing(slide, { toValue: 600, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start();
-    }
-  }, [visible]);
+  // Sync when parent resets (e.g. "No" toggled, or vehicle removed)
+  React.useEffect(() => { setQuery(selectedName ?? ""); }, [selectedName]);
 
-  const filtered = vehicles.filter((v) =>
-    v.regNumber.toLowerCase().includes(query.toLowerCase()) ||
-    (v.modelName ?? "").toLowerCase().includes(query.toLowerCase())
-  );
+  const openDrop  = useCallback(() => { setOpen(true);  Animated.timing(heightAnim, { toValue: 1, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(); }, []);
+  const closeDrop = useCallback(() => { Animated.timing(heightAnim, { toValue: 0, duration: 150, easing: Easing.in(Easing.cubic),  useNativeDriver: false }).start(() => setOpen(false)); }, []);
 
-  const recent = filtered.slice(0, 3);
-  const others  = filtered.slice(3);
-
-  const pick = (reg: string) => {
+  const pick = useCallback((item: ReferralNameItem) => {
+    didPickRef.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onSelect(reg);
-    onClose();
-  };
+    const label = getReferralDisplayLabel(item);
+    setQuery(label);
+    onSelect(item);
+    closeDrop();
+    inputRef.current?.blur();
+  }, [onSelect, closeDrop]);
 
-  if (!visible) return null;
+  const handleFocus = useCallback(() => {
+    didPickRef.current = false;
+    setFocused(true);
+    openDrop();
+  }, [openDrop]);
+
+  const handleBlur = useCallback(() => {
+    setFocused(false);
+    if (!didPickRef.current) {
+      const trimmed = query.trim();
+      const exact = allNames.find((n) => getReferralDisplayLabel(n).toLowerCase() === trimmed.toLowerCase());
+      if (trimmed && !exact) {
+        onCustomChange(trimmed);
+      } else if (!trimmed) {
+        setQuery(selectedName ?? "");
+      }
+    }
+    didPickRef.current = false;
+    closeDrop();
+  }, [query, allNames, selectedName, onCustomChange, closeDrop]);
+
+  // ── Local filter ONLY — no API call on typing ────────────────────────────────
+  const handleChange = useCallback((text: string) => {
+    didPickRef.current = false;
+    setQuery(text);
+    onCustomChange(text);
+    if (!open) openDrop();
+  }, [open, openDrop, onCustomChange]);
+
+  const handleClear = useCallback(() => {
+    didPickRef.current = false;
+    setQuery("");
+    onClear();
+    inputRef.current?.focus();
+  }, [onClear]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? allNames.filter((n) => getReferralDisplayLabel(n).toLowerCase().includes(q)) : allNames;
+  }, [query, allNames]);
+
+  const isCustom = query.trim().length > 0 &&
+    !allNames.some((n) => getReferralDisplayLabel(n).toLowerCase() === query.trim().toLowerCase());
+
+  const listH     = heightAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 240] });
+  const listAlpha = heightAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] });
+  const isOpen    = focused || open;
 
   return (
-    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={s.overlay} />
-      </TouchableWithoutFeedback>
+    <View style={s.vehicleWrapper}>
+      <Text style={s.label}>Referral Name</Text>
 
-      <Animated.View style={[s.sheet, { paddingBottom: insets.bottom + 16, transform: [{ translateY: slide }] }]}>
-        {/* Handle */}
-        <View style={s.handle} />
-
-        {/* Header */}
-        <View style={s.sheetHeader}>
-          <Text style={s.sheetTitle}>Select Vehicle</Text>
-          <Pressable onPress={onClose} style={s.closeBtn} hitSlop={10}>
-            <Text style={s.closeTxt}>✕</Text>
-          </Pressable>
-        </View>
-
-        {/* Search */}
-        <View style={s.searchBox}>
-          <Text style={{ fontSize: 14, marginRight: 8 }}>🔍</Text>
+      <View style={[s.unifiedBox, isOpen && s.unifiedBoxOpen]}>
+        {/* Input row */}
+        <View style={s.vehicleInputRow}>
           <TextInput
-            style={s.searchInput}
-            placeholder="Search registration number..."
+            ref={inputRef}
+            style={s.vehicleSearchInput}
+            placeholder={loading ? "Loading names…" : "Search or enter name…"}
             placeholderTextColor={MUTED}
             value={query}
-            onChangeText={setQuery}
-            autoCapitalize="characters"
+            onChangeText={handleChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            autoCorrect={false}
+            returnKeyType="done"
+            selectionColor={RED}
+            editable={!loading}
+            underlineColorAndroid="transparent"
           />
-          {query.length > 0 && (
-            <Pressable onPress={() => setQuery("")} hitSlop={8}>
-              <Text style={{ color: MUTED, fontSize: 13, padding: 4 }}>✕</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color={MUTED} />
+          ) : query.length > 0 ? (
+            <Pressable onPress={handleClear} hitSlop={10}>
+              <View style={s.clearCircle}><Text style={s.clearX}>✕</Text></View>
             </Pressable>
+          ) : (
+            <Text style={[s.chevron, isOpen && s.chevronUp]}>▼</Text>
           )}
         </View>
 
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ maxHeight: 380 }}>
-          {filtered.length === 0 ? (
-            <>
-              <Text style={s.noResults}>No match for "{query}"</Text>
-              {query.length >= 4 && (
-                <Pressable onPress={() => { onSelect(query.toUpperCase()); onClose(); }} style={s.useCustomBtn}>
-                  <Text style={s.useCustomTxt}>Use "{query.toUpperCase()}"</Text>
+        {/* Dropdown — only when open and names are ready */}
+        {open && !loading && (
+          <Animated.View style={[s.dropInner, { maxHeight: listH, opacity: listAlpha }]}>
+            <View style={s.dropSeparator} />
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              contentContainerStyle={{ paddingVertical: 4 }}
+            >
+              {/* Freetext custom entry */}
+              {isCustom && (
+                <Pressable
+                  onPress={() => pick({ id: `__custom__${Date.now()}`, name: query.trim() })}
+                  style={({ pressed }) => [s.dropRow, pressed && { opacity: 0.65 }]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.dropCustomLabel}>Use "{query.trim()}"</Text>
+                    <Text style={s.dropCustomHint}>Tap to confirm</Text>
+                  </View>
+                  <Text style={s.dropPlus}>＋</Text>
                 </Pressable>
               )}
-            </>
-          ) : (
-            <>
-              {/* Recent */}
-              {recent.length > 0 && <Text style={s.section}>RECENT VEHICLES</Text>}
-              {recent.map((v) => <VRow key={v.regNumber} v={v} selected={selectedReg === v.regNumber} onPress={() => pick(v.regNumber)} />)}
 
-              {/* Others */}
-              {others.length > 0 && <Text style={[s.section, { marginTop: 18 }]}>OTHER VEHICLES</Text>}
-              {others.map((v) => <VRow key={v.regNumber} v={v} selected={selectedReg === v.regNumber} onPress={() => pick(v.regNumber)} />)}
-            </>
-          )}
+              {/* Filtered name list — local filter only, no API on type */}
+              {filtered.map((n, idx) => {
+                const displayLabel = getReferralDisplayLabel(n);
+                const sel = selectedName === displayLabel;
+                return (
+                  <React.Fragment key={n.id}>
+                    <Pressable
+                      onPress={() => pick(n)}
+                      style={({ pressed }) => [s.dropRow, sel && s.dropRowSel, pressed && { opacity: 0.6 }]}
+                    >
+                      <Text style={[s.dropRowReg, sel && s.dropRowRegSel]}>{displayLabel}</Text>
+                      {sel && <Text style={s.dropTick}>✓</Text>}
+                    </Pressable>
+                    {idx < filtered.length - 1 && <View style={s.dropRowDivider} />}
+                  </React.Fragment>
+                );
+              })}
 
-          {/* Remove vehicle option */}
-          {selectedReg && !query && (
-            <Pressable onPress={() => { onSelect(""); onClose(); }} style={s.removeVehicleBtn}>
-              <Text style={s.removeVehicleTxt}>✕  Remove vehicle selection</Text>
-            </Pressable>
-          )}
+              {filtered.length === 0 && !isCustom && (
+                <View style={s.dropEmpty}>
+                  <Text style={s.dropEmptyTxt}>No names found</Text>
+                </View>
+              )}
 
-          <View style={{ height: 8 }} />
-        </ScrollView>
-      </Animated.View>
-    </Modal>
-  );
-}
-
-// ─── Single vehicle row ───────────────────────────────────────────────────────
-function VRow({ v, selected, onPress }: { v: { regNumber: string; modelName?: string }; selected: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [s.row, selected && s.rowOn, pressed && { opacity: 0.65 }]}
-    >
-      <View style={[s.radio, selected && s.radioOn]}>
-        {selected && <View style={s.radioDot} />}
+              {/* Remove — only when a name is actually confirmed */}
+              {selectedName.trim().length > 0 && (
+                <>
+                  <View style={s.dropSectionDivider} />
+                  <Pressable
+                    onPress={() => {
+                      didPickRef.current = false;
+                      onClear(); setQuery(""); closeDrop(); inputRef.current?.blur();
+                    }}
+                    style={({ pressed }) => [s.dropRemoveRow, pressed && { opacity: 0.55 }]}
+                  >
+                    <Text style={s.dropRemoveTxt}>✕  Remove referral</Text>
+                  </Pressable>
+                </>
+              )}
+            </ScrollView>
+          </Animated.View>
+        )}
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[s.rowReg, selected && s.rowRegOn]}>{v.regNumber}</Text>
-        {v.modelName ? <Text style={s.rowModel}>{v.modelName}</Text> : null}
-      </View>
-      {selected && (
-        <View style={s.badge}>
-          <Text style={s.badgeTxt}>SELECTED</Text>
-        </View>
-      )}
-    </Pressable>
+    </View>
   );
 }
 
@@ -328,27 +426,96 @@ export default function VisitorTypeScreen() {
   const { canCreateEntry } = usePermissions();
   const { accessToken }    = useAuth();
 
-  const [tab, setTab]                 = useState<TabId>("driver_partner");
-  const [kbVisible, setKbVisible]     = useState(false);
-  const [form, setForm]               = useState<EntryFormData>(EMPTY_FORM);
-  const [driver, setDriver]           = useState<DriverDetails | null>(null);
-  const [loading, setLoading]         = useState(false);
-  const [refreshing, setRefreshing]   = useState(false);
-  const [sheetOpen, setSheetOpen]     = useState(false);
+  const [tab, setTab]               = useState<TabId>("driver_partner");
+  const [kbVisible, setKbVisible]   = useState(false);
+  const [form, setForm]             = useState<EntryFormData>(EMPTY);
+  const [driver, setDriver]         = useState<DriverDetails | null>(null);
+  const [loading, setLoading]       = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const isDP      = tab === "driver_partner";
-  const entryType: EntryType = isDP ? "dp" : "non_dp";
-  const vehicles  = (isDP && driver?.vehicles) ? driver.vehicles : [];
+  // ── Referral state ──────────────────────────────────────────────────────────
+  const [referral, setReferral]             = useState<"yes" | "no">("no");
+  const [referralName, setReferralName]     = useState("");
+  // ── API list: fetched ONCE when "Yes" is tapped — never re-fetched on search ─
+  const [allReferralNames, setAllReferralNames] = useState<ReferralNameItem[]>([]);
+  const [referralNamesLoading, setReferralNamesLoading] = useState(false);
+  const referralNamesFetchedRef = useRef(false); // guard: don't re-fetch if already loaded
 
-  // ── Pull to refresh — resets the whole form ────────────────────────────────
+  const referralSectionAnim = useRef(new Animated.Value(0)).current;
+  const referralNameAnim    = useRef(new Animated.Value(0)).current;
+
+  const isDP        = tab === "driver_partner";
+  const vehicles    = (isDP && driver?.vehicles) ? driver.vehicles : [] as Vehicle[];
+  const entryType   = (isDP ? "dp" : "non_dp") as EntryType;
+  const hasVehicle  = (form.vehicle_reg_number ?? "").trim().length > 0;
+  // ── Referral only in Driver Partner tab AND when no vehicle selected ───────
+  const showReferral = isDP && !hasVehicle;
+
+  React.useEffect(() => {
+    Animated.timing(referralSectionAnim, {
+      toValue: showReferral ? 1 : 0,
+      duration: showReferral ? 220 : 180,
+      easing: showReferral ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+
+    if (!showReferral) {
+      setReferral("no");
+      setReferralName("");
+      setAllReferralNames([]);
+      referralNamesFetchedRef.current = false;
+      Animated.timing(referralNameAnim, { toValue: 0, duration: 150, useNativeDriver: false }).start();
+    }
+  }, [showReferral]);
+
+  // ── Toggle Yes/No ────────────────────────────────────────────────────────────
+  const toggleReferral = useCallback(async (val: "yes" | "no") => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setReferral(val);
+
+    if (val === "no") {
+      setReferralName("");
+      Animated.timing(referralNameAnim, {
+        toValue: 0, duration: 180, easing: Easing.in(Easing.cubic), useNativeDriver: false,
+      }).start();
+      return;
+    }
+
+    // val === "yes" — animate name field in
+    Animated.timing(referralNameAnim, {
+      toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: false,
+    }).start();
+
+    // ── Fetch list ONCE ──────────────────────────────────────────────────────
+    // If already fetched (user toggled Yes → No → Yes again), skip API call
+    if (referralNamesFetchedRef.current || !accessToken) return;
+
+    setReferralNamesLoading(true);
+    try {
+      const list = await getReferralNames(accessToken);
+      setAllReferralNames(list);
+      referralNamesFetchedRef.current = true;
+    } catch (err) {
+      console.error("Failed to load referral names:", err);
+      // Leave allReferralNames empty — user can still type a custom name
+    } finally {
+      setReferralNamesLoading(false);
+    }
+  }, [accessToken]);
+
+  // Interpolations
+  const referralSectionH     = referralSectionAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 88] });
+  const referralSectionAlpha = referralSectionAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
+  const referralNameH        = referralNameAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 340] });
+  const referralNameAlpha    = referralNameAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 1] });
+
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
-    setForm(EMPTY_FORM);
-    setDriver(null);
-    setSheetOpen(false);
-    // Small delay so spinner shows
-    await new Promise((r) => setTimeout(r, 600));
+    setForm(EMPTY); setDriver(null);
+    setReferral("no"); setReferralName("");
+    setAllReferralNames([]); referralNamesFetchedRef.current = false;
+    await new Promise((r) => setTimeout(r, 500));
     setRefreshing(false);
   }, []);
 
@@ -358,7 +525,7 @@ export default function VisitorTypeScreen() {
 
   React.useEffect(() => {
     const show = Keyboard.addListener("keyboardDidShow", () => setKbVisible(true));
-    const hide  = Keyboard.addListener("keyboardDidHide", () => setKbVisible(false));
+    const hide  = Keyboard.addListener("keyboardDidHide",  () => setKbVisible(false));
     return () => { show.remove(); hide.remove(); };
   }, []);
 
@@ -373,20 +540,13 @@ export default function VisitorTypeScreen() {
     }
   };
 
-  const applyDriver = (d: DriverDetails) => {
-    setDriver(d);
-    setForm((p) => ({
-      ...p,
-      name: d.name,
-      vehicle_reg_number: d.vehicles.length >= 1 ? d.vehicles[0].regNumber : p.vehicle_reg_number,
-    }));
-  };
-
   const fetchByPhone = async () => {
     if (!isDP || !isPhoneValid(form.phone) || !accessToken) return;
     setLoading(true); setDriver(null);
-    try { const d = await getDriverDetails({ phoneNo: form.phone.trim(), accessToken }); if (d) applyDriver(d); }
-    finally { setLoading(false); }
+    try {
+      const d = await getDriverDetails({ phoneNo: form.phone.trim(), accessToken });
+      if (d) { setDriver(d); setForm((p) => ({ ...p, name: d.name, vehicle_reg_number: p.vehicle_reg_number || "" })); }
+    } finally { setLoading(false); }
   };
 
   const fetchByReg = async () => {
@@ -396,7 +556,7 @@ export default function VisitorTypeScreen() {
     setLoading(true); setDriver(null);
     try {
       const d = await getDriverDetails({ regNumber: reg, accessToken });
-      if (d) { setDriver(d); setForm((p) => ({ ...p, name: d.name, phone: normalizePhoneInput(d.phone), vehicle_reg_number: d.vehicles.length >= 1 ? d.vehicles[0].regNumber : p.vehicle_reg_number })); }
+      if (d) { setDriver(d); setForm((p) => ({ ...p, name: d.name, phone: normalizePhoneInput(d.phone) })); }
     } finally { setLoading(false); }
   };
 
@@ -405,7 +565,12 @@ export default function VisitorTypeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     navigation.navigate("VisitorPurpose", {
       entryType,
-      formData: { ...form, vehicle_reg_number: form.vehicle_reg_number || undefined },
+      formData: {
+        ...form,
+        vehicle_reg_number: form.vehicle_reg_number || undefined,
+        referral: showReferral ? referral : undefined,
+        referral_name: showReferral && referral === "yes" ? referralName.trim() || undefined : undefined,
+      },
     });
   };
 
@@ -420,18 +585,8 @@ export default function VisitorTypeScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={RED}
-              colors={[RED]}
-              title="Release to reset form"
-              titleColor={MUTED}
-            />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={RED} colors={[RED]} />}
         >
-          {/* Illustration */}
           {!kbVisible && (
             <View style={s.illWrap}>
               <Image source={require("../../assets/images/car.png")} style={s.ill} resizeMode="contain" />
@@ -446,47 +601,65 @@ export default function VisitorTypeScreen() {
                 <SegmentedToggle value={tab} onChange={setTab} />
               </View>
 
-              {/* Phone */}
-              <FormInput
-                label="Phone Number" prefix="+91" placeholder=""
+              <FormInput label="Phone Number" prefix="+91" placeholder=""
                 keyboardType="phone-pad" value={form.phone}
-                onChangeText={(v) => set("phone", v)}
-                onBlur={fetchByPhone}
-                maxLength={PHONE_MAX_DIGITS}
-              />
-
+                onChangeText={(v) => set("phone", v)} onBlur={fetchByPhone} maxLength={PHONE_MAX_DIGITS} />
               {loading && <Text style={s.loadingTxt}>Looking up driver…</Text>}
 
               <View style={{ height: GAP }} />
 
-              {/* Name */}
-              <FormInput
-                label="Name" placeholder="Enter name"
-                value={form.name}
-                onChangeText={(v) => set("name", v)}
-                returnKeyType="next"
-              />
+              <FormInput label="Name" placeholder="Enter name"
+                value={form.name} onChangeText={(v) => set("name", v)} returnKeyType="next" />
 
               <View style={{ height: GAP }} />
 
-              {/* Vehicle */}
-              <VehicleTrigger
+              <VehicleField
                 vehicles={vehicles}
                 selectedReg={form.vehicle_reg_number ?? ""}
-                onOpen={() => { Keyboard.dismiss(); setSheetOpen(true); }}
+                onSelect={(r) => setForm((p) => ({ ...p, vehicle_reg_number: r }))}
                 onClear={() => setForm((p) => ({ ...p, vehicle_reg_number: "" }))}
                 onCustomChange={(v) => set("vehicle_reg_number", v)}
                 onBlur={fetchByReg}
               />
 
+              {/* ── Referral Yes/No — only Driver Partner, only when no vehicle selected ─── */}
+              <Animated.View style={{ maxHeight: referralSectionH, opacity: referralSectionAlpha, overflow: "hidden" }}>
+                <View style={{ height: GAP }} />
+                <View style={s.field}>
+                  <Text style={s.label}>Referral</Text>
+                  <View style={s.yesNoRow}>
+                    {(["yes", "no"] as const).map((val) => {
+                      const active = referral === val;
+                      return (
+                        <Pressable key={val} onPress={() => toggleReferral(val)}
+                          style={({ pressed }) => [s.yesNoBtn, active && s.yesNoBtnActive, pressed && { opacity: 0.8 }]}>
+                          <Text style={[s.yesNoTxt, active && s.yesNoTxtActive]}>
+                            {val === "yes" ? "Yes" : "No"}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              </Animated.View>
+
+              {/* ── Referral Name dropdown — slides in when "Yes" tapped ─────── */}
+              <Animated.View style={{ maxHeight: referralNameH, opacity: referralNameAlpha, overflow: "hidden" }}>
+                <View style={{ height: GAP }} />
+                <ReferralNameField
+                  allNames={allReferralNames}
+                  loading={referralNamesLoading}
+                  selectedName={referralName}
+                  onSelect={(item) => setReferralName(getReferralDisplayLabel(item))}
+                  onClear={() => setReferralName("")}
+                  onCustomChange={(v) => setReferralName(v)}
+                />
+              </Animated.View>
+
               <View style={{ height: GAP + 8 }} />
 
-              {/* Next */}
-              <Pressable
-                onPress={handleNext}
-                disabled={!isValid}
-                style={({ pressed }) => [s.nextBtn, !isValid && s.nextOff, pressed && isValid && s.nextPressed]}
-              >
+              <Pressable onPress={handleNext} disabled={!isValid}
+                style={({ pressed }) => [s.nextBtn, !isValid && s.nextOff, pressed && isValid && s.nextPressed]}>
                 <Text style={[s.nextTxt, !isValid && s.nextTxtOff]}>Next</Text>
               </Pressable>
             </>
@@ -497,15 +670,6 @@ export default function VisitorTypeScreen() {
 
         <AppFooter activeTab="Entry" />
       </KeyboardAvoidingView>
-
-      {/* Vehicle bottom sheet */}
-      <VehicleSheet
-        visible={sheetOpen}
-        vehicles={vehicles}
-        selectedReg={form.vehicle_reg_number ?? ""}
-        onSelect={(r) => setForm((p) => ({ ...p, vehicle_reg_number: r }))}
-        onClose={() => setSheetOpen(false)}
-      />
     </View>
   );
 }
@@ -519,65 +683,62 @@ const s = StyleSheet.create({
   ill:       { width: "90%", height: 150 },
   title:     { fontFamily: FONT, fontSize: 18, fontWeight: "600", color: TEXT, textAlign: "center", marginBottom: 20 },
 
-  // Toggle
-  track:   { height: 50, borderRadius: 26, backgroundColor: "#EBEDF1", justifyContent: "center", padding: 4 },
-  tabsRow: { flexDirection: "row", position: "absolute", left: 4, right: 4, top: 4, bottom: 4 },
-  tab:     { flex: 1, justifyContent: "center", alignItems: "center" },
-  pill:    { position: "absolute", left: 4, top: 4, width: "48%", height: 42, borderRadius: 20, backgroundColor: WHITE, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
-  tabTxt:  { fontFamily: FONT, fontSize: 14, fontWeight: "500", color: "#3F4C52" },
-  tabTxtOn:{ fontWeight: "600", color: RED },
+  track:    { height: 50, borderRadius: 26, backgroundColor: "#EBEDF1", justifyContent: "center", padding: 4 },
+  tabsRow:  { flexDirection: "row", position: "absolute", left: 4, right: 4, top: 4, bottom: 4 },
+  tab:      { flex: 1, justifyContent: "center", alignItems: "center" },
+  pill:     { position: "absolute", left: 4, top: 4, width: "48%", height: 42, borderRadius: 20, backgroundColor: WHITE, elevation: 2, boxShadow: "0px 1px 4px rgba(0,0,0,0.08)" },
+  tabTxt:   { fontFamily: FONT, fontSize: 14, fontWeight: "500", color: "#3F4C52" },
+  tabTxtOn: { fontWeight: "600", color: RED },
 
-  // Form fields
-  field:      { gap: 8, marginBottom: 0 },
-  labelRow:   { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  label:      { fontFamily: FONT, fontSize: 13, fontWeight: "500", color: TEXT },
-  removeLink: { fontFamily: FONT, fontSize: 12, color: RED, fontWeight: "500" },
-  inputRow:   { flexDirection: "row", alignItems: "center", height: INPUT_H, borderWidth: 1.5, borderColor: BORDER, borderRadius: INPUT_R, paddingHorizontal: 16, backgroundColor: "#FAFAFA" },
-  prefix:     { fontFamily: FONT, fontSize: 15, color: MUTED, marginRight: 8 },
-  input:      { flex: 1, fontFamily: FONT, fontSize: 15, color: TEXT, paddingVertical: 0 },
-  inputSingle:{ height: INPUT_H, borderWidth: 1.5, borderColor: BORDER, borderRadius: INPUT_R, paddingHorizontal: 16, fontFamily: FONT, fontSize: 15, color: TEXT, backgroundColor: "#FAFAFA" },
+  field:              { gap: 8 },
+  label:              { fontFamily: FONT, fontSize: 13, fontWeight: "500", color: TEXT },
+  inputRow:           { flexDirection: "row", alignItems: "center", height: INPUT_H, borderWidth: 1.5, borderColor: BORDER, borderRadius: INPUT_R, paddingHorizontal: 16, backgroundColor: "#FAFAFA" },
+  inputRowFocused:    { borderColor: BORDER },
+  prefix:             { fontFamily: FONT, fontSize: 15, color: MUTED, marginRight: 8 },
+  input:              { flex: 1, fontFamily: FONT, fontSize: 15, color: TEXT, paddingVertical: 0 },
+  inputSingle:        { height: INPUT_H, borderWidth: 1.5, borderColor: BORDER, borderRadius: INPUT_R, paddingHorizontal: 16, fontFamily: FONT, fontSize: 15, color: TEXT, backgroundColor: "#FAFAFA" },
+  inputSingleFocused: { borderColor: RED },
+  loadingTxt:         { fontFamily: FONT, fontSize: 13, color: MUTED, marginTop: 4 },
+  hint:               { fontFamily: FONT, fontSize: 15, color: MUTED, textAlign: "center", paddingVertical: 24 },
 
-  loadingTxt: { fontFamily: FONT, fontSize: 13, color: MUTED, marginTop: 4 },
-  hint:       { fontFamily: FONT, fontSize: 15, color: MUTED, textAlign: "center", paddingVertical: 24 },
+  clearCircle: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#E0E4E6", alignItems: "center", justifyContent: "center" },
+  clearX:      { fontSize: 9, color: MUTED, fontWeight: "700" },
 
-  // Next button
-  nextBtn:     { height: 52, borderRadius: 25, backgroundColor: RED, justifyContent: "center", alignItems: "center", shadowColor: RED, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
-  nextOff:     { backgroundColor: "#D4D8DA", shadowOpacity: 0, elevation: 0 },
-  nextPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
+  yesNoRow:       { flexDirection: "row", gap: 8 },
+  yesNoBtn:       { paddingHorizontal: 28, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, borderColor: BORDER, backgroundColor: "#FAFAFA", alignItems: "center", justifyContent: "center" },
+  yesNoBtnActive: { backgroundColor: RED, borderColor: RED },
+  yesNoTxt:       { fontFamily: FONT, fontSize: 13, fontWeight: "500", color: MUTED },
+  yesNoTxtActive: { color: WHITE, fontWeight: "600" },
+
+  nextBtn:     { height: 52, borderRadius: 25, backgroundColor: RED, justifyContent: "center", alignItems: "center", elevation: 4, boxShadow: "0px 4px 12px rgba(179,29,56,0.30)" },
+  nextOff:     { backgroundColor: "#E8EAED", elevation: 0, boxShadow: "none" },
+  nextPressed: { opacity: 0.87, transform: [{ scale: 0.985 }] },
   nextTxt:     { fontFamily: FONT, fontSize: 15, fontWeight: "600", color: WHITE, letterSpacing: 0.3 },
-  nextTxtOff:  { color: MUTED },
+  nextTxtOff:  { color: "#9AA3AA" },
 
-  // Bottom sheet
-  overlay:     { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.45)" },
-  sheet:       { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: WHITE, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, maxHeight: "80%", shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 20 },
-  handle:      { width: 40, height: 4, borderRadius: 2, backgroundColor: BORDER, alignSelf: "center", marginTop: 12, marginBottom: 4 },
-  sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 14 },
-  sheetTitle:  { fontFamily: FONT, fontSize: 17, fontWeight: "700", color: TEXT },
-  closeBtn:    { width: 32, height: 32, borderRadius: 16, backgroundColor: SURFACE, alignItems: "center", justifyContent: "center" },
-  closeTxt:    { fontSize: 13, color: MUTED, fontWeight: "600" },
+  vehicleWrapper:     { gap: 8 },
+  unifiedBox:         { borderWidth: 1.5, borderColor: BORDER, borderRadius: INPUT_R, backgroundColor: "#FAFAFA", overflow: "hidden" },
+  unifiedBoxOpen:     { elevation: 8, boxShadow: "0px 4px 16px rgba(0,0,0,0.07)" },
+  vehicleInputRow:    { flexDirection: "row", alignItems: "center", height: INPUT_H, paddingHorizontal: 16 },
+  vehicleSearchInput: { flex: 1, fontFamily: FONT, fontSize: 15, color: TEXT, paddingVertical: 0 },
+  chevron:            { fontSize: 11, color: MUTED },
+  chevronUp:          { transform: [{ rotate: "180deg" }] },
 
-  searchBox:   { flexDirection: "row", alignItems: "center", height: 46, borderRadius: 12, borderWidth: 1.5, borderColor: BORDER, backgroundColor: "#FAFAFA", paddingHorizontal: 14, marginBottom: 14 },
-  searchInput: { flex: 1, fontFamily: FONT, fontSize: 14, color: TEXT, paddingVertical: 0 },
-
-  noResults:    { fontFamily: FONT, fontSize: 14, color: MUTED, textAlign: "center", paddingVertical: 20 },
-  useCustomBtn: { borderWidth: 1.5, borderColor: RED, borderRadius: INPUT_R, padding: 14, alignItems: "center", backgroundColor: "rgba(179,29,56,0.06)", marginBottom: 8 },
-  useCustomTxt: { fontFamily: FONT, fontSize: 14, fontWeight: "600", color: RED },
-
-  section: { fontFamily: FONT, fontSize: 11, fontWeight: "700", color: MUTED, letterSpacing: 1, marginBottom: 10 },
-
-  // Vehicle rows
-  row:      { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, paddingHorizontal: 14, borderRadius: INPUT_R, borderWidth: 1.5, borderColor: BORDER, backgroundColor: "#FAFAFA", marginBottom: 10 },
-  rowOn:    { borderColor: RED, backgroundColor: "rgba(179,29,56,0.07)" },
-  radio:    { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: BORDER, alignItems: "center", justifyContent: "center" },
-  radioOn:  { borderColor: RED },
-  radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: RED },
-  rowReg:   { fontFamily: FONT, fontSize: 14, fontWeight: "600", color: TEXT, letterSpacing: 0.4 },
-  rowRegOn: { color: RED, fontWeight: "700" },
-  rowModel: { fontFamily: FONT, fontSize: 12, color: MUTED, marginTop: 2 },
-  badge:    { backgroundColor: "rgba(179,29,56,0.12)", borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
-  badgeTxt: { fontFamily: FONT, fontSize: 10, fontWeight: "700", color: RED, letterSpacing: 0.5 },
-
-  // Remove vehicle option inside sheet
-  removeVehicleBtn: { alignItems: "center", paddingVertical: 14, marginTop: 4 },
-  removeVehicleTxt: { fontFamily: FONT, fontSize: 13, color: MUTED },
+  dropInner:          { backgroundColor: "#F2F4F6", overflow: "hidden" },
+  dropSeparator:      { height: StyleSheet.hairlineWidth, backgroundColor: BORDER },
+  dropRow:            { flexDirection: "row", alignItems: "center", paddingVertical: 13, paddingHorizontal: 16 },
+  dropRowSel:         { backgroundColor: RED_BG, borderLeftWidth: 3, borderLeftColor: RED, paddingLeft: 13 },
+  dropRowDivider:     { height: StyleSheet.hairlineWidth, backgroundColor: "#DDE0E3", marginHorizontal: 16 },
+  dropRowReg:         { fontFamily: FONT, fontSize: 14, fontWeight: "500", color: TEXT, letterSpacing: 0.3, flex: 1 },
+  dropRowRegSel:      { color: RED, fontWeight: "700" },
+  dropRowModel:       { fontFamily: FONT, fontSize: 12, color: MUTED, marginRight: 8 },
+  dropTick:           { fontSize: 13, color: RED, fontWeight: "700" },
+  dropCustomLabel:    { fontFamily: FONT, fontSize: 13, fontWeight: "700", color: TEXT },
+  dropCustomHint:     { fontFamily: FONT, fontSize: 11, color: MUTED, marginTop: 1 },
+  dropPlus:           { fontSize: 18, color: MUTED, fontWeight: "300" },
+  dropEmpty:          { paddingVertical: 20, alignItems: "center" },
+  dropEmptyTxt:       { fontFamily: FONT, fontSize: 13, color: MUTED },
+  dropSectionDivider: { height: StyleSheet.hairlineWidth, backgroundColor: BORDER, marginTop: 4 },
+  dropRemoveRow:      { paddingVertical: 13, alignItems: "center" },
+  dropRemoveTxt:      { fontFamily: FONT, fontSize: 12, color: MUTED },
 });

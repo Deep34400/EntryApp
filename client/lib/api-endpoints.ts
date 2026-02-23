@@ -89,4 +89,7 @@ export function getDriverDetailsPath(params: {
   return base;
 }
 
-
+// ----- Agents list (referral — fetch once, filter locally) -----
+// GET /api/v1/users/agents/list — no name param; hubId added by requestClient.
+// Response: { success, data: [{ id, name, displayName?, roles? }] }
+export const AGENTS_LIST_PATH = "/api/v1/users/agents/list";

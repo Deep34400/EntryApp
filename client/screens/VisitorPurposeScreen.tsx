@@ -229,11 +229,16 @@ export default function VisitorPurposeScreen() {
         const regNumber = (formData.vehicle_reg_number ?? "").trim();
         if (regNumber) body.regNumber = regNumber;
       }
-      
+
+      body.isReferral = formData.referral === "yes" ? "yes" : "no";
+      if (formData.referral === "yes" && (formData.referral_name ?? "").trim()) {
+        body.referral_name = (formData.referral_name ?? "").trim();
+      }
+
       if (assignee !== null) {
         body.assignee = assignee;
       }
-      
+
       const response = await createTicket(body, accessToken);
       return response;
     },

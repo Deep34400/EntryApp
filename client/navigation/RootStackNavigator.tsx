@@ -28,11 +28,13 @@ import { getScreensForRole, type RootScreenName } from "@/permissions/rolePermis
 /** Entry type: dp = unified (vehicle optional → old_dp else new_dp); new_dp/old_dp/non_dp for API. */
 export type EntryType = "new_dp" | "old_dp" | "non_dp" | "dp";
 
-/** Visitor form data (phone, name, optional vehicle reg). */
+/** Visitor form data (phone, name, optional vehicle reg, optional referral). */
 export interface EntryFormData {
   phone: string;
   name: string;
   vehicle_reg_number?: string;
+  referral?: "yes" | "no";
+  referral_name?: string;
 }
 
 export type RootStackParamList = {

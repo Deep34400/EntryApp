@@ -103,7 +103,6 @@ export async function requestWithAuthRetry(
     if (isGet) {
       if (effectiveHubId) {
         url.searchParams.set("hubId", effectiveHubId);
-        url.searchParams.set("hub_id", effectiveHubId);
       }
       return fetch(url.toString(), { method, headers, credentials: "omit" });
     }
@@ -113,7 +112,6 @@ export async function requestWithAuthRetry(
       const payload = { ...(data as Record<string, unknown>) };
       if (effectiveHubId) {
         payload.hubId = effectiveHubId;
-        payload.hub_id = effectiveHubId;
       }
       return fetch(url.toString(), { method, headers, body: JSON.stringify(payload), credentials: "omit" });
     }
@@ -123,7 +121,7 @@ export async function requestWithAuthRetry(
       data != null
         ? JSON.stringify(data)
         : effectiveHubId
-          ? JSON.stringify({ hubId: effectiveHubId, hub_id: effectiveHubId })
+          ? JSON.stringify({ hubId: effectiveHubId })
           : undefined;
     return fetch(url.toString(), { method, headers, body, credentials: "omit" });
   };
