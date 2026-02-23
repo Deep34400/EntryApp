@@ -179,12 +179,16 @@ export default function VisitorPurposeScreen() {
     (iconKey && Feather.glyphMap[iconKey as keyof typeof Feather.glyphMap] ? iconKey : "circle") as keyof typeof Feather.glyphMap;
 
   /** assignee: Settlement/Onboarding → DRIVER MANAGER, Maintenance → FLEET EXECUTIVE, Non DP → empty */
-  const getPurpose = (categoryTitle: string | null): string => {
+  const getPurpose = (
+    categoryTitle: string | null
+  ): string | null => {
     if (categoryTitle === "Maintenance") return "FLEET EXECUTIVE";
-    else if (categoryTitle === "Settlement") return "DRIVER MANAGER";
-    else if (categoryTitle === "Onboarding") return "ONBOARDING";
-    else return ""; // non_dp
+    if (categoryTitle === "Settlement") return "DRIVER MANAGER";
+    if (categoryTitle === "Onboarding") return "ONBOARDING";
+  
+    return null; // non_dp
   };
+  
 
   const { accessToken, clearAuth } = useAuth();
 
@@ -217,14 +221,19 @@ export default function VisitorPurposeScreen() {
         type: displayRole,
         name,
         phone,
-        assignee,
         category,
         subCategory,
       };
+      
       if (effectiveEntryType === "old_dp") {
         const regNumber = (formData.vehicle_reg_number ?? "").trim();
         if (regNumber) body.regNumber = regNumber;
       }
+      
+      if (assignee !== null) {
+        body.assignee = assignee;
+      }
+      
       const response = await createTicket(body, accessToken);
       return response;
     },
