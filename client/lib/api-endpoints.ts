@@ -72,16 +72,19 @@ export const VISITOR_REASON: Record<string, string> = {
 /** GET — Config by key. Response: { success, data: { key, value, ... } }. */
 export const CONFIG_KEY_PATH = "/api/v1/config/key/PURPOSE_CONFIG";
 
-// ----- GET: Driver details by reg_number or phone (auto-fill form) -----
-// Path: GET /api/v1/testRoutes/ticket/driverDetails?reg_number=... OR ?phone=...
-// Response: { status, message, results: { driver_name, phone, vehicles?: [{ reg_number }] } }
-export function getDriverDetailsPath(params: { reg_number?: string; phone?: string }): string {
-  const base = "/api/v1/testRoutes/ticket/driverDetails";
-  if (params.reg_number?.trim()) {
-    return `${base}?reg_number=${encodeURIComponent(params.reg_number.trim())}`;
+// ----- GET: Driver details by phone or reg number (one at a time; auto-fill form) -----
+// Path: GET /api/v1/drivers/driver-details?phoneNo=... OR ?regNumber=...
+// Response: { success, data: { name, phone, vehicles: [{ regNumber, ... }] } }
+export function getDriverDetailsPath(params: {
+  phoneNo?: string;
+  regNumber?: string;
+}): string {
+  const base = "/api/v1/drivers/driver-details";
+  if (params.phoneNo?.trim()) {
+    return `${base}?phoneNo=${encodeURIComponent(params.phoneNo.trim())}`;
   }
-  if (params.phone?.trim()) {
-    return `${base}?phone=${encodeURIComponent(params.phone.trim())}`;
+  if (params.regNumber?.trim()) {
+    return `${base}?regNumber=${encodeURIComponent(params.regNumber.trim())}`;
   }
   return base;
 }
