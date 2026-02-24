@@ -40,7 +40,9 @@ import { formatPurposeDisplay } from "@/constants/entryPurpose";
 import { usePurposeConfig } from "@/hooks/usePurposeConfig";
 import { PurposeGridShimmer } from "@/components/Shimmer";
 import { buildEntryPayload } from "@/lib/entrySubmit";
+import { AppIcon } from "@/components/AppIcon";
 import type { PurposeConfigItem } from "@/types/purposeConfig";
+import type { IconLibrary } from "@/types/purposeConfig";
 
 const D = {
   screenBg: "#F6F7F9",
@@ -67,13 +69,15 @@ type RoutePropType = RouteProp<RootStackParamList, "SettlementPurpose">;
 
 function PurposeGridCard({
   displayTitle,
-  icon,
+  iconKey,
+  iconLibrary = "feather",
   onPress,
   selected,
   delay,
 }: {
   displayTitle: string;
-  icon: keyof typeof Feather.glyphMap;
+  iconKey: string;
+  iconLibrary?: IconLibrary;
   onPress: () => void;
   selected: boolean;
   delay: number;
@@ -113,8 +117,9 @@ function PurposeGridCard({
               selected && styles.gridCardIconWrapSelected,
             ]}
           >
-            <Feather
-              name={icon}
+            <AppIcon
+              name={iconKey || "circle"}
+              library={iconLibrary}
               size={20}
               color={selected ? "#FFF" : D.brandRed}
             />
@@ -163,11 +168,6 @@ export default function SettlementPurposeScreen() {
   } = usePurposeConfig();
   const settlementCategory = purposeConfig?.find((c) => c.key === "settlement");
   const items = settlementCategory?.items ?? [];
-
-  const getIcon = (key: string): keyof typeof Feather.glyphMap =>
-    key && Feather.glyphMap[key as keyof typeof Feather.glyphMap]
-      ? (key as keyof typeof Feather.glyphMap)
-      : "circle";
 
   const submitMutation = useMutation({
     mutationFn: async (subCategory: string) => {
@@ -352,7 +352,8 @@ export default function SettlementPurposeScreen() {
               <PurposeGridCard
                 key={item.key}
                 displayTitle={item.label}
-                icon={getIcon(item.icon_key)}
+                iconKey={item.icon_key || "circle"}
+                iconLibrary={item.icon_library}
                 delay={80 + i * 45}
                 onPress={() => handleCardPress(item.key)}
                 selected={selectedItem === item.key}

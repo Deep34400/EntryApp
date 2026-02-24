@@ -42,10 +42,12 @@ import { formatPurposeDisplay } from "@/constants/entryPurpose";
 import { usePurposeConfig } from "@/hooks/usePurposeConfig";
 import { PurposeGridShimmer } from "@/components/Shimmer";
 import { buildEntryPayload } from "@/lib/entrySubmit";
+import { AppIcon } from "@/components/AppIcon";
 import type {
   PurposeConfigItem,
   PurposeConfigSubItem,
 } from "@/types/purposeConfig";
+import type { IconLibrary } from "@/types/purposeConfig";
 
 const D = {
   screenBg: "#F6F7F9",
@@ -73,14 +75,16 @@ type RoutePropType = RouteProp<RootStackParamList, "MaintenancePurpose">;
 
 function PurposeGridCard({
   displayTitle,
-  icon,
+  iconKey,
+  iconLibrary = "feather",
   onPress,
   selected,
   showArrow = false,
   delay,
 }: {
   displayTitle: string;
-  icon: keyof typeof Feather.glyphMap;
+  iconKey: string;
+  iconLibrary?: IconLibrary;
   onPress: () => void;
   selected: boolean;
   showArrow?: boolean;
@@ -121,8 +125,9 @@ function PurposeGridCard({
               selected && styles.gridCardIconWrapSelected,
             ]}
           >
-            <Feather
-              name={icon}
+            <AppIcon
+              name={iconKey || "circle"}
+              library={iconLibrary}
               size={20}
               color={selected ? "#FFF" : D.brandRed}
             />
@@ -200,11 +205,6 @@ export default function MaintenancePurposeScreen() {
   const rrSubItems: PurposeConfigSubItem[] =
     maintenanceCategory?.items.find((i) => i.key === "Running Repair")
       ?.sub_items ?? [];
-
-  const getIcon = (key: string): keyof typeof Feather.glyphMap =>
-    key && Feather.glyphMap[key as keyof typeof Feather.glyphMap]
-      ? (key as keyof typeof Feather.glyphMap)
-      : "circle";
 
   const submitMutation = useMutation({
     mutationFn: async (subCategory: string) => {
@@ -402,7 +402,8 @@ export default function MaintenancePurposeScreen() {
                 <PurposeGridCard
                   key={item.key}
                   displayTitle={item.label}
-                  icon={getIcon(item.icon_key)}
+                  iconKey={item.icon_key || "circle"}
+                  iconLibrary={item.icon_library}
                   delay={80 + i * 45}
                   onPress={() => handleCardPress(item.key)}
                   selected={!isRR && selectedItem === item.key}
@@ -522,7 +523,12 @@ export default function MaintenancePurposeScreen() {
                       ]}
                     >
                       <View style={styles.modalItemIcon}>
-                        <Feather name="tool" size={13} color={D.brandRed} />
+                        <AppIcon
+                          name={sub.icon_key || "tool"}
+                          library={sub.icon_library}
+                          size={13}
+                          color={D.brandRed}
+                        />
                       </View>
                       <ThemedText
                         type="body"

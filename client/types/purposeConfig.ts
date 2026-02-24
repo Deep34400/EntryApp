@@ -3,16 +3,20 @@
  * No hardcoded data; all driven by API.
  */
 
+export type IconLibrary = "feather" | "material";
+
 export interface PurposeConfigSubItem {
   key: string;
   label: string;
   icon_key: string;
+  icon_library?: IconLibrary;
 }
 
 export interface PurposeConfigItem {
   key: string;
   label: string;
   icon_key: string;
+  icon_library?: IconLibrary;
   sub_items?: PurposeConfigSubItem[];
 }
 

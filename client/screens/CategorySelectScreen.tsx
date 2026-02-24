@@ -16,8 +16,10 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
+import { AppIcon } from "@/components/AppIcon";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { Layout, Spacing } from "@/constants/theme";
+import type { IconLibrary } from "@/types/purposeConfig";
 
 const D = {
   screenBg: "#F6F7F9",
@@ -42,29 +44,45 @@ const CATEGORIES: {
   id: "Onboarding" | "Settlement" | "Maintenance";
   label: string;
   subtitle: string;
-  icon: keyof typeof Feather.glyphMap;
+  icon_key: string;
+  icon_library?: IconLibrary;
 }[] = [
   {
     id: "Onboarding",
     label: "Onboarding",
     subtitle: "Manage your registration and documents",
-    icon: "user-plus",
+    icon_key: "user-plus",
   },
   {
     id: "Settlement",
     label: "Settlement",
     subtitle: "View earnings and payout history",
-    icon: "dollar-sign",
+    icon_key: "currency-inr",
+    icon_library: "material",
   },
   {
     id: "Maintenance",
     label: "Maintenance",
     subtitle: "Vehicle service and repair logs",
-    icon: "tool",
+    icon_key: "tool",
   },
 ];
 
-function CategoryRowCard({ label, subtitle, icon, onPress, delay }: any) {
+function CategoryRowCard({
+  label,
+  subtitle,
+  iconKey,
+  iconLibrary,
+  onPress,
+  delay,
+}: {
+  label: string;
+  subtitle: string;
+  iconKey: string;
+  iconLibrary?: IconLibrary;
+  onPress: () => void;
+  delay: number;
+}) {
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -87,7 +105,12 @@ function CategoryRowCard({ label, subtitle, icon, onPress, delay }: any) {
           style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
         >
           <View style={styles.iconWrap}>
-            <Feather name={icon} size={22} color={D.brandRed} />
+            <AppIcon
+              name={iconKey}
+              library={iconLibrary}
+              size={22}
+              color={D.brandRed}
+            />
           </View>
           <View style={styles.cardContent}>
             <ThemedText type="body" style={styles.cardTitle}>
@@ -172,7 +195,10 @@ export default function CategorySelectScreen() {
           {CATEGORIES.map((cat, i) => (
             <CategoryRowCard
               key={cat.id}
-              {...cat}
+              label={cat.label}
+              subtitle={cat.subtitle}
+              iconKey={cat.icon_key}
+              iconLibrary={cat.icon_library}
               delay={80 + i * 50}
               onPress={() => handleCategoryPress(cat.id)}
             />
