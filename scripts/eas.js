@@ -59,7 +59,8 @@ if (cmd === "update") {
     console.log("No message provided. Use: npm run update -- \"Your update message\"");
     process.exit(1);
   }
-  const r = spawnSync("eas", args, { stdio: "inherit", shell: true });
+  // Don't use shell: true — it re-parses the command and splits the message on spaces
+  const r = spawnSync("eas", args, { stdio: "inherit" });
   process.exit(r.status ?? 1);
 }
 
