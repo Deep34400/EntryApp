@@ -154,6 +154,8 @@ export type ReferralSectionProps = {
   hideToggle?: boolean;
   /** Called when user selects an item from the referral dropdown (e.g. to dismiss keyboard). */
   onItemSelect?: () => void;
+  /** Called when the referral name input is focused (e.g. to scroll so dropdown is above keyboard). */
+  onInputFocus?: () => void;
 };
 
 export function ReferralSection({
@@ -166,6 +168,7 @@ export function ReferralSection({
   accessToken,
   hideToggle = false,
   onItemSelect,
+  onInputFocus,
 }: ReferralSectionProps) {
   const [allNames, setAllReferralNames] = useState<ReferralNameItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -291,6 +294,7 @@ export function ReferralSection({
           }}
           onClear={onClear}
           onCustomChange={onReferralNameChange}
+          onInputFocus={onInputFocus}
         />
       </Animated.View>
     </View>
@@ -307,6 +311,7 @@ function ReferralNameFieldInner({
   onSelect,
   onClear,
   onCustomChange,
+  onInputFocus,
 }: {
   allNames: ReferralNameItem[];
   loading: boolean;
@@ -314,6 +319,7 @@ function ReferralNameFieldInner({
   onSelect: (item: ReferralNameItem) => void;
   onClear: () => void;
   onCustomChange: (v: string) => void;
+  onInputFocus?: () => void;
 }) {
   const [query, setQuery] = useState(selectedName ?? "");
   const [open, setOpen] = useState(false);
@@ -362,7 +368,8 @@ function ReferralNameFieldInner({
     setFocused(true);
     setQuery("");
     openDrop();
-  }, [openDrop]);
+    onInputFocus?.();
+  }, [openDrop, onInputFocus]);
 
   const handleBlur = useCallback(() => {
     setFocused(false);

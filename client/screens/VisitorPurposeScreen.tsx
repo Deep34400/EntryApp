@@ -4,7 +4,7 @@
  * Fixes applied:
  *   1. Bottom bar now transparent (no white box / border) — blends with screen
  *   2. CTA button is pill-shaped (borderRadius: 100) for premium feel
- *   3. Auto-scroll when referral "Yes" is selected — referral block scrolls into view
+ *   3. Auto-scroll: scrollToEnd when referral "Yes" is selected and when referral input focuses (dropdown above keyboard)
  *
  * Architecture:
  *   SafeAreaView (flex: 1)
@@ -173,6 +173,7 @@ function ReferralBlock({
   onReferralNameChange,
   onClear,
   accessToken,
+  onInputFocus,
 }: {
   referral: "yes" | "no";
   referralName: string;
@@ -180,6 +181,7 @@ function ReferralBlock({
   onReferralNameChange: (v: string) => void;
   onClear: () => void;
   accessToken: string | null;
+  onInputFocus?: () => void;
 }) {
   return (
     <Animated.View entering={FadeInDown.duration(260).springify()} style={styles.referralWrap}>
@@ -222,6 +224,7 @@ function ReferralBlock({
         accessToken={accessToken}
         hideToggle
         onItemSelect={Keyboard.dismiss}
+        onInputFocus={onInputFocus}
       />
     </Animated.View>
   );
@@ -284,9 +287,7 @@ export default function VisitorPurposeScreen() {
   const { user } = useUser();
   const { accessToken, clearAuth } = useAuth();
 
-  // FIX 3: refs for auto-scroll (use onLayout + scrollTo to avoid measureLayout native-ref issues)
   const scrollViewRef = useRef<ScrollView>(null);
-  const referralBlockY = useRef<number>(0);
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showRRModal, setShowRRModal] = useState(false);
@@ -335,24 +336,20 @@ export default function VisitorPurposeScreen() {
     return null;
   };
 
-  // ── FIX 3: Auto-scroll to referral block when "Yes" is tapped (onLayout gives Y, no measureLayout) ──
-  const scrollToReferral = () => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollTo({
-        y: Math.max(0, referralBlockY.current - 200),
-        animated: true,
-      });
-    }, 220); // wait for layout to settle after referral block is shown
-  };
-
   const handleReferralChange = (v: "yes" | "no") => {
     setReferral(v);
     if (v === "yes") {
-      scrollToReferral();
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 260);
     } else {
       setReferralName("");
       Keyboard.dismiss();
     }
+  };
+
+  const handleReferralInputFocus = () => {
+    scrollViewRef.current?.scrollToEnd({ animated: true });
   };
 
   // ── Submit ──
@@ -599,22 +596,17 @@ export default function VisitorPurposeScreen() {
             ) : null
           ) : null}
 
-          {/* ── Referral block — FIX 3: onLayout captures Y for scrollTo (works with full New DP grid) ── */}
+          {/* ── Referral block — scrollToEnd on "Yes" and on input focus keeps dropdown above keyboard ── */}
           {showReferral && (
-            <View
-              onLayout={(e) => {
-                referralBlockY.current = e.nativeEvent.layout.y;
-              }}
-            >
-              <ReferralBlock
-                referral={referral}
-                referralName={referralName}
-                onReferralChange={handleReferralChange}
-                onReferralNameChange={setReferralName}
-                onClear={() => setReferralName("")}
-                accessToken={accessToken}
-              />
-            </View>
+            <ReferralBlock
+              referral={referral}
+              referralName={referralName}
+              onReferralChange={handleReferralChange}
+              onReferralNameChange={setReferralName}
+              onClear={() => setReferralName("")}
+              accessToken={accessToken}
+              onInputFocus={handleReferralInputFocus}
+            />
           )}
 
           {/* ── Submitting state ── */}
