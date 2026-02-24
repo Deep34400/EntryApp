@@ -29,6 +29,7 @@ const D = {
   textSecondary: "#5C6B72",
   chevronTint: "#E8A4B0",
   cardRadius: 12,
+  driverCardRadius: 14,
   iconWrapSize: 44,
   iconWrapRadius: 10,
   avatarSize: 42,
@@ -115,13 +116,13 @@ export default function CategorySelectScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + Spacing.xl,
-          paddingHorizontal: Layout.horizontalScreenPadding,
-        }}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + Spacing.xl },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Driver Banner */}
@@ -185,15 +186,25 @@ export default function CategorySelectScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.screenBg },
   flex: { flex: 1 },
+  scrollContent: {
+    paddingHorizontal: Layout.horizontalScreenPadding,
+    paddingTop: Spacing.md,
+    flexGrow: 1,
+  },
   userCard: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
     padding: Spacing.md,
-    borderRadius: D.cardRadius,
+    borderRadius: D.driverCardRadius,
     borderWidth: 1,
     borderColor: D.cardBorder,
     backgroundColor: D.cardBg,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   avatar: {
     width: D.avatarSize,
@@ -204,12 +215,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: Spacing.md,
   },
-  userCardCenter: { flex: 1, gap: 4 },
+  userCardCenter: { flex: 1, minWidth: 0, gap: 4 },
   userName: { fontSize: 14, fontWeight: "700", color: D.textPrimary },
   rolePill: {
     alignSelf: "flex-start",
     backgroundColor: D.brandRedMid,
     paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: 20,
   },
   roleText: { fontSize: 11, fontWeight: "600", color: D.brandRed },
@@ -218,17 +230,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#F1F3F5",
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 20,
+    marginLeft: Spacing.sm,
   },
   phoneText: { color: D.textPrimary, fontSize: 12, fontWeight: "600" },
 
-  // FIXED HEADER ROW
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: Spacing.md,
-    marginTop: Spacing.xs,
+    marginBottom: Spacing.lg,
   },
   headerTitle: {
     fontSize: 13,

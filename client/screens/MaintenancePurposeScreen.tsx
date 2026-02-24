@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scrollContent: {
     paddingHorizontal: Layout.horizontalScreenPadding,
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.md,
     flexGrow: 1,
   },
   userCard: {
