@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -15,17 +15,17 @@ interface AppFooterProps {
 }
 
 const FOOTER_HEIGHT = 72;
-const TAB_PADDING_VERTICAL = 6;
-const TAB_PADDING_HORIZONTAL = 20;
-const ICON_LABEL_GAP = 4;
 const ICON_SIZE = 24;
-const FONT_SIZE = 12;
-const LINE_HEIGHT = 18;
 
 const COLOR_ACTIVE = "#B31D38";
 const COLOR_INACTIVE = "#8A8A8A";
 
-const ALL_TABS: { id: AppFooterTab; label: string; icon: keyof typeof MaterialIcons.glyphMap; screen: keyof RootStackParamList }[] = [
+const ALL_TABS: {
+  id: AppFooterTab;
+  label: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  screen: keyof RootStackParamList;
+}[] = [
   { id: "Entry", label: "Entry", icon: "local-parking", screen: "VisitorType" },
   { id: "Ticket", label: "Ticket", icon: "confirmation-number", screen: "TicketList" },
   { id: "Account", label: "Account", icon: "account-circle", screen: "Profile" },
@@ -33,13 +33,13 @@ const ALL_TABS: { id: AppFooterTab; label: string; icon: keyof typeof MaterialIc
 
 export function AppFooter({ activeTab }: AppFooterProps) {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { allowedRole } = useAuth();
 
-  /** Only show tabs for screens the current role can access (same source as root navigator). */
   const visibleTabs = useMemo(
     () => ALL_TABS.filter((tab) => canAccessScreen(tab.screen, allowedRole)),
-    [allowedRole],
+    [allowedRole]
   );
 
   const handleTabPress = (tab: AppFooterTab) => {
@@ -56,15 +56,17 @@ export function AppFooter({ activeTab }: AppFooterProps) {
     }
   };
 
-  const bottomInset = insets.bottom > 0 ? insets.bottom : 0;
-
   return (
-    <View style={[styles.footer, { paddingBottom: bottomInset }]}>
+    <View
+      style={[
+        styles.footer,
+        { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 },
+      ]}
+    >
       <View style={styles.tabRow}>
         {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const color = isActive ? COLOR_ACTIVE : COLOR_INACTIVE;
-          const fontWeight = isActive ? "600" : "500";
 
           return (
             <Pressable
@@ -73,20 +75,13 @@ export function AppFooter({ activeTab }: AppFooterProps) {
               onPress={() => handleTabPress(tab.id)}
               accessibilityRole="button"
               accessibilityState={{ selected: isActive }}
-              accessibilityLabel={tab.label}
             >
               <MaterialIcons
                 name={tab.icon}
                 size={ICON_SIZE}
                 color={color}
-                style={styles.tabIcon}
               />
-              <Text
-                style={[
-                  styles.tabLabel,
-                  { color, fontWeight: fontWeight as "500" | "600" },
-                ]}
-              >
+              <Text style={[styles.tabLabel, { color }]}>
                 {tab.label}
               </Text>
             </Pressable>
@@ -105,42 +100,27 @@ const styles = StyleSheet.create({
     right: 0,
     height: FOOTER_HEIGHT,
     backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000000",
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
+
+    // Clean separator instead of shadow
+    // borderTopWidth: 1,
+    borderTopColor: "#EFEFEF",
+
+    justifyContent: "center",
   },
   tabRow: {
-    flex: 1,
     flexDirection: "row",
-    alignItems: "stretch",
   },
   tab: {
     flex: 1,
-    paddingVertical: TAB_PADDING_VERTICAL,
-    paddingHorizontal: TAB_PADDING_HORIZONTAL,
-    justifyContent: "center",
     alignItems: "center",
-  },
-  tabIcon: {
-    marginBottom: ICON_LABEL_GAP,
+    justifyContent: "center",
+    paddingVertical: 6,
   },
   tabLabel: {
-    fontFamily: Platform.select({ ios: "Georgia", default: "serif" }),
-    fontSize: FONT_SIZE,
-    lineHeight: LINE_HEIGHT,
-    textAlign: "center",
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: "500",
   },
 });
 
-/** Use when laying out screen content so it doesn't sit under the footer. */
 export const APP_FOOTER_HEIGHT = FOOTER_HEIGHT;
