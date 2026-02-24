@@ -6,7 +6,7 @@
 
 - **Android:** Smaller builds (AAB, 2 ABIs, minify, shrink, bundle compression), Hermes explicit.
 - **App:** Removed unused server deps; Babel strips `console` in production; referral API deduped; ticket update uses PATCH.
-- **EAS:** Production builds AAB; preview builds APK for testing.
+- **EAS:** Production uses `buildType: "app-bundle"` (Play Store); preview uses `buildType: "apk"` for internal/testing.
 
 ### Development (Expo Go — daily coding)
 
@@ -63,6 +63,15 @@ npm run update:production -- --message "Fix for X"
 - **Channel vs branch:** Your `app.json` / EAS use **channel** (e.g. `production`). EAS Update links branch → channel. Create a branch named `production` in EAS and point the production build to it.
 - **Development:** For dev builds, use channel `development` and run `npx eas update --branch development` if you use OTA in dev.
 
+### What we changed, where, and why
+
+| What | Where | Why |
+|------|--------|-----|
+| **Testing / internal** | `eas.json` → profile `preview` | `buildType: "apk"` so you get one APK to install and share with testers (no store). |
+| **Production / store** | `eas.json` → profile `production` | `buildType: "app-bundle"` (EAS only accepts `apk` or `app-bundle`, not `aab`). Play Store uses AAB for smaller per-device downloads. |
+| **Preview build** | `npm run build:preview` | Runs `eas build --profile preview` → uses preview profile above. |
+| **Production build** | `npm run build:production` | Runs `eas build --profile production` → uses production profile above. |
+
 ### Quick command reference
 
 | Goal | Command |
@@ -70,8 +79,8 @@ npm run update:production -- --message "Fix for X"
 | **Dev (Expo Go)** | `npm start` |
 | **Dev with tunnel** | `npm run start:tunnel` or `npm start -- --tunnel` |
 | **Dev (clear cache)** | `npm run start:clear` |
-| **Preview APK (testing)** | `npm run build:preview` |
-| **Production AAB** | `npm run build:production` |
+| **Testing / internal (APK)** | `npm run build:preview` |
+| **Production (AAB for store)** | `npm run build:production` |
 | **Submit to Play Store** | `npm run submit:android` |
 | **OTA update (production)** | `npm run update:production -- --message "Your message"` |
 
@@ -138,7 +147,8 @@ npm run update:production -- --message "Fix for X"
 
 **`eas.json`**
 
-- Production profile: `"android": { "buildType": "aab" }` so EAS builds an Android App Bundle (smaller user downloads).
+- **Preview (testing/internal):** `"android": { "buildType": "apk" }` — single APK you can install and share with testers.
+- **Production (store):** `"android": { "buildType": "app-bundle" }` — EAS expects `app-bundle` (not `aab`); Play Store gets an AAB for smaller per-device downloads.
 
 ---
 
