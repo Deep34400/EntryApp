@@ -34,7 +34,7 @@ export interface EntryFormData {
   name: string;
   vehicle_reg_number?: string;
   referral?: "yes" | "no";
-  referral_name?: string;
+  referralName?: string;
 }
 
 export type RootStackParamList = {
