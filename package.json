@@ -13,10 +13,9 @@
     "format": "prettier --write \"**/*.{js,ts,tsx,css,json}\"",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "build:preview": "eas build --profile preview --platform android",
-    "build:production": "eas build --profile production --platform android",
-    "submit:android": "eas submit --platform android --latest",
-    "update:production": "eas update --branch production"
+    "build": "node scripts/eas.js build",
+    "update": "node scripts/eas.js update",
+    "submit": "node scripts/eas.js submit"
   },
   "dependencies": {
     "@expo-google-fonts/nunito": "^0.4.2",

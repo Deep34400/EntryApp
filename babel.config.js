@@ -1,6 +1,6 @@
 module.exports = function (api) {
-  api.cache(true);
   const isProd = api.env("production");
+  api.cache(true);
   const plugins = [
     [
       "module-resolver",

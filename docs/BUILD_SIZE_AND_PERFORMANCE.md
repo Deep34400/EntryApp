@@ -2,11 +2,26 @@
 
 ## Development, testing (Expo Go) & production commands
 
+### APP_TYPE in .env (one setting, same for 100 apps)
+
+In `.env` set **APP_TYPE** once:
+
+| APP_TYPE | Use |
+|----------|-----|
+| `development` | Internal / testing (profile & branch: **preview**) |
+| `production` | Deploy (profile & branch: **production**) |
+
+Then use 3 commands only:
+
+- **`npm run build`** — builds production or development app (picks from APP_TYPE).
+- **`npm run update`** — OTA update to the right branch. Example: `npm run update -- "Fix login"`.
+- **`npm run submit`** — submits to Play Store only when APP_TYPE=production; else skips.
+
 ### What we changed (summary)
 
-- **Android:** Smaller builds (AAB, 2 ABIs, minify, shrink, bundle compression), Hermes explicit.
+- **Android:** Smaller builds (2 ABIs, minify, shrink, bundle compression), Hermes explicit.
 - **App:** Removed unused server deps; Babel strips `console` in production; referral API deduped; ticket update uses PATCH.
-- **EAS:** Production uses `buildType: "app-bundle"` (Play Store); preview uses `buildType: "apk"` for internal/testing.
+- **EAS:** Both preview and production use `buildType: "apk"` so you get an APK in both cases.
 
 ### Development (Expo Go — daily coding)
 
@@ -25,80 +40,30 @@ Then scan the QR code with **Expo Go** (Android/iOS). Shake device for dev menu.
 - **Tunnel (device not on same Wi‑Fi):** `npm run start:tunnel`
 - **Clear cache:** `npm run start:clear`
 
-### Testing (preview build — APK for testers)
+### Commands (simple)
 
-Build an APK you can share internally (no Play Store):
-
-```bash
-# Build preview APK (eas.json → profile "preview")
-npm run build:preview
-```
-
-Download the APK from the EAS dashboard and install on devices.
-
-### Production (store release)
-
-Build an AAB for Play Store (smaller download per user):
-
-```bash
-# Build production AAB
-npm run build:production
-```
-
-Then submit to Play Store:
-
-```bash
-npm run submit:android
-```
-
-### OTA updates (expo-updates)
-
-Push JS/assets updates without a new store build:
-
-```bash
-# Publish OTA update to production (users get it on next app launch)
-npm run update:production -- --message "Fix for X"
-```
-
-- **Channel vs branch:** Your `app.json` / EAS use **channel** (e.g. `production`). EAS Update links branch → channel. Create a branch named `production` in EAS and point the production build to it.
-- **Development:** For dev builds, use channel `development` and run `npx eas update --branch development` if you use OTA in dev.
-
-### What we changed, where, and why
-
-| What | Where | Why |
-|------|--------|-----|
-| **Testing / internal** | `eas.json` → profile `preview` | `buildType: "apk"` so you get one APK to install and share with testers (no store). |
-| **Production / store** | `eas.json` → profile `production` | `buildType: "app-bundle"` (EAS only accepts `apk` or `app-bundle`, not `aab`). Play Store uses AAB for smaller per-device downloads. |
-| **Preview build** | `npm run build:preview` | Runs `eas build --profile preview` → uses preview profile above. |
-| **Production build** | `npm run build:production` | Runs `eas build --profile production` → uses production profile above. |
-
-### Quick command reference
-
-| Goal | Command |
+| What | Command |
 |------|--------|
 | **Dev (Expo Go)** | `npm start` |
-| **Dev with tunnel** | `npm run start:tunnel` or `npm start -- --tunnel` |
-| **Dev (clear cache)** | `npm run start:clear` |
-| **Testing / internal (APK)** | `npm run build:preview` |
-| **Production (AAB for store)** | `npm run build:production` |
-| **Submit to Play Store** | `npm run submit:android` |
-| **OTA update (production)** | `npm run update:production -- --message "Your message"` |
+| **Build** (production or development from APP_TYPE) | `npm run build` |
+| **OTA update** | `npm run update -- "Your message"` |
+| **Submit to store** (only if APP_TYPE=production) | `npm run submit` |
 
 ---
 
 ## 1. Deep analysis: what increases Android build size
 
-| Factor | Impact | Status / Action |
-|--------|--------|------------------|
-| **Multiple ABIs** | ~25–35 MB per ABI (arm64, armeabi-v7a, x86, x86_64) | Reduced to arm64 + armeabi-v7a; use **AAB** so Play Store serves one ABI per device |
-| **APK vs AAB** | Universal APK = sum of all ABIs | **Production build set to AAB** in `eas.json` — user download ~25–40 MB instead of ~100 MB |
-| **R8 minify** | 10–30% smaller DEX | **Enabled** via `android.enableMinifyInReleaseBuilds=true` |
-| **Resource shrinking** | Removes unused resources | **Enabled** via `android.enableShrinkResourcesInReleaseBuilds=true` |
-| **Bundle compression** | Compressed JS in APK | **Enabled** via `android.enableBundleCompression=true` |
-| **Animated WebP** | +3.4 MB | **Disabled** (`expo.webp.animated=false`) |
-| **x86 / x86_64** | +~50 MB for emulators | **Removed** from default architectures; use `-PreactNativeArchitectures=arm64-v8a` for smallest local APK |
-| **Hermes bytecode** | Smaller than JSC bundle | **Verified** — `jsEngine: "hermes"` in app.json, `hermesEnabled=true` in gradle.properties |
-| **Heavy / unused deps** | Extra native/JS code | **Removed** from package.json: express, pg, ws, http-proxy-middleware, tsx, drizzle-orm, drizzle-zod (see §2) |
+| Factor                  | Impact                                              | Status / Action                                                                                               |
+| ----------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Multiple ABIs**       | ~25–35 MB per ABI (arm64, armeabi-v7a, x86, x86_64) | Reduced to arm64 + armeabi-v7a; use **AAB** so Play Store serves one ABI per device                           |
+| **APK vs AAB**          | Universal APK = sum of all ABIs                     | **Production build set to AAB** in `eas.json` — user download ~25–40 MB instead of ~100 MB                    |
+| **R8 minify**           | 10–30% smaller DEX                                  | **Enabled** via `android.enableMinifyInReleaseBuilds=true`                                                    |
+| **Resource shrinking**  | Removes unused resources                            | **Enabled** via `android.enableShrinkResourcesInReleaseBuilds=true`                                           |
+| **Bundle compression**  | Compressed JS in APK                                | **Enabled** via `android.enableBundleCompression=true`                                                        |
+| **Animated WebP**       | +3.4 MB                                             | **Disabled** (`expo.webp.animated=false`)                                                                     |
+| **x86 / x86_64**        | +~50 MB for emulators                               | **Removed** from default architectures; use `-PreactNativeArchitectures=arm64-v8a` for smallest local APK     |
+| **Hermes bytecode**     | Smaller than JSC bundle                             | **Verified** — `jsEngine: "hermes"` in app.json, `hermesEnabled=true` in gradle.properties                    |
+| **Heavy / unused deps** | Extra native/JS code                                | **Removed** from package.json: express, pg, ws, http-proxy-middleware, tsx, drizzle-orm, drizzle-zod (see §2) |
 
 ---
 
@@ -106,13 +71,13 @@ npm run update:production -- --message "Fix for X"
 
 - **Removed (not used in client):** `express`, `pg`, `ws`, `http-proxy-middleware`, `tsx`, `drizzle-orm`, `drizzle-zod`  
   If you have a separate backend that uses these, keep them in that backend’s `package.json`, not the Expo app.
-- **Heavy but kept (used):**  
-  - `react-native-reanimated`, `react-native-svg`, `expo-image` — used in UI.  
-  - `@tanstack/react-query` — used for API caching.  
+- **Heavy but kept (used):**
+  - `react-native-reanimated`, `react-native-svg`, `expo-image` — used in UI.
+  - `@tanstack/react-query` — used for API caching.
   - `react-native-keyboard-controller` — used for keyboard handling.
-- **Optional trim:**  
-  - `@expo-google-fonts/nunito` — app uses Poppins; remove Nunito if you don’t load it.  
-  - `expo-glass-effect` — remove if you don’t use glass UI.  
+- **Optional trim:**
+  - `@expo-google-fonts/nunito` — app uses Poppins; remove Nunito if you don’t load it.
+  - `expo-glass-effect` — remove if you don’t use glass UI.
   - `zod` / `zod-validation-error` — only remove if you confirm no imports in client.
 
 ---
@@ -120,9 +85,9 @@ npm run update:production -- --message "Fix for X"
 ## 3. What can be safely removed
 
 - Already removed: express, pg, ws, http-proxy-middleware, tsx, drizzle-orm, drizzle-zod.
-- Safe to remove after confirming no usage:  
-  - `@expo-google-fonts/nunito` (if you only use Poppins),  
-  - `expo-glass-effect` (if unused),  
+- Safe to remove after confirming no usage:
+  - `@expo-google-fonts/nunito` (if you only use Poppins),
+  - `expo-glass-effect` (if unused),
   - `@types/express` (was devDependency for express).
 
 ---
@@ -147,8 +112,7 @@ npm run update:production -- --message "Fix for X"
 
 **`eas.json`**
 
-- **Preview (testing/internal):** `"android": { "buildType": "apk" }` — single APK you can install and share with testers.
-- **Production (store):** `"android": { "buildType": "app-bundle" }` — EAS expects `app-bundle` (not `aab`); Play Store gets an AAB for smaller per-device downloads.
+- **Preview and production:** Both use `"android": { "buildType": "apk" }` so you get an APK file for testing and for production (no app-bundle/AAB).
 
 ---
 
@@ -166,10 +130,9 @@ No further Hermes config needed.
 
 **`babel.config.js`**
 
-- Production env: `api.env("production")` used to add `transform-remove-console` with `exclude: ["error", "warn"]` so `console.log`/`info`/`debug` are stripped in production, keeping errors and warnings.
-- **DevDependency added:** `babel-plugin-transform-remove-console`.
-
-For EAS/Expo production builds, Metro/Babel use `NODE_ENV=production`, so this applies automatically.
+- **Order matters:** Call `api.env("production")` **before** `api.cache(true)`. Otherwise Babel throws "Caching has already been configured with .never or .forever()" and the JS bundle step fails on EAS.
+- Production: add `transform-remove-console` with `exclude: ["error", "warn"]` so `console.log`/`info`/`debug` are stripped in production.
+- **DevDependency:** `babel-plugin-transform-remove-console`.
 
 ---
 
@@ -245,14 +208,14 @@ If you prefer minimal change, keeping the current structure is fine; the main ga
 
 ## Quick reference: files touched
 
-| File | Change |
-|------|--------|
-| `android/gradle.properties` | Architectures, minify, shrink, bundle compression, EX_DEV off |
-| `android/app/build.gradle` | enableBundleCompression default true |
-| `app.json` | `jsEngine: "hermes"`, formatted |
-| `eas.json` | production android buildType: aab, formatted |
-| `babel.config.js` | Production: transform-remove-console (exclude error/warn) |
-| `package.json` | Removed express, pg, ws, http-proxy-middleware, tsx, drizzle-orm, drizzle-zod; added babel-plugin-transform-remove-console; removed @types/express, drizzle-kit from devDependencies |
-| `client/apis/ticket/ticket.api.ts` | updateTicket: PUT → PATCH |
-| `client/hooks/useReferralNames.ts` | **New** — React Query hook for referral names |
-| `client/components/ReferralSection.tsx` | Use useReferralNames; remove duplicate getReferralNames calls |
+| File                                    | Change                                                                                                                                                                               |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `android/gradle.properties`             | Architectures, minify, shrink, bundle compression, EX_DEV off                                                                                                                        |
+| `android/app/build.gradle`              | enableBundleCompression default true                                                                                                                                                 |
+| `app.json`                              | `jsEngine: "hermes"`, formatted                                                                                                                                                      |
+| `eas.json`                              | preview & production android buildType: apk                                                                                                                                          |
+| `babel.config.js`                       | Production: transform-remove-console (exclude error/warn)                                                                                                                            |
+| `package.json`                          | Removed express, pg, ws, http-proxy-middleware, tsx, drizzle-orm, drizzle-zod; added babel-plugin-transform-remove-console; removed @types/express, drizzle-kit from devDependencies |
+| `client/apis/ticket/ticket.api.ts`      | updateTicket: PUT → PATCH                                                                                                                                                            |
+| `client/hooks/useReferralNames.ts`      | **New** — React Query hook for referral names                                                                                                                                        |
+| `client/components/ReferralSection.tsx` | Use useReferralNames; remove duplicate getReferralNames calls                                                                                                                        |
