@@ -3,13 +3,28 @@
  * Single responsibility: show settlement items from config, submit same payload.
  */
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
-import Animated, { FadeInDown, FadeIn, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -44,7 +59,10 @@ const D = {
   selectedCardFill: "#FFF5F7",
 } as const;
 
-type NavProp = NativeStackNavigationProp<RootStackParamList, "SettlementPurpose">;
+type NavProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "SettlementPurpose"
+>;
 type RoutePropType = RouteProp<RootStackParamList, "SettlementPurpose">;
 
 function PurposeGridCard({
@@ -61,28 +79,54 @@ function PurposeGridCard({
   delay: number;
 }) {
   const scale = useSharedValue(1);
-  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
-    <Animated.View style={styles.gridCardWrap} entering={FadeInDown.delay(delay).springify()}>
+    <Animated.View
+      style={styles.gridCardWrap}
+      entering={FadeInDown.delay(delay).springify()}
+    >
       <Animated.View style={animStyle}>
         <Pressable
           onPress={onPress}
-          onPressIn={() => { scale.value = withSpring(0.94, { damping: 18, stiffness: 220 }); }}
-          onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 220 }); }}
+          onPressIn={() => {
+            scale.value = withSpring(0.94, { damping: 18, stiffness: 220 });
+          }}
+          onPressOut={() => {
+            scale.value = withSpring(1, { damping: 18, stiffness: 220 });
+          }}
           style={[styles.gridCard, selected && styles.gridCardSelected]}
         >
           {selected && (
-            <Animated.View entering={FadeIn.duration(180)} style={styles.selectedDot}>
+            <Animated.View
+              entering={FadeIn.duration(180)}
+              style={styles.selectedDot}
+            >
               <Feather name="check" size={9} color="#FFF" />
             </Animated.View>
           )}
-          <View style={[styles.gridCardIconWrap, selected && styles.gridCardIconWrapSelected]}>
-            <Feather name={icon} size={20} color={selected ? "#FFF" : D.brandRed} />
+          <View
+            style={[
+              styles.gridCardIconWrap,
+              selected && styles.gridCardIconWrapSelected,
+            ]}
+          >
+            <Feather
+              name={icon}
+              size={20}
+              color={selected ? "#FFF" : D.brandRed}
+            />
           </View>
           <ThemedText
             type="small"
-            style={[styles.gridCardLabel, selected ? styles.gridCardLabelSelected : styles.gridCardLabelDefault]}
+            style={[
+              styles.gridCardLabel,
+              selected
+                ? styles.gridCardLabelSelected
+                : styles.gridCardLabelDefault,
+            ]}
             numberOfLines={2}
           >
             {displayTitle}
@@ -104,15 +148,26 @@ export default function SettlementPurposeScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
 
-  const displayName = (formData.name ?? "").trim() || (user?.name ?? "").trim() || "—";
-  const displayPhone = (formData.phone ?? "").trim() || (user?.phone ?? "").trim() || "—";
+  const displayName =
+    (formData.name ?? "").trim() || (user?.name ?? "").trim() || "—";
+  const displayPhone =
+    (formData.phone ?? "").trim() || (user?.phone ?? "").trim() || "—";
 
-  const { data: purposeConfig, isLoading: configLoading, isRefetching: configRefetching, isError: configError, error: configErrorObj, refetch: refetchConfig } = usePurposeConfig();
+  const {
+    data: purposeConfig,
+    isLoading: configLoading,
+    isRefetching: configRefetching,
+    isError: configError,
+    error: configErrorObj,
+    refetch: refetchConfig,
+  } = usePurposeConfig();
   const settlementCategory = purposeConfig?.find((c) => c.key === "settlement");
   const items = settlementCategory?.items ?? [];
 
   const getIcon = (key: string): keyof typeof Feather.glyphMap =>
-    key && Feather.glyphMap[key as keyof typeof Feather.glyphMap] ? (key as keyof typeof Feather.glyphMap) : "circle";
+    key && Feather.glyphMap[key as keyof typeof Feather.glyphMap]
+      ? (key as keyof typeof Feather.glyphMap)
+      : "circle";
 
   const submitMutation = useMutation({
     mutationFn: async (subCategory: string) => {
@@ -128,13 +183,24 @@ export default function SettlementPurposeScreen() {
     },
     onSuccess: (data) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const raw = (data.data ?? data.results ?? data) as Record<string, unknown>;
+      const raw = (data.data ?? data.results ?? data) as Record<
+        string,
+        unknown
+      >;
       const token = raw.tokenNo ?? raw.token_no ?? raw.token ?? raw.id ?? "";
       const assignee = raw.assignee ?? raw.assignee_name ?? raw.agent ?? "—";
-      const desk_location = raw.deskLocation ?? raw.desk_location ?? raw.gate ?? raw.gate_name ?? "—";
+      const desk_location =
+        raw.deskLocation ??
+        raw.desk_location ??
+        raw.gate ??
+        raw.gate_name ??
+        "—";
       const cat = raw.category ?? raw.category_name;
       const sub = raw.subCategory ?? raw.sub_category;
-      const purposeStr = cat != null && sub != null ? formatPurposeDisplay(String(cat), String(sub)) : (raw.reason ?? raw.purpose);
+      const purposeStr =
+        cat != null && sub != null
+          ? formatPurposeDisplay(String(cat), String(sub))
+          : (raw.reason ?? raw.purpose);
       const apiType = raw.type ?? raw.entry_type ?? "old_dp";
       navigation.navigate("TokenDisplay", {
         token: String(token),
@@ -153,7 +219,11 @@ export default function SettlementPurposeScreen() {
         return;
       }
       if (error.message === SERVER_UNAVAILABLE_MSG) return;
-      setSubmitError(isApiError(error) ? error.message : error.message || "Something went wrong.");
+      setSubmitError(
+        isApiError(error)
+          ? error.message
+          : error.message || "Something went wrong.",
+      );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     },
   });
@@ -168,46 +238,89 @@ export default function SettlementPurposeScreen() {
     submitMutation.mutate(selectedItem);
   };
 
-  const bottomBarHeight = Spacing.md + D.buttonHeight + Spacing.sm + insets.bottom;
-  const isCtaDisabled = !selectedItem || submitMutation.isPending || configLoading || !!configError || !purposeConfig;
+  const bottomBarHeight =
+    Spacing.md + D.buttonHeight + Spacing.sm + insets.bottom;
+  const isCtaDisabled =
+    !selectedItem ||
+    submitMutation.isPending ||
+    configLoading ||
+    !!configError ||
+    !purposeConfig;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomBarHeight }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: bottomBarHeight },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeInDown.delay(0).springify()} style={styles.userCard}>
+        <Animated.View
+          entering={FadeInDown.delay(0).springify()}
+          style={styles.userCard}
+        >
           <View style={styles.avatar}>
             <Feather name="user" size={18} color="#FFF" />
           </View>
           <View style={styles.userCardCenter}>
-            <ThemedText type="small" style={styles.userName} numberOfLines={1}>{displayName}</ThemedText>
+            <ThemedText type="small" style={styles.userName} numberOfLines={1}>
+              {displayName}
+            </ThemedText>
             <View style={styles.rolePill}>
-              <ThemedText type="small" style={styles.roleText}>Driver Partner</ThemedText>
+              <ThemedText type="small" style={styles.roleText}>
+                Driver Partner
+              </ThemedText>
             </View>
           </View>
           <View style={styles.phonePill}>
-            <Feather name="phone" size={11} color={D.brandRed} style={{ marginRight: 4 }} />
-            <ThemedText type="small" style={styles.phoneText} numberOfLines={1}>{displayPhone}</ThemedText>
+            <Feather
+              name="phone"
+              size={11}
+              color={D.brandRed}
+              style={{ marginRight: 4 }}
+            />
+            <ThemedText type="small" style={styles.phoneText} numberOfLines={1}>
+              {displayPhone}
+            </ThemedText>
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.sectionRow}>
-          <ThemedText type="h6" style={styles.sectionTitle}>Select purpose</ThemedText>
+        <Animated.View
+          entering={FadeInDown.delay(60).springify()}
+          style={styles.sectionRow}
+        >
+          <ThemedText type="h6" style={styles.sectionTitle}>
+            Select purpose
+          </ThemedText>
           {selectedItem && (
-            <Animated.View entering={FadeIn.duration(220)} style={styles.selectedBadge}>
+            <Animated.View
+              entering={FadeIn.duration(220)}
+              style={styles.selectedBadge}
+            >
               <Feather name="check-circle" size={12} color="#FFF" />
-              <ThemedText type="small" style={styles.selectedBadgeText}>Selected</ThemedText>
+              <ThemedText type="small" style={styles.selectedBadgeText}>
+                Selected
+              </ThemedText>
             </Animated.View>
           )}
         </Animated.View>
 
         {submitError != null && (
-          <Animated.View entering={FadeIn.duration(200)} style={styles.errorBanner}>
-            <Feather name="alert-circle" size={14} color={D.brandRed} style={{ marginRight: 6 }} />
-            <ThemedText type="small" style={styles.errorText} numberOfLines={3}>{submitError}</ThemedText>
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            style={styles.errorBanner}
+          >
+            <Feather
+              name="alert-circle"
+              size={14}
+              color={D.brandRed}
+              style={{ marginRight: 6 }}
+            />
+            <ThemedText type="small" style={styles.errorText} numberOfLines={3}>
+              {submitError}
+            </ThemedText>
           </Animated.View>
         )}
 
@@ -222,8 +335,15 @@ export default function SettlementPurposeScreen() {
               {(configErrorObj as Error)?.message ?? "Failed to load options."}
             </ThemedText>
             <Pressable onPress={() => refetchConfig()} style={styles.retryBtn}>
-              <Feather name="refresh-cw" size={13} color="#FFF" style={{ marginRight: 6 }} />
-              <ThemedText type="label" style={styles.retryText}>Retry</ThemedText>
+              <Feather
+                name="refresh-cw"
+                size={13}
+                color="#FFF"
+                style={{ marginRight: 6 }}
+              />
+              <ThemedText type="label" style={styles.retryText}>
+                Retry
+              </ThemedText>
             </Pressable>
           </View>
         ) : (
@@ -242,14 +362,22 @@ export default function SettlementPurposeScreen() {
         )}
       </ScrollView>
 
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.sm }]}>
+      <View
+        style={[
+          styles.bottomBar,
+          { paddingBottom: insets.bottom + Spacing.sm },
+        ]}
+      >
         <Pressable
           onPress={handleConfirm}
           disabled={isCtaDisabled}
           style={({ pressed }) => [
             styles.ctaButton,
             !selectedItem && styles.ctaButtonInactive,
-            pressed && selectedItem && !submitMutation.isPending && styles.ctaButtonPressed,
+            pressed &&
+              selectedItem &&
+              !submitMutation.isPending &&
+              styles.ctaButtonPressed,
           ]}
         >
           {submitMutation.isPending ? (
@@ -259,7 +387,14 @@ export default function SettlementPurposeScreen() {
               <ThemedText type="label" style={styles.ctaText}>
                 {selectedItem ? "Confirm & Generate Token" : "Select a Purpose"}
               </ThemedText>
-              {selectedItem && <Feather name="arrow-right" size={17} color="#FFF" style={{ marginLeft: 8 }} />}
+              {selectedItem && (
+                <Feather
+                  name="arrow-right"
+                  size={17}
+                  color="#FFF"
+                  style={{ marginLeft: 8 }}
+                />
+              )}
             </View>
           )}
         </Pressable>
@@ -271,51 +406,197 @@ export default function SettlementPurposeScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.screenBg },
   flex: { flex: 1 },
-  scrollContent: { paddingHorizontal: Layout.horizontalScreenPadding, paddingTop: Spacing.lg, flexGrow: 1 },
+  scrollContent: {
+    paddingHorizontal: Layout.horizontalScreenPadding,
+    paddingTop: Spacing.lg,
+    flexGrow: 1,
+  },
   userCard: {
-    flexDirection: "row", alignItems: "center", marginBottom: Spacing.lg, padding: Spacing.md,
-    borderRadius: D.cardRadius, borderWidth: 1, borderColor: D.cardBorder, backgroundColor: D.cardBg,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+    borderRadius: D.cardRadius,
+    borderWidth: 1,
+    borderColor: D.cardBorder,
+    backgroundColor: D.cardBg,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   avatar: {
-    width: D.avatarSize, height: D.avatarSize, borderRadius: D.avatarSize / 2, backgroundColor: D.brandRed,
-    alignItems: "center", justifyContent: "center", marginRight: Spacing.md,
+    width: D.avatarSize,
+    height: D.avatarSize,
+    borderRadius: D.avatarSize / 2,
+    backgroundColor: D.brandRed,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.md,
   },
   userCardCenter: { flex: 1, minWidth: 0, gap: 4 },
   userName: { fontSize: 14, fontWeight: "700", color: D.textPrimary },
-  rolePill: { alignSelf: "flex-start", backgroundColor: D.brandRedMid, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 },
+  rolePill: {
+    alignSelf: "flex-start",
+    backgroundColor: D.brandRedMid,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 20,
+  },
   roleText: { fontSize: 11, fontWeight: "600", color: D.brandRed },
-  phonePill: { flexDirection: "row", alignItems: "center", backgroundColor: "#F1F3F5", paddingHorizontal: 8, paddingVertical: 5, borderRadius: 20, marginLeft: Spacing.sm },
+  phonePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F1F3F5",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginLeft: Spacing.sm,
+  },
   phoneText: { color: D.textPrimary, fontSize: 12, fontWeight: "600" },
-  sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: Spacing.lg },
+  sectionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.lg,
+  },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: D.textPrimary },
-  selectedBadge: { flexDirection: "row", alignItems: "center", backgroundColor: D.successGreen, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 20, gap: 4 },
+  selectedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: D.successGreen,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 20,
+    gap: 4,
+  },
   selectedBadgeText: { color: "#FFF", fontSize: 11, fontWeight: "700" },
-  errorBanner: { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#FFF0F2", borderWidth: 1, borderColor: "#FFD0D8", borderRadius: 10, padding: Spacing.md, marginBottom: Spacing.md },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FFF0F2",
+    borderWidth: 1,
+    borderColor: "#FFD0D8",
+    borderRadius: 10,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
   errorText: { color: D.brandRed, flex: 1 },
   errorState: { alignItems: "center", paddingVertical: Spacing["2xl"] },
-  errorStateIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#F1F3F5", alignItems: "center", justifyContent: "center", marginBottom: Spacing.md },
-  errorStateText: { color: D.textSecondary, textAlign: "center", marginBottom: Spacing.md },
-  retryBtn: { flexDirection: "row", alignItems: "center", paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg, backgroundColor: D.brandRed, borderRadius: 20 },
+  errorStateIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#F1F3F5",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.md,
+  },
+  errorStateText: {
+    color: D.textSecondary,
+    textAlign: "center",
+    marginBottom: Spacing.md,
+  },
+  retryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: D.brandRed,
+    borderRadius: 20,
+  },
   retryText: { color: "#FFF", fontWeight: "700" },
-  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
   gridCardWrap: { width: "48.5%", marginBottom: Spacing.md },
   gridCard: {
-    alignItems: "center", justifyContent: "center", paddingVertical: Spacing.md + 2, paddingHorizontal: Spacing.sm,
-    borderRadius: D.cardRadius, minHeight: D.cardMinHeight, borderWidth: 1.5, borderColor: D.cardBorder, backgroundColor: D.cardBg,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.md + 2,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: D.cardRadius,
+    minHeight: D.cardMinHeight,
+    borderWidth: 1.5,
+    borderColor: D.cardBorder,
+    backgroundColor: D.cardBg,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  gridCardSelected: { borderColor: D.selectedCardBorder, borderWidth: 2, backgroundColor: D.selectedCardFill, shadowColor: D.brandRed, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
-  selectedDot: { position: "absolute", top: 8, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: D.brandRed, alignItems: "center", justifyContent: "center" },
-  gridCardIconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: Spacing.sm, backgroundColor: D.brandRedMid },
+  gridCardSelected: {
+    borderColor: D.selectedCardBorder,
+    borderWidth: 2,
+    backgroundColor: D.selectedCardFill,
+    shadowColor: D.brandRed,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  selectedDot: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: D.brandRed,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gridCardIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.sm,
+    backgroundColor: D.brandRedMid,
+  },
   gridCardIconWrapSelected: { backgroundColor: D.brandRed },
-  gridCardLabel: { textAlign: "center", fontWeight: "500", fontSize: 12, lineHeight: 17 },
+  gridCardLabel: {
+    textAlign: "center",
+    fontWeight: "500",
+    fontSize: 12,
+    lineHeight: 17,
+  },
   gridCardLabelDefault: { color: D.textPrimary },
   gridCardLabelSelected: { color: D.brandRed, fontWeight: "700" },
-  bottomBar: { paddingHorizontal: Layout.horizontalScreenPadding, paddingTop: Spacing.md, backgroundColor: "transparent" },
-  ctaButton: { height: D.buttonHeight, borderRadius: 100, backgroundColor: D.brandRed, alignItems: "center", justifyContent: "center", shadowColor: D.brandRed, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 10 },
-  ctaButtonInactive: { backgroundColor: "#C5CBD0", shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 },
+  bottomBar: {
+    paddingHorizontal: Layout.horizontalScreenPadding,
+    paddingTop: Spacing.md,
+    backgroundColor: "transparent",
+  },
+  ctaButton: {
+    height: D.buttonHeight,
+    borderRadius: 100,
+    backgroundColor: D.brandRed,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: D.brandRed,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  ctaButtonInactive: {
+    backgroundColor: "#C5CBD0",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   ctaButtonPressed: { opacity: 0.88, shadowOpacity: 0.15 },
   ctaInner: { flexDirection: "row", alignItems: "center" },
-  ctaText: { color: "#FFF", fontSize: 14, fontWeight: "700", letterSpacing: 0.2 },
+  ctaText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
 });

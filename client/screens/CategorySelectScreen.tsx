@@ -1,15 +1,18 @@
-/**
- * CategorySelectScreen — Select visit category.
- * Shows driver card + 3 grid cards: Onboarding, Settlement, Maintenance.
- * No vehicle/dp_type/effectiveType logic. Navigate to respective purpose screen.
- */
 import React from "react";
 import { View, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -24,53 +27,76 @@ const D = {
   brandRedMid: "#F5DADF",
   textPrimary: "#161B1D",
   textSecondary: "#5C6B72",
-  cardRadius: 14,
-  cardMinHeight: 88,
+  chevronTint: "#E8A4B0",
+  cardRadius: 12,
+  iconWrapSize: 44,
+  iconWrapRadius: 10,
   avatarSize: 42,
 } as const;
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, "CategorySelect">;
 type RoutePropType = RouteProp<RootStackParamList, "CategorySelect">;
 
-const CATEGORIES: { id: "Onboarding" | "Settlement" | "Maintenance"; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-  { id: "Onboarding", label: "Onboarding", icon: "user-plus" },
-  { id: "Settlement", label: "Settlement", icon: "dollar-sign" },
-  { id: "Maintenance", label: "Maintenance", icon: "tool" },
+const CATEGORIES: {
+  id: "Onboarding" | "Settlement" | "Maintenance";
+  label: string;
+  subtitle: string;
+  icon: keyof typeof Feather.glyphMap;
+}[] = [
+  {
+    id: "Onboarding",
+    label: "Onboarding",
+    subtitle: "Manage your registration and documents",
+    icon: "user-plus",
+  },
+  {
+    id: "Settlement",
+    label: "Settlement",
+    subtitle: "View earnings and payout history",
+    icon: "dollar-sign",
+  },
+  {
+    id: "Maintenance",
+    label: "Maintenance",
+    subtitle: "Vehicle service and repair logs",
+    icon: "tool",
+  },
 ];
 
-function CategoryGridCard({
-  label,
-  icon,
-  onPress,
-  delay,
-}: {
-  label: string;
-  icon: keyof typeof Feather.glyphMap;
-  onPress: () => void;
-  delay: number;
-}) {
+function CategoryRowCard({ label, subtitle, icon, onPress, delay }: any) {
   const scale = useSharedValue(1);
-  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
     <Animated.View
-      style={styles.gridCardWrap}
+      style={styles.cardWrap}
       entering={FadeInDown.delay(delay).springify()}
     >
       <Animated.View style={animStyle}>
         <Pressable
           onPress={onPress}
-          onPressIn={() => { scale.value = withSpring(0.94, { damping: 18, stiffness: 220 }); }}
-          onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 220 }); }}
-          style={styles.gridCard}
+          onPressIn={() => {
+            scale.value = withSpring(0.98);
+          }}
+          onPressOut={() => {
+            scale.value = withSpring(1);
+          }}
+          style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
         >
-          <View style={styles.gridCardIconWrap}>
-            <Feather name={icon} size={20} color={D.brandRed} />
+          <View style={styles.iconWrap}>
+            <Feather name={icon} size={22} color={D.brandRed} />
           </View>
-          <ThemedText type="small" style={styles.gridCardLabel} numberOfLines={2}>
-            {label}
-          </ThemedText>
-          <Feather name="chevron-right" size={14} color={D.textSecondary} style={{ marginTop: 4 }} />
+          <View style={styles.cardContent}>
+            <ThemedText type="body" style={styles.cardTitle}>
+              {label}
+            </ThemedText>
+            <ThemedText type="small" style={styles.cardSubtitle}>
+              {subtitle}
+            </ThemedText>
+          </View>
+          <Feather name="chevron-right" size={20} color={D.chevronTint} />
         </Pressable>
       </Animated.View>
     </Animated.View>
@@ -83,60 +109,70 @@ export default function CategorySelectScreen() {
   const insets = useSafeAreaInsets();
   const { formData } = route.params;
 
-  const displayName = (formData.name ?? "").trim() || "—";
-  const displayPhone = (formData.phone ?? "").trim() || "—";
-
-  const handleCategoryPress = (id: "Onboarding" | "Settlement" | "Maintenance") => {
+  const handleCategoryPress = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (id === "Onboarding") {
-      navigation.navigate("OnboardingPurpose", { formData });
-    } else if (id === "Settlement") {
-      navigation.navigate("SettlementPurpose", { formData });
-    } else {
-      navigation.navigate("MaintenancePurpose", { formData });
-    }
+    navigation.navigate(`${id}Purpose` as any, { formData });
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + Spacing.xl }]}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + Spacing.xl,
+          paddingHorizontal: Layout.horizontalScreenPadding,
+        }}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeInDown.delay(0).springify()} style={styles.userCard}>
+        {/* Driver Banner */}
+        <Animated.View
+          entering={FadeInDown.delay(0).springify()}
+          style={styles.userCard}
+        >
           <View style={styles.avatar}>
             <Feather name="user" size={18} color="#FFF" />
           </View>
           <View style={styles.userCardCenter}>
-            <ThemedText type="small" style={styles.userName} numberOfLines={1}>
-              {displayName}
+            <ThemedText type="small" style={styles.userName}>
+              {formData.name || "—"}
             </ThemedText>
             <View style={styles.rolePill}>
-              <ThemedText type="small" style={styles.roleText}>Driver Partner</ThemedText>
+              <ThemedText type="small" style={styles.roleText}>
+                Driver Partner
+              </ThemedText>
             </View>
           </View>
           <View style={styles.phonePill}>
-            <Feather name="phone" size={11} color={D.brandRed} style={{ marginRight: 4 }} />
-            <ThemedText type="small" style={styles.phoneText} numberOfLines={1}>
-              {displayPhone}
+            <Feather
+              name="phone"
+              size={11}
+              color={D.brandRed}
+              style={{ marginRight: 4 }}
+            />
+            <ThemedText type="small" style={styles.phoneText}>
+              {formData.phone || "—"}
             </ThemedText>
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.sectionRow}>
-          <ThemedText type="h6" style={styles.sectionTitle}>
-            Select category
+        {/* Categories Header with Line like the image */}
+        <Animated.View
+          entering={FadeInDown.delay(40).springify()}
+          style={styles.headerRow}
+        >
+          <ThemedText type="h6" style={styles.headerTitle}>
+            CATEGORIES
           </ThemedText>
+          <View style={styles.headerLine} />
         </Animated.View>
 
-        <View style={styles.grid}>
+        {/* Category List */}
+        <View style={styles.list}>
           {CATEGORIES.map((cat, i) => (
-            <CategoryGridCard
+            <CategoryRowCard
               key={cat.id}
-              label={cat.label}
-              icon={cat.icon}
-              delay={80 + i * 45}
+              {...cat}
+              delay={80 + i * 50}
               onPress={() => handleCategoryPress(cat.id)}
             />
           ))}
@@ -149,25 +185,15 @@ export default function CategorySelectScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.screenBg },
   flex: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: Layout.horizontalScreenPadding,
-    paddingTop: Spacing.lg,
-    flexGrow: 1,
-  },
   userCard: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     padding: Spacing.md,
     borderRadius: D.cardRadius,
     borderWidth: 1,
     borderColor: D.cardBorder,
     backgroundColor: D.cardBg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
   },
   avatar: {
     width: D.avatarSize,
@@ -178,13 +204,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: Spacing.md,
   },
-  userCardCenter: { flex: 1, minWidth: 0, gap: 4 },
+  userCardCenter: { flex: 1, gap: 4 },
   userName: { fontSize: 14, fontWeight: "700", color: D.textPrimary },
   rolePill: {
     alignSelf: "flex-start",
     backgroundColor: D.brandRedMid,
     paddingHorizontal: 8,
-    paddingVertical: 2,
     borderRadius: 20,
   },
   roleText: { fontSize: 11, fontWeight: "600", color: D.brandRed },
@@ -193,39 +218,54 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#F1F3F5",
     paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: 20,
-    marginLeft: Spacing.sm,
   },
   phoneText: { color: D.textPrimary, fontSize: 12, fontWeight: "600" },
-  sectionRow: { marginBottom: Spacing.lg },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: D.textPrimary },
-  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
-  gridCardWrap: { width: "48.5%", marginBottom: Spacing.md },
-  gridCard: {
+
+  // FIXED HEADER ROW
+  headerRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: Spacing.md + 2,
-    paddingHorizontal: Spacing.sm,
+    marginBottom: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  headerTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: D.textSecondary,
+    letterSpacing: 0.8,
+    marginRight: 12,
+  },
+  headerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: D.cardBorder,
+  },
+
+  list: { gap: Spacing.md },
+  cardWrap: { width: "100%" },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: Spacing.md,
     borderRadius: D.cardRadius,
-    minHeight: D.cardMinHeight,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: D.cardBorder,
     backgroundColor: D.cardBg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    minHeight: 85,
   },
-  gridCardIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  cardPressed: { opacity: 0.9 },
+  iconWrap: {
+    width: D.iconWrapSize,
+    height: D.iconWrapSize,
+    borderRadius: D.iconWrapRadius,
+    backgroundColor: "#FCF3F4", // Light tint for icon background
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.sm,
-    backgroundColor: D.brandRedMid,
+    marginRight: Spacing.md,
   },
-  gridCardLabel: { textAlign: "center", fontWeight: "500", fontSize: 12, lineHeight: 17, color: D.textPrimary },
+  cardContent: { flex: 1, gap: 2 },
+  cardTitle: { fontSize: 16, fontWeight: "700", color: D.textPrimary },
+  cardSubtitle: { fontSize: 13, color: D.textSecondary },
 });

@@ -1,7 +1,12 @@
 import React, { useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation, useRoute, RouteProp, CommonActions } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  RouteProp,
+  CommonActions,
+} from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import Animated, { ZoomIn, FadeIn } from "react-native-reanimated";
@@ -12,8 +17,14 @@ import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, "ExitConfirmation">;
-type ExitConfirmationRouteProp = RouteProp<RootStackParamList, "ExitConfirmation">;
+type NavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "ExitConfirmation"
+>;
+type ExitConfirmationRouteProp = RouteProp<
+  RootStackParamList,
+  "ExitConfirmation"
+>;
 
 export default function ExitConfirmationScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -29,7 +40,7 @@ export default function ExitConfirmationScreen() {
         CommonActions.reset({
           index: 0,
           routes: [{ name: "VisitorType" }],
-        })
+        }),
       );
     }, 2500);
     return () => clearTimeout(timer);
