@@ -1,7 +1,5 @@
 {
-  "cli": {
-    "version": ">= 13.0.0"
-  },
+  "cli": { "version": ">= 13.0.0" },
   "build": {
     "development": {
       "developmentClient": true,
@@ -11,18 +9,12 @@
     "preview": {
       "channel": "preview",
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      }
+      "android": { "buildType": "apk" }
     },
     "production": {
       "channel": "production",
-      "android": {
-        "buildType": "apk"
-      }
+      "android": { "buildType": "aab" }
     }
   },
-  "submit": {
-    "production": {}
-  }
+  "submit": { "production": {} }
 }

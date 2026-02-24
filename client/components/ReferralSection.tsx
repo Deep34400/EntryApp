@@ -6,13 +6,7 @@
  *   hideToggle — when true, skips rendering the Yes/No row entirely.
  *                The parent is responsible for controlling `referral` state.
  */
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -25,11 +19,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 import * as Haptics from "expo-haptics";
-import {
-  getReferralNames,
-  getReferralDisplayLabel,
-  type ReferralNameItem,
-} from "@/apis/referral/referral.api";
+import { getReferralDisplayLabel, type ReferralNameItem } from "@/apis/referral/referral.api";
+import { useReferralNames } from "@/hooks/useReferralNames";
 
 const RED = "#B31D38";
 const RED_BG = "rgba(179,29,56,0.06)";
@@ -170,10 +161,11 @@ export function ReferralSection({
   onItemSelect,
   onInputFocus,
 }: ReferralSectionProps) {
-  const [allNames, setAllReferralNames] = useState<ReferralNameItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const fetchedRef = useRef(false);
   const nameFieldAnim = useRef(new Animated.Value(0)).current;
+  const shouldFetchReferralNames = visible && referral === "yes";
+  const { data: allNames, isLoading: loading } = useReferralNames({
+    enabled: shouldFetchReferralNames,
+  });
 
   // When hideToggle=true the parent drives `referral`; we just react to it.
   // When hideToggle=false this component owns the animation trigger internally via toggleReferral.
@@ -183,7 +175,6 @@ export function ReferralSection({
       return;
     }
     if (hideToggle) {
-      // Animate name field in/out based on parent-controlled `referral`
       Animated.timing(nameFieldAnim, {
         toValue: referral === "yes" ? 1 : 0,
         duration: referral === "yes" ? 220 : 180,
@@ -192,20 +183,8 @@ export function ReferralSection({
           : Easing.in(Easing.cubic),
         useNativeDriver: false,
       }).start();
-
-      // Fetch names when switching to "yes"
-      if (referral === "yes" && !fetchedRef.current && accessToken) {
-        setLoading(true);
-        getReferralNames(accessToken)
-          .then(setAllReferralNames)
-          .catch(() => {})
-          .finally(() => {
-            setLoading(false);
-            fetchedRef.current = true;
-          });
-      }
     }
-  }, [visible, hideToggle, referral, nameFieldAnim, accessToken]);
+  }, [visible, hideToggle, referral, nameFieldAnim]);
 
   const toggleReferral = useCallback(
     (val: "yes" | "no") => {
@@ -228,17 +207,8 @@ export function ReferralSection({
         easing: Easing.out(Easing.cubic),
         useNativeDriver: false,
       }).start();
-      if (fetchedRef.current || !accessToken) return;
-      setLoading(true);
-      getReferralNames(accessToken)
-        .then(setAllReferralNames)
-        .catch(() => {})
-        .finally(() => {
-          setLoading(false);
-          fetchedRef.current = true;
-        });
     },
-    [onReferralChange, onReferralNameChange, onClear, accessToken, nameFieldAnim],
+    [onReferralChange, onReferralNameChange, onClear, nameFieldAnim],
   );
 
   if (!visible) return null;
@@ -490,7 +460,7 @@ function ReferralNameFieldInner({
                   <Text style={styles.dropPlus}>＋</Text>
                 </Pressable>
               )}
-              {filtered.map((n, idx) => {
+              {filtered.map((n: ReferralNameItem, idx: number) => {
                 const displayLabel = getReferralDisplayLabel(n);
                 const sel = selectedName === displayLabel;
                 return (
