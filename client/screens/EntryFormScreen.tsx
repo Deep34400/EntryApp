@@ -4,12 +4,11 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  ActivityIndicator,
   Image,
   Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Haptics from "expo-haptics";
 
@@ -29,14 +28,11 @@ type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   "EntryForm"
 >;
-type EntryFormRouteProp = RouteProp<RootStackParamList, "EntryForm">;
 
 const FONT = "Poppins";
 
 export default function EntryFormScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<EntryFormRouteProp>();
-  const { entryType } = route.params;
   const insets = useSafeAreaInsets();
 
   const [formData, setFormData] = useState<EntryFormData>({
@@ -44,7 +40,6 @@ export default function EntryFormScreen() {
     name: "",
     vehicle_reg_number: "",
   });
-  const [fetchingDriver, setFetchingDriver] = useState(false);
 
   const isFormValid = useMemo(() => {
     return (
@@ -53,7 +48,6 @@ export default function EntryFormScreen() {
     );
   }, [formData]);
 
-  /** 🔥 REMOVE HEADER COMPLETELY (FIGMA HAS NONE) */
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: false,
@@ -63,9 +57,11 @@ export default function EntryFormScreen() {
   const handleNext = () => {
     if (!isFormValid) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    navigation.push("VisitorPurpose", {
-      entryType,
-      formData,
+    navigation.push("CategorySelect", {
+      formData: {
+        ...formData,
+        vehicle_reg_number: formData.vehicle_reg_number || undefined,
+      },
     });
   };
 
@@ -132,9 +128,6 @@ export default function EntryFormScreen() {
                   onChangeText={(v) => updateField("phone", v)}
                   maxLength={PHONE_MAX_DIGITS}
                 />
-                {fetchingDriver && (
-                  <ActivityIndicator size="small" color="#B31D38" />
-                )}
               </View>
             </View>
 

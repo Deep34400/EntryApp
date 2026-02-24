@@ -1,7 +1,6 @@
 /**
  * VisitorTypeScreen — Create Visitor Entry
- * Phone, name, vehicle (optional). Referral Yes/No + name is on VisitorPurposeScreen
- * for new_dp (DP without vehicle) only.
+ * Collects phone, name, vehicle (optional). Next → CategorySelectScreen.
  */
 import React, {
   useLayoutEffect, useMemo, useRef, useState, useCallback,
@@ -14,11 +13,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import ReAnimated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
-import { RootStackParamList, EntryType, EntryFormData } from "@/navigation/RootStackNavigator";
+import { RootStackParamList, EntryFormData } from "@/navigation/RootStackNavigator";
 import { normalizePhoneInput, isPhoneValid, PHONE_MAX_DIGITS } from "@/utils/validation";
 import { usePermissions } from "@/permissions/usePermissions";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,55 +36,10 @@ const INPUT_R = 12;
 const H_PAD   = 20;
 const GAP     = 20;
 
-type TabId   = "staff" | "driver_partner";
 type NavProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
 type Vehicle = { regNumber: string; modelName?: string };
 
 const EMPTY: EntryFormData = { phone: "", name: "", vehicle_reg_number: "" };
-
-// ─── SegmentedToggle ─────────────────────────────────────────────────────────
-function SegmentedToggle({
-  value, onChange,
-}: { value: TabId; onChange: (t: TabId) => void }) {
-  const idx = value === "driver_partner" ? 0 : 1;
-  const tx  = useSharedValue(0);
-  const [segW, setSegW] = useState(0);
-
-  React.useEffect(() => {
-    if (segW > 0) tx.value = withSpring(idx * segW, { damping: 20, stiffness: 150 });
-  }, [idx, segW]);
-
-  const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }] }));
-
-  return (
-    <View onLayout={(e) => {
-      const w = e.nativeEvent.layout.width;
-      if (w > 0) setSegW((w - 8) / 2);
-    }}>
-      <View style={s.track}>
-        <ReAnimated.View
-          style={[s.pill, pillStyle, segW > 0 && { width: segW }]}
-          pointerEvents="none"
-        />
-        <View style={s.tabsRow}>
-          {(["driver_partner", "staff"] as TabId[]).map((tab) => (
-            <Pressable
-              key={tab} style={s.tab}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onChange(tab);
-              }}
-            >
-              <Text style={[s.tabTxt, value === tab && s.tabTxtOn]}>
-                {tab === "driver_partner" ? "Driver Partner" : "Staff"}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-    </View>
-  );
-}
 
 // ─── FormInput ────────────────────────────────────────────────────────────────
 function FormInput({
@@ -97,7 +50,7 @@ function FormInput({
     <View style={s.field}>
       <Text style={s.label}>{label}</Text>
       {prefix ? (
-        <View style={[s.inputRow, focused && s.inputRowFocused]}>
+        <View style={s.inputRow}>
           <Text style={s.prefix}>{prefix}</Text>
           <TextInput
             style={s.input}
@@ -176,7 +129,7 @@ function VehicleField({
     return (
       <View style={s.field}>
         <Text style={s.label}>Vehicle Number (optional)</Text>
-        <View style={[s.inputRow, focused && s.inputRowFocused]}>
+        <View style={s.inputRow}>
           <TextInput
             style={s.input}
             placeholder="e.g. HR55AB3849"
@@ -304,16 +257,13 @@ export default function VisitorTypeScreen() {
   const { canCreateEntry } = usePermissions();
   const { accessToken }    = useAuth();
 
-  const [tab, setTab]               = useState<TabId>("driver_partner");
   const [kbVisible, setKbVisible]   = useState(false);
   const [form, setForm]             = useState<EntryFormData>(EMPTY);
   const [driver, setDriver]         = useState<DriverDetails | null>(null);
   const [loading, setLoading]       = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const isDP       = tab === "driver_partner";
-  const vehicles   = (isDP && driver?.vehicles) ? driver.vehicles : [] as Vehicle[];
-  const entryType  = (isDP ? "dp" : "non_dp") as EntryType;
+  const vehicles = (driver?.vehicles) ? driver.vehicles : [] as Vehicle[];
 
   React.useEffect(() => {
     const show = Keyboard.addListener("keyboardDidShow", () => setKbVisible(true));
@@ -328,10 +278,6 @@ export default function VisitorTypeScreen() {
     await new Promise((r) => setTimeout(r, 500));
     setRefreshing(false);
   }, []);
-
-  React.useEffect(() => {
-    if (!isDP) { setDriver(null); setForm((p) => ({ ...p, vehicle_reg_number: "" })); }
-  }, [isDP]);
 
   const isValid = useMemo(
     () => isPhoneValid(form.phone) && form.name.trim().length > 0,
@@ -348,7 +294,7 @@ export default function VisitorTypeScreen() {
   };
 
   const fetchByPhone = async () => {
-    if (!isDP || !isPhoneValid(form.phone) || !accessToken) return;
+    if (!isPhoneValid(form.phone) || !accessToken) return;
     setLoading(true); setDriver(null);
     try {
       const d = await getDriverDetails({ phoneNo: form.phone.trim(), accessToken });
@@ -360,7 +306,7 @@ export default function VisitorTypeScreen() {
   };
 
   const fetchByReg = async () => {
-    if (!isDP || !accessToken) return;
+    if (!accessToken) return;
     const reg = (form.vehicle_reg_number ?? "").trim();
     if (reg.length < 2 || vehicles.some((v) => v.regNumber === reg)) return;
     setLoading(true); setDriver(null);
@@ -376,8 +322,7 @@ export default function VisitorTypeScreen() {
   const handleNext = () => {
     if (!isValid) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    navigation.navigate("VisitorPurpose", {
-      entryType,
+    navigation.navigate("CategorySelect", {
       formData: {
         ...form,
         vehicle_reg_number: form.vehicle_reg_number || undefined,
@@ -424,10 +369,6 @@ export default function VisitorTypeScreen() {
 
           {canCreateEntry ? (
             <>
-              <View style={{ marginBottom: 24 }}>
-                <SegmentedToggle value={tab} onChange={setTab} />
-              </View>
-
               <FormInput
                 label="Phone Number" prefix="+91" placeholder=""
                 keyboardType="phone-pad" value={form.phone}
@@ -489,17 +430,9 @@ const s = StyleSheet.create({
   ill:       { width: "90%", height: 150 },
   title:     { fontFamily: FONT, fontSize: 18, fontWeight: "600", color: TEXT, textAlign: "center", marginBottom: 20 },
 
-  track:    { height: 50, borderRadius: 26, backgroundColor: "#EBEDF1", justifyContent: "center", padding: 4 },
-  tabsRow:  { flexDirection: "row", position: "absolute", left: 4, right: 4, top: 4, bottom: 4 },
-  tab:      { flex: 1, justifyContent: "center", alignItems: "center" },
-  pill:     { position: "absolute", left: 4, top: 4, width: "48%", height: 42, borderRadius: 20, backgroundColor: WHITE, elevation: 2, boxShadow: "0px 1px 4px rgba(0,0,0,0.08)" },
-  tabTxt:   { fontFamily: FONT, fontSize: 14, fontWeight: "500", color: "#3F4C52" },
-  tabTxtOn: { fontWeight: "600", color: RED },
-
   field:              { gap: 8 },
   label:              { fontFamily: FONT, fontSize: 13, fontWeight: "500", color: TEXT },
   inputRow:           { flexDirection: "row", alignItems: "center", height: INPUT_H, borderWidth: 1.5, borderColor: BORDER, borderRadius: INPUT_R, paddingHorizontal: 16, backgroundColor: "#FAFAFA" },
-  inputRowFocused:    { borderColor: BORDER },
   prefix:             { fontFamily: FONT, fontSize: 15, color: MUTED, marginRight: 8 },
   input:              { flex: 1, fontFamily: FONT, fontSize: 15, color: TEXT, paddingVertical: 0 },
   inputSingle:        { height: INPUT_H, borderWidth: 1.5, borderColor: BORDER, borderRadius: INPUT_R, paddingHorizontal: 16, fontFamily: FONT, fontSize: 15, color: TEXT, backgroundColor: "#FAFAFA" },

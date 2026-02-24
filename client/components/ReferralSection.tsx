@@ -1,6 +1,6 @@
 /**
  * ReferralSection — Referral Yes/No + Referral Name dropdown.
- * Used on VisitorPurposeScreen for new_dp (DP without vehicle) only.
+ * Used on OnboardingPurposeScreen for referral flow.
  *
  * Props:
  *   hideToggle — when true, skips rendering the Yes/No row entirely.

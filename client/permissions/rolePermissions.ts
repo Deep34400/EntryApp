@@ -15,7 +15,10 @@ export type RootScreenName =
   | "NoHubBlock"
   | "VisitorType"
   | "EntryForm"
-  | "VisitorPurpose"
+  | "CategorySelect"
+  | "OnboardingPurpose"
+  | "SettlementPurpose"
+  | "MaintenancePurpose"
   | "TokenDisplay"
   | "ExitConfirmation"
   | "TicketList"
@@ -34,7 +37,10 @@ export const COMMON_SCREENS: readonly RootScreenName[] = [
 const GUARD_SCREENS: readonly RootScreenName[] = [
   "VisitorType",
   "EntryForm",
-  "VisitorPurpose",
+  "CategorySelect",
+  "OnboardingPurpose",
+  "SettlementPurpose",
+  "MaintenancePurpose",
   "TokenDisplay",
   "ExitConfirmation",
   "TicketList",
@@ -46,7 +52,10 @@ const GUARD_SCREENS: readonly RootScreenName[] = [
 const HM_SCREENS: readonly RootScreenName[] = [
   "VisitorType",
   "EntryForm",
-  "VisitorPurpose",
+  "CategorySelect",
+  "OnboardingPurpose",
+  "SettlementPurpose",
+  "MaintenancePurpose",
   "TokenDisplay",
   "ExitConfirmation",
   "TicketList",

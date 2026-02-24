@@ -1,6 +1,6 @@
 /**
  * Entry purpose — types and display helper only. Data comes from API (getPurposeConfig).
- * Used by: VisitorPurposeScreen (purpose selection + API submit).
+ * Used by: OnboardingPurposeScreen, SettlementPurposeScreen, MaintenancePurposeScreen (purpose selection + API submit).
  */
 
 /**

@@ -132,7 +132,7 @@ There are **no** infinite retry or refresh cycles.
   - Clears auth state (user, roles, selectedHubId in stored).
   - Clears hub globally: `setHubId(null)`.
   - Sets `isGuestReady(false)` so the “no tokens” effect can run.
-- Callers (ProfileScreen, NoRoleBlockScreen, NoHubBlockScreen, VisitorPurposeScreen, etc.) then reset/replace navigation to **LoginOtp** as needed.
+- Callers (ProfileScreen, NoRoleBlockScreen, NoHubBlockScreen, purpose screens, etc.) then reset/replace navigation to **LoginOtp** as needed.
 - After logout, the app naturally hits the “no tokens” logic → Identity API → new guest token for the next OTP attempt.
 
 ---

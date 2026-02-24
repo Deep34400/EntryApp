@@ -16,7 +16,10 @@ import NoRoleBlockScreen from "@/screens/NoRoleBlockScreen";
 import NoHubBlockScreen from "@/screens/NoHubBlockScreen";
 import VisitorTypeScreen from "@/screens/VisitorTypeScreen";
 import EntryFormScreen from "@/screens/EntryFormScreen";
-import VisitorPurposeScreen from "@/screens/VisitorPurposeScreen";
+import CategorySelectScreen from "../screens/CategorySelectScreen";
+import OnboardingPurposeScreen from "../screens/OnboardingPurposeScreen";
+import SettlementPurposeScreen from "../screens/SettlementPurposeScreen";
+import MaintenancePurposeScreen from "../screens/MaintenancePurposeScreen";
 import TokenDisplayScreen from "@/screens/TokenDisplayScreen";
 import ExitConfirmationScreen from "@/screens/ExitConfirmationScreen";
 import TicketListScreen from "@/screens/TicketListScreen";
@@ -24,9 +27,6 @@ import TicketDetailScreen from "@/screens/TicketDetailScreen";
 import ProfileScreen from "@/screens/ProfileScreen";
 
 import { getScreensForRole, type RootScreenName } from "@/permissions/rolePermissions";
-
-/** Entry type: dp = unified (vehicle optional → old_dp else new_dp); new_dp/old_dp/non_dp for API. */
-export type EntryType = "new_dp" | "old_dp" | "non_dp" | "dp";
 
 /** Visitor form data (phone, name, optional vehicle reg, optional referral). */
 export interface EntryFormData {
@@ -37,14 +37,20 @@ export interface EntryFormData {
   referralName?: string;
 }
 
+/** Category passed to purpose screens. */
+export type VisitorCategory = "Onboarding" | "Settlement" | "Maintenance";
+
 export type RootStackParamList = {
   LoginOtp: { message?: string } | undefined;
   OTPVerification: { phone: string };
   NoRoleBlock: undefined;
   NoHubBlock: undefined;
   VisitorType: undefined;
-  EntryForm: { entryType: EntryType };
-  VisitorPurpose: { entryType: EntryType; formData: EntryFormData };
+  EntryForm: undefined;
+  CategorySelect: { formData: EntryFormData };
+  OnboardingPurpose: { formData: EntryFormData };
+  SettlementPurpose: { formData: EntryFormData };
+  MaintenancePurpose: { formData: EntryFormData };
   TokenDisplay: {
     token: string;
     assignee: string;
@@ -64,7 +70,10 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const SCREENS_WITH_BACK: RootScreenName[] = [
   "EntryForm",
-  "VisitorPurpose",
+  "CategorySelect",
+  "OnboardingPurpose",
+  "SettlementPurpose",
+  "MaintenancePurpose",
   "TicketList",
   "TicketDetail",
   "Profile",
@@ -105,21 +114,26 @@ const SCREEN_CONFIG: Record<
   },
   EntryForm: {
     component: EntryFormScreen,
-    options: (params) => ({
-      headerTitle:
-        (params?.route?.params as { entryType?: EntryType })?.entryType === "dp"
-          ? "DP Entry"
-          : (params?.route?.params as { entryType?: EntryType })?.entryType === "new_dp"
-            ? "New DP Entry"
-            : (params?.route?.params as { entryType?: EntryType })?.entryType === "old_dp"
-              ? "Old DP Entry"
-              : "Staff Entry",
+    options: () => ({
+      headerTitle: "Create Entry",
       headerRight: () => <HomeHeaderButton />,
     }),
   },
-  VisitorPurpose: {
-    component: VisitorPurposeScreen,
-    options: () => ({ headerTitle: () => null, headerShadowVisible: false }),
+  CategorySelect: {
+    component: CategorySelectScreen,
+    options: () => ({ headerTitle: "Select Category", headerShadowVisible: false }),
+  },
+  OnboardingPurpose: {
+    component: OnboardingPurposeScreen,
+    options: () => ({ headerTitle: "Onboarding", headerShadowVisible: false }),
+  },
+  SettlementPurpose: {
+    component: SettlementPurposeScreen,
+    options: () => ({ headerTitle: "Settlement", headerShadowVisible: false }),
+  },
+  MaintenancePurpose: {
+    component: MaintenancePurposeScreen,
+    options: () => ({ headerTitle: "Maintenance", headerShadowVisible: false }),
   },
   TicketList: {
     component: TicketListScreen,
