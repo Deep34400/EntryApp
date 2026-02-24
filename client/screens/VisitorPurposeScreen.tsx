@@ -1,19 +1,3 @@
-/**
- * VisitorPurposeScreen — CLEAN FINAL (Fixed)
- *
- * Fixes applied:
- *   1. Bottom bar now transparent (no white box / border) — blends with screen
- *   2. CTA button is pill-shaped (borderRadius: 100) for premium feel
- *   3. Auto-scroll: scrollToEnd when referral "Yes" is selected and when referral input focuses (dropdown above keyboard)
- *
- * Architecture:
- *   SafeAreaView (flex: 1)
- *   └── KeyboardAvoidingView (flex: 1)
- *       ├── ScrollView (flex: 1, pb = BUTTON_H)
- *       │   └── content (user card, grid, referral)
- *       └── BottomBar (NOT inside ScrollView)
- */
-
 import React, { useState, useRef } from "react";
 import {
   View,
@@ -62,9 +46,6 @@ import type { PurposeConfigItem, PurposeConfigSubItem } from "@/types/purposeCon
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-const BOTTOM_BAR_CONTENT_HEIGHT = 68;
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const D = {
@@ -441,20 +422,21 @@ export default function VisitorPurposeScreen() {
   const isCtaDisabled =
     !selectedPurpose || submitMutation.isPending || configLoading || !!configError || !purposeConfig;
 
+  const bottomBarHeight = Spacing.md + D.buttonHeight + Spacing.sm + insets.bottom;
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior="padding"
         keyboardVerticalOffset={0}
       >
-        {/* FIX 3: attach ref to ScrollView */}
         <ScrollView
           ref={scrollViewRef}
           style={styles.flex}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: BOTTOM_BAR_CONTENT_HEIGHT + insets.bottom + Spacing.sm + Spacing.md },
+            { paddingBottom: bottomBarHeight },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -608,25 +590,17 @@ export default function VisitorPurposeScreen() {
               onInputFocus={handleReferralInputFocus}
             />
           )}
-
-          {/* ── Submitting state ── */}
-          {submitMutation.isPending && (
-            <Animated.View entering={FadeIn.duration(180)} style={styles.loadingRow}>
-              <ActivityIndicator size="small" color={D.brandRed} />
-              <ThemedText type="small" style={styles.loadingText}>Generating token…</ThemedText>
-            </Animated.View>
-          )}
         </ScrollView>
-
-        {/* Bottom bar: outside ScrollView, inside KAV */}
-        <BottomBar
-          selected={!!selectedPurpose}
-          loading={submitMutation.isPending}
-          disabled={isCtaDisabled}
-          onPress={() => selectedPurpose && submitMutation.mutate(selectedPurpose)}
-          safeBottom={insets.bottom}
-        />
       </KeyboardAvoidingView>
+
+      {/* Bottom bar: fixed at bottom, outside KAV — never moves with keyboard or loading */}
+      <BottomBar
+        selected={!!selectedPurpose}
+        loading={submitMutation.isPending}
+        disabled={isCtaDisabled}
+        onPress={() => selectedPurpose && submitMutation.mutate(selectedPurpose)}
+        safeBottom={insets.bottom}
+      />
 
       {/* ── Running Repair Modal ── */}
       <Modal
@@ -897,17 +871,7 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 13, fontWeight: "600", color: D.textSecondary },
   chipTextActive: { color: "#FFF" },
 
-  // Loading
-  loadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.sm,
-    paddingVertical: Spacing.xl,
-  },
-  loadingText: { color: D.textSecondary },
-
-  // ─── FIX 1: Bottom bar — transparent, no border, no box shadow ───────────
+  // ─── Bottom bar (fixed; loader only inside CTA) — transparent, no border, no box shadow ───────────
   bottomBar: {
     paddingHorizontal: Layout.horizontalScreenPadding,
     paddingTop: Spacing.md,

@@ -27,7 +27,6 @@ import { usePermissions } from "@/permissions/usePermissions";
 
 type InfiniteListData = { pages: { list: TicketListItem[] }[] };
 
-/** Find ticket in list cache (open/delayed/closed) to avoid duplicate API call when navigating from list. */
 function getTicketFromListCache(
   queryClient: QueryClient,
   ticketId: string,
@@ -70,37 +69,29 @@ function listItemToDetailResult(item: TicketListItem): TicketDetailResult {
   };
 }
 
-
-
 const FONT_POPPINS = "Poppins";
-
-const HEADER_HEIGHT = 54;
-const HEADER_TOP_OFFSET = 24;
-const CARD_MAX_WIDTH = 328;
+const HEADER_HEIGHT = 56; // Standard height for the back button area
 const CARD_PADDING = 16;
 const CARD_GAP = 16;
 const CARD_BORDER_RADIUS = 12;
 const TIME_BADGE_PADDING_V = 6;
 const TIME_BADGE_PADDING_H = 12;
 const TIME_BADGE_RADIUS = 8;
-const AVATAR_SIZE = 40;
-const CLOSE_BUTTON_HEIGHT = 48;
-const CLOSE_BUTTON_RADIUS = 22;
+const AVATAR_SIZE = 44;
+const CLOSE_BUTTON_HEIGHT = 52;
+const CLOSE_BUTTON_RADIUS = 26;
 
 type TicketDetailRouteProp = RouteProp<RootStackParamList, "TicketDetail">;
 
 const isClosed = (status: string | undefined) =>
   status != null && (status.toUpperCase() === "CLOSED" || status === "closed");
 
-/** Format waiting time as "3.5" (hours with one decimal) for open tickets. */
 function formatWaitingHoursDecimal(entryTime?: string | null): string {
   const mins = getWaitingMinutes(entryTime);
   if (mins == null) return "—";
   const hours = mins / 60;
   return hours >= 1 ? (Math.round(hours * 10) / 10).toFixed(1) : "0";
 }
-
-
 
 export default function TicketDetailScreen() {
   const route = useRoute<TicketDetailRouteProp>();
@@ -151,19 +142,20 @@ export default function TicketDetailScreen() {
 
   const closed = ticket ? isClosed(ticket.status) : false;
   const waitingHours = formatWaitingHoursDecimal(ticket?.entry_time);
-  
   const isStaff = getEntryTypeDisplayLabel(ticket?.type) === "Staff";
 
   const handleCloseTicket = () => {
     closeMutation.mutate();
   };
 
+  // --- LOADING / ERROR STATE ---
   if (isLoading || !ticket) {
     return (
       <View style={styles.screen}>
-        <BackArrow color="#161B1D" />
-        <View style={[styles.header, { paddingTop: insets.top + HEADER_TOP_OFFSET }]} />
-        <View style={[styles.centered, { paddingBottom: insets.bottom + 24 }]}>
+        <View style={{ paddingTop: insets.top, paddingHorizontal: 8, height: insets.top + HEADER_HEIGHT, justifyContent: 'center' }}>
+          <BackArrow color="#161B1D" />
+        </View>
+        <View style={styles.centered}>
           {isLoading ? (
             <>
               <ActivityIndicator size="large" color="#B31D38" />
@@ -173,9 +165,7 @@ export default function TicketDetailScreen() {
             <>
               <Feather name="alert-circle" size={48} color="#3F4C52" />
               <Text style={styles.errorTitle}>Ticket not found</Text>
-              <Text style={styles.errorSubtitle}>
-                The ticket may have been removed or the link is invalid.
-              </Text>
+              <Text style={styles.errorSubtitle}>The ticket may have been removed.</Text>
             </>
           )}
         </View>
@@ -183,23 +173,26 @@ export default function TicketDetailScreen() {
     );
   }
 
-  const scrollPaddingBottom = closed ? insets.bottom + 24 : insets.bottom + CLOSE_BUTTON_HEIGHT + 24 + 24;
+  const scrollPaddingBottom = closed ? insets.bottom + 24 : insets.bottom + CLOSE_BUTTON_HEIGHT + 40;
 
   return (
     <View style={styles.screen}>
-      <BackArrow color="#161B1D" />
-      <View style={[styles.header, { paddingTop: insets.top + HEADER_TOP_OFFSET }]} />
+      {/* FIXED HEADER: Arrow now respects Safe Area (Notches) */}
+      <View style={{ 
+        paddingTop: insets.top, 
+        height: insets.top + HEADER_HEIGHT, 
+        justifyContent: 'center',
+        paddingHorizontal: 8 
+      }}>
+        <BackArrow color="#161B1D" />
+      </View>
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollPaddingBottom }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => refetch()}
-            tintColor="#B31D38"
-          />
+          <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor="#B31D38" />
         }
       >
         {/* Card 1 — Token Info */}
@@ -226,7 +219,7 @@ export default function TicketDetailScreen() {
             <Text style={styles.entryTimeValue}>{formatDateTime(ticket.entry_time)}</Text>
           </View>
           {closed && (
-            <View style={styles.entryTimeRow}>
+            <View style={[styles.entryTimeRow, { marginTop: 12 }]}>
               <Text style={styles.entryTimeLabel}>Exit Time</Text>
               <Text style={styles.entryTimeValue}>
                 {ticket.exit_time ? formatDateTime(ticket.exit_time) : "—"}
@@ -256,7 +249,9 @@ export default function TicketDetailScreen() {
           <View style={styles.divider} />
           <View style={styles.assignmentRow}>
             <Text style={styles.assignmentLabel}>Ticket</Text>
-            <Text style={styles.assignmentValue}>{getCategoryLabel({ purpose: ticket.purpose, reason: ticket.reason, category: ticket.category, subCategory: ticket.subCategory }) || "—"}</Text>
+            <Text style={styles.assignmentValue}>
+              {getCategoryLabel({ purpose: ticket.purpose, reason: ticket.reason, category: ticket.category, subCategory: ticket.subCategory }) || "—"}
+            </Text>
           </View>
           <View style={styles.assignmentRow}>
             <Text style={styles.assignmentLabel}>Agent</Text>
@@ -270,7 +265,7 @@ export default function TicketDetailScreen() {
       </ScrollView>
 
       {!closed && canCloseTicket && (
-        <View style={[styles.closeButtonWrap, { paddingBottom: insets.bottom + 24 }]}>
+        <View style={[styles.closeButtonWrap, { paddingBottom: insets.bottom + 20 }]}>
           <Pressable
             onPress={handleCloseTicket}
             disabled={closeMutation.isPending}
@@ -294,53 +289,43 @@ export default function TicketDetailScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  header: {
-    height: HEADER_HEIGHT,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F8F9FA",
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: CARD_GAP,
-    maxWidth: CARD_MAX_WIDTH + 32,
+    paddingTop: 8,
     width: "100%",
-    alignSelf: "center",
   },
   centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
+    padding: 20,
   },
   loadingText: {
     fontFamily: FONT_POPPINS,
     fontSize: 14,
     color: "#3F4C52",
+    marginTop: 10,
   },
   errorTitle: {
     fontFamily: FONT_POPPINS,
     fontSize: 18,
     fontWeight: "600",
     color: "#161B1D",
+    marginTop: 12,
   },
   errorSubtitle: {
     fontFamily: FONT_POPPINS,
     fontSize: 14,
     color: "#3F4C52",
     textAlign: "center",
-    paddingHorizontal: 24,
   },
   card: {
     width: "100%",
-    maxWidth: CARD_MAX_WIDTH,
-    alignSelf: "center",
     marginBottom: CARD_GAP,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
@@ -349,10 +334,10 @@ const styles = StyleSheet.create({
     padding: CARD_PADDING,
     ...Platform.select({
       ios: {
-        shadowColor: "#000000",
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 10,
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
       },
       android: {
         elevation: 2,
@@ -361,25 +346,23 @@ const styles = StyleSheet.create({
   },
   tokenCardTopRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
   },
   tokenCardLeft: {
     flex: 1,
-    minWidth: 0,
   },
   tokenLabel: {
     fontFamily: FONT_POPPINS,
     fontSize: 14,
-    fontWeight: "400",
     color: "#3F4C52",
   },
   tokenValue: {
     fontFamily: FONT_POPPINS,
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 22,
+    fontWeight: "700",
     color: "#161B1D",
-    marginTop: 4,
+    marginTop: 2,
   },
   timeBadge: {
     flexDirection: "row",
@@ -390,8 +373,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: TIME_BADGE_PADDING_H,
   },
   timeBadgeHours: {
-    fontFamily: "Inter",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "700",
     color: "#D33636",
   },
@@ -416,7 +398,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#E8EBEC",
+    backgroundColor: "#F0F2F3",
     marginVertical: 16,
   },
   entryTimeRow: {
@@ -427,7 +409,6 @@ const styles = StyleSheet.create({
   entryTimeLabel: {
     fontFamily: FONT_POPPINS,
     fontSize: 14,
-    fontWeight: "400",
     color: "#3F4C52",
   },
   entryTimeValue: {
@@ -439,15 +420,15 @@ const styles = StyleSheet.create({
   driverRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
   },
   avatarPlaceholder: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: "#E8EBEC",
+    backgroundColor: "#F0F2F3",
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 12,
   },
   avatarLetter: {
     fontFamily: FONT_POPPINS,
@@ -457,44 +438,43 @@ const styles = StyleSheet.create({
   },
   driverInfo: {
     flex: 1,
-    minWidth: 0,
   },
   driverName: {
     fontFamily: FONT_POPPINS,
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: 16,
+    fontWeight: "600",
     color: "#161B1D",
   },
   driverRole: {
     fontFamily: FONT_POPPINS,
-    fontSize: 12,
-    fontWeight: "400",
+    fontSize: 13,
     color: "#3F4C52",
-    marginTop: 2,
   },
   assignmentTitle: {
     fontFamily: FONT_POPPINS,
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: 15,
+    fontWeight: "600",
     color: "#161B1D",
   },
   assignmentRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 14,
   },
   assignmentLabel: {
     fontFamily: FONT_POPPINS,
     fontSize: 14,
-    fontWeight: "400",
     color: "#3F4C52",
+    flex: 0.4,
   },
   assignmentValue: {
     fontFamily: FONT_POPPINS,
     fontSize: 14,
     fontWeight: "500",
     color: "#161B1D",
+    flex: 0.6,
+    textAlign: "right",
   },
   closeButtonWrap: {
     position: "absolute",
@@ -502,8 +482,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 16,
-    paddingTop: 24,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "transparent",
   },
   closeButton: {
     height: CLOSE_BUTTON_HEIGHT,
@@ -512,15 +491,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     width: "100%",
-    maxWidth: CARD_MAX_WIDTH,
-    alignSelf: "center",
   },
   closeButtonPressed: {
-    opacity: 0.9,
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
   },
   closeButtonText: {
     fontFamily: FONT_POPPINS,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
   },
