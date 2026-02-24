@@ -45,8 +45,20 @@ if (cmd === "build") {
 if (cmd === "update") {
   console.log("APP_TYPE=" + appType + " → updating branch " + profile);
   const args = ["update", "--branch", profile, "--non-interactive"];
-  const msg = process.argv[3] === "--message" ? process.argv[4] : process.argv[3];
-  if (msg) args.push("--message", msg);
+  // Support: npm run update -- "msg"  or  npm run update -- --message "msg"  or  npm run update -- word1 word2
+  const rest = process.argv.slice(3);
+  let msg;
+  if (rest[0] === "--message") {
+    msg = rest[1] || "";
+  } else if (rest.length) {
+    msg = rest.join(" ");
+  }
+  if (msg) {
+    args.push("--message", msg);
+  } else {
+    console.log("No message provided. Use: npm run update -- \"Your update message\"");
+    process.exit(1);
+  }
   const r = spawnSync("eas", args, { stdio: "inherit", shell: true });
   process.exit(r.status ?? 1);
 }
