@@ -14,7 +14,7 @@ export function HeaderTitle({ title, variant = "default" }: HeaderTitleProps) {
   return (
     <View style={styles.container}>
       <Image
-        source={require("../../assets/images/logo.png")}
+        source={require("../../assets/images/latestLogo.png")}
         style={[styles.icon, variant === "light" && styles.iconLight]}
         resizeMode="contain"
       />

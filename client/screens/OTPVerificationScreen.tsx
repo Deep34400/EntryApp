@@ -216,7 +216,7 @@ export default function OTPVerificationScreen() {
           </View>
           <View style={[styles.logoWrap, { backgroundColor: theme.backgroundTertiary }]}>
             <Image
-              source={require("../../assets/images/logo.png")}
+              source={require("../../assets/images/latestLogo.png")}
               style={styles.logo}
               resizeMode="contain"
             />

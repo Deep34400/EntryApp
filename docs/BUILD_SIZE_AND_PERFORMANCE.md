@@ -139,7 +139,7 @@ No further Hermes config needed.
 ## 7. Asset optimization suggestions
 
 - **Images:** Prefer WebP (or PNG) and resize to max display size (e.g. 2x for retina). Use `expo-image` for caching.
-- **Splash / icon:** `app.json` already points to single logo; ensure `assets/images/logo.png` is not oversized (e.g. 1024×1024 for icon is enough).
+- **Splash / icon:** `app.json` already points to single logo; ensure `assets/images/latestLogo.png` is not oversized (e.g. 1024×1024 for icon is enough).
 - **Avoid bundling unused assets:** Use `require()` only for assets you need; Metro tree-shakes unused requires.
 - **Optional:** Run image compression (e.g. `sharp`, `squoosh`) on `assets/images/*` before commits.
 
