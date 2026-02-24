@@ -27,13 +27,13 @@ const D = {
   cardBorder: "#E8EBEC",
   brandRed: "#B31D38",
   brandRedMid: "#F5DADF",
-  textPrimary: "#161B1D",
-  textSecondary: "#5C6B72",
-  chevronTint: "#E8A4B0",
-  cardRadius: 12,
+  textPrimary: "#1C1F21",
+  textSecondary: "#64748B",
+  chevronTint: "#CBD5E1",
+  cardRadius: 16,
   driverCardRadius: 14,
-  iconWrapSize: 44,
-  iconWrapRadius: 10,
+  iconWrapSize: 52, // Slightly bigger icon wrap
+  iconWrapRadius: 14,
   avatarSize: 42,
 } as const;
 
@@ -56,7 +56,7 @@ const CATEGORIES: {
   {
     id: "Settlement",
     label: "Settlement",
-    subtitle: "View earnings and payout history",
+    subtitle: "Manage settlement, car drop, exchange & rejoining",
     icon_key: "currency-inr",
     icon_library: "material",
   },
@@ -108,17 +108,13 @@ function CategoryRowCard({
             <AppIcon
               name={iconKey}
               library={iconLibrary}
-              size={22}
+              size={24}
               color={D.brandRed}
             />
           </View>
           <View style={styles.cardContent}>
-            <ThemedText type="body" style={styles.cardTitle}>
-              {label}
-            </ThemedText>
-            <ThemedText type="small" style={styles.cardSubtitle}>
-              {subtitle}
-            </ThemedText>
+            <ThemedText style={styles.cardTitle}>{label}</ThemedText>
+            <ThemedText style={styles.cardSubtitle}>{subtitle}</ThemedText>
           </View>
           <Feather name="chevron-right" size={20} color={D.chevronTint} />
         </Pressable>
@@ -134,7 +130,7 @@ export default function CategorySelectScreen() {
   const { formData } = route.params;
 
   const handleCategoryPress = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     navigation.navigate(`${id}Purpose` as any, { formData });
   };
 
@@ -144,53 +140,42 @@ export default function CategorySelectScreen() {
         style={styles.flex}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: insets.bottom + Spacing.xl },
+          { paddingBottom: insets.bottom + 20 },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Driver Banner */}
-        <Animated.View
-          entering={FadeInDown.delay(0).springify()}
-          style={styles.userCard}
-        >
+        {/* Profile Card - Same as your image */}
+        <View style={styles.userCard}>
           <View style={styles.avatar}>
             <Feather name="user" size={18} color="#FFF" />
           </View>
           <View style={styles.userCardCenter}>
-            <ThemedText type="small" style={styles.userName}>
-              {formData.name || "—"}
+            <ThemedText style={styles.userName}>
+              {formData.name || "ddd"}
             </ThemedText>
             <View style={styles.rolePill}>
-              <ThemedText type="small" style={styles.roleText}>
-                Driver Partner
-              </ThemedText>
+              <ThemedText style={styles.roleText}>Driver Partner</ThemedText>
             </View>
           </View>
           <View style={styles.phonePill}>
             <Feather
               name="phone"
-              size={11}
+              size={10}
               color={D.brandRed}
               style={{ marginRight: 4 }}
             />
-            <ThemedText type="small" style={styles.phoneText}>
-              {formData.phone || "—"}
+            <ThemedText style={styles.phoneText}>
+              {formData.phone || "7474747477"}
             </ThemedText>
           </View>
-        </Animated.View>
+        </View>
 
-        {/* Categories Header with Line like the image */}
-        <Animated.View
-          entering={FadeInDown.delay(40).springify()}
-          style={styles.headerRow}
-        >
-          <ThemedText type="h6" style={styles.headerTitle}>
-            CATEGORIES
-          </ThemedText>
+        <View style={styles.headerRow}>
+          <ThemedText style={styles.headerTitle}>CATEGORIES</ThemedText>
           <View style={styles.headerLine} />
-        </Animated.View>
+        </View>
 
-        {/* Category List */}
+        {/* Category List - Cards are now bigger */}
         <View style={styles.list}>
           {CATEGORIES.map((cat, i) => (
             <CategoryRowCard
@@ -212,25 +197,16 @@ export default function CategorySelectScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.screenBg },
   flex: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: Layout.horizontalScreenPadding,
-    paddingTop: Spacing.md,
-    flexGrow: 1,
-  },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 16 },
   userCard: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: Spacing.lg,
-    padding: Spacing.md,
+    marginBottom: 24,
+    padding: 14,
     borderRadius: D.driverCardRadius,
+    backgroundColor: D.cardBg,
     borderWidth: 1,
     borderColor: D.cardBorder,
-    backgroundColor: D.cardBg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
   },
   avatar: {
     width: D.avatarSize,
@@ -239,70 +215,76 @@ const styles = StyleSheet.create({
     backgroundColor: D.brandRed,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.md,
+    marginRight: 12,
   },
-  userCardCenter: { flex: 1, minWidth: 0, gap: 4 },
-  userName: { fontSize: 14, fontWeight: "700", color: D.textPrimary },
+  userCardCenter: { flex: 1, gap: 2 },
+  userName: { fontSize: 15, fontWeight: "600", color: "#000" },
   rolePill: {
     alignSelf: "flex-start",
     backgroundColor: D.brandRedMid,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 20,
+    borderRadius: 12,
   },
-  roleText: { fontSize: 11, fontWeight: "600", color: D.brandRed },
+  roleText: { fontSize: 10, fontWeight: "500", color: D.brandRed },
   phonePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F1F3F5",
+    backgroundColor: "#F8FAFC",
     paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 20,
-    marginLeft: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
   },
-  phoneText: { color: D.textPrimary, fontSize: 12, fontWeight: "600" },
-
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: Spacing.lg,
-  },
+  phoneText: { color: "#475569", fontSize: 11, fontWeight: "500" },
+  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   headerTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: D.textSecondary,
-    letterSpacing: 0.8,
-    marginRight: 12,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#94A3B8",
+    letterSpacing: 0.5,
   },
   headerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: D.cardBorder,
+    backgroundColor: "#E2E8F0",
+    marginLeft: 10,
   },
 
-  list: { gap: Spacing.md },
+  list: { gap: 16 }, // Balanced gap between big cards
   cardWrap: { width: "100%" },
   card: {
     flexDirection: "row",
     alignItems: "center",
-    padding: Spacing.md,
+    paddingVertical: 24, // Increased vertical padding for "Bade" cards
+    paddingHorizontal: 16,
     borderRadius: D.cardRadius,
+    backgroundColor: D.cardBg,
     borderWidth: 1,
     borderColor: D.cardBorder,
-    backgroundColor: D.cardBg,
-    minHeight: 85,
+    minHeight: 110, // Explicit height to make it look prominent
   },
-  cardPressed: { opacity: 0.9 },
+  cardPressed: { backgroundColor: "#F8FAFC" },
   iconWrap: {
     width: D.iconWrapSize,
     height: D.iconWrapSize,
     borderRadius: D.iconWrapRadius,
-    backgroundColor: "#FCF3F4", // Light tint for icon background
+    backgroundColor: "#FFF1F2",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.md,
+    marginRight: 16,
   },
-  cardContent: { flex: 1, gap: 2 },
-  cardTitle: { fontSize: 16, fontWeight: "700", color: D.textPrimary },
-  cardSubtitle: { fontSize: 13, color: D.textSecondary },
+  cardContent: { flex: 1, gap: 4 },
+  cardTitle: {
+    fontSize: 19,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: "400",
+    lineHeight: 18,
+  },
 });
