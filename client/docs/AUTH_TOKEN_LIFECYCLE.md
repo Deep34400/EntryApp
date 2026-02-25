@@ -129,7 +129,7 @@ There are **no** infinite retry or refresh cycles.
 
 - `logout()` (and `clearAuth()`):
   - Clears **all** tokens: guest, access, refresh (via `clearedStored(stored.identityId)`).
-  - Clears auth state (user, roles, selectedHubId in stored).
+  - Clears auth state (user, defaultRole, defaultHub in stored).
   - Clears hub globally: `setHubId(null)`.
   - Sets `isGuestReady(false)` so the “no tokens” effect can run.
 - Callers (ProfileScreen, NoRoleBlockScreen, NoHubBlockScreen, purpose screens, etc.) then reset/replace navigation to **LoginOtp** as needed.

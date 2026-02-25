@@ -19,10 +19,10 @@ export const LOGIN_OTP_VERIFY_PATH = "/api/v1/users/login/otp/verify";
 /** POST /api/v1/users/login/refresh — get new access token. Header only: Authorization: Bearer <refresh_token>. No body. Returns { accessToken, refreshToken }. */
 export const REFRESH_TOKEN_PATH = "/api/v1/users/login/refresh";
 
-/** App type for all auth/identity: identity body and login OTP/verify headers. Backend only handles OPS_PORTAL. */
-export const IDENTITY_APP_TYPE = "OPS_PORTAL";
-/** Same as IDENTITY_APP_TYPE — use OPS_PORTAL for login headers (send OTP, verify OTP). */
-export const APP_TYPE = "OPS_PORTAL";
+/** App type for all auth/identity: identity body and login OTP/verify headers. Backend only handles OPS. */
+export const IDENTITY_APP_TYPE = "ENTRY_APP";
+/** Same as IDENTITY_APP_TYPE — use OPS for login headers (send OTP, verify OTP). */
+export const APP_TYPE = "ENTRY_APP";
 export const APP_VERSION = 1;
 
 // ----- Entry App API (base) -----

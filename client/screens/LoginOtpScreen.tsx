@@ -12,7 +12,10 @@ import {
   Linking,
   useWindowDimensions,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Animated, { FadeIn } from "react-native-reanimated";
@@ -29,10 +32,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { sendOtp, verifyOtp } from "@/lib/auth";
-import { normalizePhoneInput, isPhoneValid as checkPhoneValid, PHONE_MAX_DIGITS } from "@/utils/validation";
+import {
+  normalizePhoneInput,
+  isPhoneValid as checkPhoneValid,
+  PHONE_MAX_DIGITS,
+} from "@/utils/validation";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "LoginOtp">;
-
 type Step = "phone" | "otp";
 
 const OTP_LENGTH = 6;
@@ -40,7 +46,7 @@ const RESEND_COOLDOWN_SECONDS = 30;
 
 const SESSION_EXPIRED_MSG = "Your session expired. Please request OTP again.";
 
-/** Responsive OTP box constraints (no overflow on small screens, reasonable on tablets). */
+/** Responsive OTP box constraints */
 const OTP_BOX_MIN = 40;
 const OTP_BOX_MAX = 56;
 const OTP_GAP = 8;
@@ -72,6 +78,7 @@ export default function LoginOtpScreen() {
 
   const { width: screenWidth } = useWindowDimensions();
 
+  // --- START LOGIC: Don't touch this ---
   const otpLayout = useMemo(() => {
     const horizontalPadding = Layout.horizontalScreenPadding * 2;
     const availableWidth = Math.min(
@@ -97,18 +104,27 @@ export default function LoginOtpScreen() {
     if (!auth.isRestored || !auth.isGuestReady) return;
     if (auth.accessToken && auth.user) {
       setUserContext({ name: auth.user.name, phone: auth.user.phone });
-      const route =
-        !auth.hasValidRole
-          ? "NoRoleBlock"
-          : !auth.hasHub
-            ? "NoHubBlock"
-            : "VisitorType";
+      const route = !auth.hasValidRole
+        ? "NoRoleBlock"
+        : !auth.hasHub
+          ? "NoHubBlock"
+          : "VisitorType";
       const t = setTimeout(() => navigation.replace(route), 0);
       return () => clearTimeout(t);
     }
-  }, [auth.isRestored, auth.isGuestReady, auth.accessToken, auth.user, auth.hasValidRole, auth.hasHub, setUserContext, navigation]);
+  }, [
+    auth.isRestored,
+    auth.isGuestReady,
+    auth.accessToken,
+    auth.user,
+    auth.hasValidRole,
+    auth.hasHub,
+    setUserContext,
+    navigation,
+  ]);
 
-  const hasUser = auth.isRestored && auth.isGuestReady && auth.accessToken && auth.user;
+  const hasUser =
+    auth.isRestored && auth.isGuestReady && auth.accessToken && auth.user;
 
   useEffect(() => {
     if (step === "otp") {
@@ -119,7 +135,10 @@ export default function LoginOtpScreen() {
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
-    const id = setInterval(() => setResendCooldown((c) => Math.max(0, c - 1)), 1000);
+    const id = setInterval(
+      () => setResendCooldown((c) => Math.max(0, c - 1)),
+      1000,
+    );
     return () => clearInterval(id);
   }, [resendCooldown]);
 
@@ -131,7 +150,14 @@ export default function LoginOtpScreen() {
 
   useEffect(() => {
     const guestToken = auth.guestToken;
-    if (step !== "otp" || !isOtpComplete || !guestToken || loading || verifyTriggeredRef.current) return;
+    if (
+      step !== "otp" ||
+      !isOtpComplete ||
+      !guestToken ||
+      loading ||
+      verifyTriggeredRef.current
+    )
+      return;
     verifyTriggeredRef.current = true;
     (async () => {
       setError(null);
@@ -160,7 +186,16 @@ export default function LoginOtpScreen() {
         setLoading(false);
       }
     })();
-  }, [step, isOtpComplete, otp, phoneTrimmed, auth.guestToken, loading, auth, setUserContext]);
+  }, [
+    step,
+    isOtpComplete,
+    otp,
+    phoneTrimmed,
+    auth.guestToken,
+    loading,
+    auth,
+    setUserContext,
+  ]);
 
   const handleSendOtp = async () => {
     if (!isPhoneValid || !auth.guestToken) return;
@@ -212,35 +247,22 @@ export default function LoginOtpScreen() {
     setError(null);
   };
 
-  if (hasUser) {
+  if (hasUser || !auth.isGuestReady || !auth.isRestored) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.backgroundRoot }]}>
+      <View
+        style={[
+          styles.container,
+          styles.centered,
+          { backgroundColor: theme.backgroundRoot },
+        ]}
+      >
         <ActivityIndicator size="large" color={theme.primary} />
-        <ThemedText type="body" numberOfLines={1} style={{ color: theme.textSecondary, marginTop: Spacing.lg }}>
-          Loading…
-        </ThemedText>
       </View>
     );
   }
 
-  if (!auth.isGuestReady || !auth.isRestored) {
-    return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.backgroundRoot }]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-        <ThemedText type="body" numberOfLines={1} style={{ color: theme.textSecondary, marginTop: Spacing.lg }}>
-          Preparing…
-        </ThemedText>
-      </View>
-    );
-  }
-
-  // Show polished Session Expired screen whenever we have a session-expired message
-  // (from refresh fail = authError, or from OTP fail = route.params.message). Never show
-  // the login form with the error in a grey box — always this screen, then clean form after "Sign in again".
   const sessionExpiredMessageFromRoute = route.params?.message ?? null;
-  const showSessionExpiredScreen = !!(auth.authError || sessionExpiredMessageFromRoute);
-
-  if (showSessionExpiredScreen) {
+  if (!!(auth.authError || sessionExpiredMessageFromRoute)) {
     return (
       <SessionExpiredScreen
         message={auth.authError || sessionExpiredMessageFromRoute || undefined}
@@ -249,7 +271,6 @@ export default function LoginOtpScreen() {
           setRetryingGuest(true);
           try {
             await auth.ensureGuestToken();
-            // Clear route params so when we show the login form it has no error banner
             navigation.replace("LoginOtp");
           } finally {
             setRetryingGuest(false);
@@ -258,57 +279,44 @@ export default function LoginOtpScreen() {
       />
     );
   }
+  // --- END LOGIC ---
 
-  const inputBorderColor = phoneFocused ? theme.primary : loginTokens.inputBorder;
+  const inputBorderColor = phoneFocused ? loginTokens.headerRed : "#D7D7D7";
+
+  // --- UI SCREENS ---
 
   if (step === "otp") {
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: loginTokens.cardBg }]} edges={["top"]}>
-          <BackArrow
-    onPress={goBackToPhone}
-    color={loginTokens.otpText}
-    
-    // topOffset={0} 
-  />
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: loginTokens.cardBg }]}
+        edges={["top"]}
+      >
+        <BackArrow onPress={goBackToPhone} color={loginTokens.otpText} />
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboardView}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
           <ScrollView
             style={styles.scrollView}
-            contentContainerStyle={[
-              styles.scrollContent,
-              styles.otpScrollContent,
-              {
-                paddingTop: Layout.backButtonTouchTarget + Spacing.sm - 8,
-                paddingBottom: insets.bottom + Spacing["2xl"],
-              },
-            ]}
+            contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
           >
-            <Animated.View entering={FadeIn.duration(260)} style={styles.otpContent}>
-              <ThemedText type="h3" style={styles.otpTitle} numberOfLines={1}>
+            <Animated.View
+              entering={FadeIn.duration(260)}
+              style={styles.otpContent}
+            >
+              <ThemedText type="h3" style={styles.otpTitle}>
                 Enter OTP
               </ThemedText>
-              <ThemedText type="body" style={styles.otpSubtitle} numberOfLines={1}>
-                OTP sent to {phoneTrimmed || "..."}
+              <ThemedText type="body" style={styles.otpSubtitle}>
+                OTP sent to {phoneTrimmed}
               </ThemedText>
-              {(sessionExpiredMessage || error) ? (
-                <View style={[styles.errorBanner, { backgroundColor: theme.backgroundTertiary, borderColor: theme.border, marginTop: Spacing.lg, marginBottom: Layout.contentGap }]}>
-                  <ThemedText type="small" numberOfLines={3} style={{ color: theme.error }}>{sessionExpiredMessage || error}</ThemedText>
-                </View>
-              ) : null}
+
               <Pressable
                 onPress={() => otpInputRef.current?.focus()}
                 style={[
                   styles.otpRowWrap,
-                  {
-                    minHeight: otpLayout.boxSize,
-                    height: otpLayout.boxSize,
-                    marginBottom: Spacing.lg,
-                  },
+                  { height: otpLayout.boxSize, marginBottom: Spacing.lg },
                 ]}
               >
                 <TextInput
@@ -318,64 +326,64 @@ export default function LoginOtpScreen() {
                   keyboardType="number-pad"
                   maxLength={OTP_LENGTH}
                   editable={!loading}
-                  style={[styles.otpHiddenInput, { height: otpLayout.boxSize }]}
-                  testID="input-otp"
+                  style={styles.otpHiddenInput}
                 />
-                {Array.from({ length: OTP_LENGTH }).map((_, i) => {
-                  const digit = otp[i] ?? "";
-                  const isActive = i === otp.length;
-                  return (
-                    <View
-                      key={i}
-                      style={[
-                        styles.otpBox,
-                        {
-                          width: otpLayout.boxSize,
-                          height: otpLayout.boxSize,
-                          marginRight: i < OTP_LENGTH - 1 ? otpLayout.gapSize : 0,
-                          borderColor: isActive
+                {Array.from({ length: OTP_LENGTH }).map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.otpBox,
+                      {
+                        width: otpLayout.boxSize,
+                        height: otpLayout.boxSize,
+                        marginRight: i < OTP_LENGTH - 1 ? otpLayout.gapSize : 0,
+                        borderColor:
+                          i === otp.length
                             ? loginTokens.otpBoxBorderActive
                             : loginTokens.otpBoxBorder,
-                          borderWidth: isActive ? 2 : 1,
+                        borderWidth: i === otp.length ? 2 : 1,
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      type="h5"
+                      style={[
+                        styles.otpBoxDigit,
+                        {
+                          color: loginTokens.otpText,
+                          opacity: otp[i] ? 1 : 0.4,
+                          fontSize: otpLayout.digitFontSize,
                         },
                       ]}
                     >
-                      <ThemedText
-                        type="h5"
-                        style={[
-                          styles.otpBoxDigit,
-                          {
-                            color: loginTokens.otpText,
-                            opacity: digit ? 1 : 0.4,
-                            fontSize: otpLayout.digitFontSize,
-                          },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {digit}
-                      </ThemedText>
-                    </View>
-                  );
-                })}
+                      {otp[i] || ""}
+                    </ThemedText>
+                  </View>
+                ))}
               </Pressable>
+
               <View style={styles.resendRowOtp}>
-                <ThemedText type="body" style={styles.resendLabel} numberOfLines={1}>Didn&apos;t receive the code? </ThemedText>
+                <ThemedText type="body">
+                  Didn&apos;t receive the code?{" "}
+                </ThemedText>
                 {resendCooldown > 0 ? (
-                  <ThemedText type="body" style={styles.resendCooldown} numberOfLines={1}>Resend in {resendCooldown}s</ThemedText>
+                  <ThemedText type="body">
+                    Resend in {resendCooldown}s
+                  </ThemedText>
                 ) : (
-                  <Pressable onPress={handleResendOtp} disabled={loading} hitSlop={12} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-                    <ThemedText type="body" style={[styles.resendLink, { color: loginTokens.resendGreen }]} numberOfLines={1}>Resend</ThemedText>
+                  <Pressable onPress={handleResendOtp} disabled={loading}>
+                    <ThemedText
+                      type="body"
+                      style={{
+                        color: loginTokens.resendGreen,
+                        fontWeight: "600",
+                      }}
+                    >
+                      Resend
+                    </ThemedText>
                   </Pressable>
                 )}
               </View>
-              {loading ? (
-                <View style={[styles.verifyingRow, { backgroundColor: theme.backgroundSecondary }]}>
-                  <ActivityIndicator size="small" color={loginTokens.headerRed} />
-                  <ThemedText type="body" style={[styles.verifyingText, { color: loginTokens.otpText }]}>
-                    Verifying…
-                  </ThemedText>
-                </View>
-              ) : null}
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -383,349 +391,179 @@ export default function LoginOtpScreen() {
     );
   }
 
+  // --- PHONE SCREEN (MAIN CHANGES HERE) ---
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: loginTokens.cardBg }]} edges={["top"]}>
-      <View style={styles.phoneStepWrapper}>
-        <View
-          style={[
-            styles.loginHeader,
-            {
-              minHeight: Layout.loginHeaderMinHeight,
-              maxHeight: Layout.loginHeaderMaxHeight,
-              paddingTop: insets.top,
-              backgroundColor: loginTokens.headerRed,
-            },
-          ]}
-        >
-          <Animated.View entering={FadeIn.duration(280)} style={styles.hero}>
-            <Image source={require("../../assets/images/latestLogo.png")} style={styles.heroLogoOnRed} resizeMode="contain" />
-            <ThemedText type="h4" style={[styles.heroTitle, { color: loginTokens.onHeader }]} numberOfLines={1}>carrum</ThemedText>
-            <ThemedText type="small" style={[styles.heroSubtitle, { color: loginTokens.onHeader }]} numberOfLines={1}>MOBILITY SOLUTIONS</ThemedText>
-          </Animated.View>
-        </View>
+    <View
+      style={[styles.container, { backgroundColor: loginTokens.headerRed }]}
+    >
+      <View style={[styles.loginHeader, { paddingTop: insets.top }]}>
+        <Animated.View entering={FadeIn.duration(280)} style={styles.hero}>
+          <Image
+            source={require("../../assets/images/latestLogo.png")}
+            style={styles.heroLogoOnRed}
+            resizeMode="contain"
+          />
+        </Animated.View>
+      </View>
 
+      <View style={styles.whiteCard}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={styles.keyboardView}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          style={{ flex: 1 }}
         >
           <ScrollView
-            style={[styles.scrollView, styles.whiteCard]}
-            contentContainerStyle={[
-              styles.scrollContent,
-              {
-                paddingTop: Layout.contentGap + 20,
-                paddingBottom: insets.bottom + Spacing["2xl"] + 44 + Spacing["2xl"],
-              },
-            ]}
+            contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <Animated.View entering={FadeIn.delay(120).duration(260)} style={styles.contentBlock}>
-              <View style={styles.welcomeBlock}>
-                <ThemedText style={styles.welcomeTitle} numberOfLines={1}>Welcome</ThemedText>
-                <ThemedText style={styles.welcomeSubtitle} numberOfLines={1}>Entry/ Exit Application</ThemedText>
-              </View>
-              {(sessionExpiredMessage || error) ? (
-                <View style={[styles.errorBanner, { backgroundColor: theme.backgroundTertiary, borderColor: theme.border }]}>
-                  <ThemedText type="small" numberOfLines={3} style={{ color: theme.error }}>{sessionExpiredMessage || error}</ThemedText>
-                </View>
-              ) : null}
-              <View style={[styles.phoneInputWrap, { borderColor: inputBorderColor }]}>
-                <ThemedText style={styles.phonePrefix} numberOfLines={1}>+91</ThemedText>
-                <TextInput
-                  style={styles.phoneInput}
-                  placeholder="Enter mobile number"
-                  placeholderTextColor={loginTokens.placeholder}
-                  selectionColor={loginTokens.headerRed}
-                  value={phone}
-                  onChangeText={(v) => setPhone(normalizePhoneInput(v))}
-                  onFocus={() => setPhoneFocused(true)}
-                  onBlur={() => setPhoneFocused(false)}
-                  keyboardType="phone-pad"
-                  maxLength={PHONE_MAX_DIGITS}
-                  editable={!loading}
-                  testID="input-phone"
-                />
-              </View>
-              <View style={styles.primaryButtonWrap}>
-                <Button
-                  onPress={handleSendOtp}
-                  disabled={!isPhoneValid || loading}
-                  style={[styles.sentOtpButton, { backgroundColor: isPhoneValid ? loginTokens.headerRed : theme.backgroundSecondary, opacity: isPhoneValid && !loading ? 1 : 0.8, borderWidth: 0 }]}
-                >
-                  {loading ? "Sending…" : "Sent OTP"}
-                </Button>
-              </View>
+            <View style={styles.welcomeBlock}>
+              <ThemedText style={styles.welcomeTitle}>Welcome</ThemedText>
+              <ThemedText style={styles.welcomeSubtitle}>
+                Entry/ Exit Application
+              </ThemedText>
+            </View>
 
-              <View style={styles.termsRow}>
-                <ThemedText style={styles.termsText}>By continuing, I agree to the </ThemedText>
-                <Pressable onPress={() => Linking.openURL("https://example.com/terms").catch(() => {})} hitSlop={8}>
-                  <ThemedText style={[styles.termsText, styles.termsLink]}>terms & conditions</ThemedText>
-                </Pressable>
-                <ThemedText style={styles.termsText}> and </ThemedText>
-                <Pressable onPress={() => Linking.openURL("https://example.com/privacy").catch(() => {})} hitSlop={8}>
-                  <ThemedText style={[styles.termsText, styles.termsLink]}>privacy policy</ThemedText>
-                </Pressable>
-              </View>
-            </Animated.View>
+            <View
+              style={[styles.phoneInputWrap, { borderColor: inputBorderColor }]}
+            >
+              <ThemedText style={styles.phonePrefix}>+91</ThemedText>
+              <TextInput
+                style={styles.phoneInput}
+                placeholder="Enter mobile number"
+                placeholderTextColor="#A2ACB1"
+                value={phone}
+                onChangeText={(v) => setPhone(normalizePhoneInput(v))}
+                onFocus={() => setPhoneFocused(true)}
+                onBlur={() => setPhoneFocused(false)}
+                keyboardType="phone-pad"
+                maxLength={PHONE_MAX_DIGITS}
+              />
+            </View>
+
+            <Button
+              onPress={handleSendOtp}
+              disabled={!isPhoneValid || loading}
+              style={[
+                styles.sentOtpButton,
+                {
+                  backgroundColor: isPhoneValid
+                    ? loginTokens.headerRed
+                    : "#D7D7D7",
+                },
+              ]}
+            >
+              <ThemedText style={{ color: "#FFF", fontWeight: "600" }}>
+                {loading ? "Sending…" : "Sent OTP"}
+              </ThemedText>
+            </Button>
+
+            <View style={styles.termsRow}>
+              <ThemedText style={styles.termsText}>
+                By continuing, I agree to the{" "}
+              </ThemedText>
+              <Pressable
+                onPress={() => Linking.openURL("https://example.com/terms")}
+              >
+                <ThemedText style={[styles.termsText, styles.termsLink]}>
+                  terms & conditions
+                </ThemedText>
+              </Pressable>
+              <ThemedText style={styles.termsText}> and </ThemedText>
+              <Pressable
+                onPress={() => Linking.openURL("https://example.com/privacy")}
+              >
+                <ThemedText style={[styles.termsText, styles.termsLink]}>
+                  privacy policy
+                </ThemedText>
+              </Pressable>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centered: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  phoneStepWrapper: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: Layout.horizontalScreenPadding,
-    width: "100%",
-    maxWidth: Layout.contentMaxWidth + Layout.horizontalScreenPadding * 2,
-    alignSelf: "center",
-  },
+  container: { flex: 1 },
+  centered: { justifyContent: "center", alignItems: "center" },
+  keyboardView: { flex: 1 },
+  scrollView: { flex: 1 },
   loginHeader: {
+    height: 401,
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#B31D38",
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    overflow: "hidden",
   },
-  hero: {
-    paddingVertical: Spacing.lg,
-    alignItems: "center",
-    justifyContent: "flex-start",
-  },
-  heroLogoOnRed: {
-    width: "100%",
-    maxWidth: 206,
-    aspectRatio: 206 / 139.15,
-    marginBottom: Spacing.lg,
-  },
-  heroTitle: {
-    fontFamily: "Poppins",
-    fontWeight: "600",
-    fontSize: 20,
-    marginBottom: Spacing.xs,
-    textAlign: "center",
-    textTransform: "lowercase",
-  },
-  heroSubtitle: {
-    fontFamily: "Poppins",
-    textAlign: "center",
-    letterSpacing: 2,
-    textTransform: "uppercase",
-    fontSize: 12,
-  },
+  hero: { alignItems: "center", justifyContent: "center" },
+  heroLogoOnRed: { width: 206, height: 139 },
   whiteCard: {
-    flex: 1,
-    marginTop: -Layout.loginWhiteCardOverlap,
-    backgroundColor: DesignTokens.login.cardBg,
+    position: "absolute",
+    bottom: 0,
+    width: "100%",
+    height: 474,
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    overflow: "hidden",
+    paddingHorizontal: 16,
   },
-  contentBlock: {
-    flexDirection: "column",
-    width: "100%",
-    maxWidth: Layout.contentMaxWidth,
-    alignSelf: "center",
-    backgroundColor: DesignTokens.login.cardBg,
-    paddingHorizontal: 0,
-    gap: Layout.contentGap,
-  },
-  welcomeBlock: {
-    alignSelf: "center",
-    alignItems: "center",
-    gap: 4,
-  },
+  scrollContent: { alignItems: "center", paddingTop: 40, paddingBottom: 24 },
+  welcomeBlock: { alignItems: "center", marginBottom: 32 },
   welcomeTitle: {
     fontFamily: "Poppins",
     fontWeight: "600",
     fontSize: 24,
-    lineHeight: 32,
-    color: "#000000",
+    color: "#000",
   },
   welcomeSubtitle: {
     fontFamily: "Poppins",
     fontWeight: "500",
     fontSize: 18,
-    lineHeight: 30,
-    color: "#000000",
+    color: "#000",
   },
   phoneInputWrap: {
-    backgroundColor: DesignTokens.login.cardBg,
     flexDirection: "row",
     alignItems: "center",
-    width: "100%",
-    maxWidth: Layout.contentMaxWidth,
-    minHeight: 56,
-    paddingVertical: 13,
-    paddingHorizontal: Layout.cardPadding,
-    gap: 10,
+    width: 328,
+    height: 56,
+    paddingHorizontal: 16,
     borderWidth: 1,
-    borderRadius: BorderRadius.sm,
+    borderRadius: 12,
+    marginBottom: 24,
   },
   phonePrefix: {
-    fontFamily: "Poppins",
     fontWeight: "600",
     fontSize: 16,
-    lineHeight: 24,
     color: "#77878E",
-    textAlign: "center",
+    marginRight: 10,
   },
-  phoneInput: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: "Poppins",
-    fontWeight: "500",
-    fontSize: 16,
-    lineHeight: 24,
-    color: "#000000",
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-  },
+  phoneInput: { flex: 1, fontSize: 16, color: "#000" },
   sentOtpButton: {
-    width: "100%",
-    maxWidth: Layout.contentMaxWidth,
-    minHeight: 46,
+    width: 328,
+    height: 46,
     borderRadius: 22,
-    alignItems: "center",
     justifyContent: "center",
-  },
-  primaryButtonWrap: {
-    width: "100%",
-  },
-  primaryButton: {
-    borderRadius: BorderRadius.md,
-    minHeight: 56,
-    width: "100%",
     alignItems: "center",
-    justifyContent: "center",
-  },
-  errorBanner: {
-    padding: Layout.cardPadding,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
   },
   termsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
-    alignItems: "center",
-    marginTop: Spacing.lg,
-    paddingVertical: Spacing.sm,
+    marginTop: 120,
+    width: 327,
   },
-  termsText: {
-    fontFamily: "Poppins",
-    fontWeight: "400",
-    fontSize: 14,
-    lineHeight: 22,
-    color: DesignTokens.login.termsText,
-    textAlign: "center",
-  },
-  termsLink: {
-    color: DesignTokens.login.termsLink,
-    fontWeight: "600",
-  },
-  otpContent: {
-    width: "100%",
-  },
-  otpTitle: {
-    fontFamily: "Poppins",
-    color: DesignTokens.login.otpText,
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: Spacing.xs,
-    marginTop: Spacing["4xl"],
-  },
-  otpSubtitle: {
-    fontFamily: "Poppins",
-    color: DesignTokens.login.otpSub,
-    fontSize: 16,
-    marginBottom: Spacing.xl,
-  },
-  resendLabel: {
-    fontFamily: "Poppins",
-    color: DesignTokens.login.otpSub,
-  },
-  resendCooldown: {
-    fontFamily: "Poppins",
-    color: DesignTokens.login.otpSub,
-  },
-  resendLink: {
-    fontFamily: "Poppins",
-    fontWeight: "600",
-  },
-  otpScrollContent: {
-    flexGrow: 1,
-    width: "100%",
-    maxWidth: 440,
-    alignSelf: "center",
-  },
-  otpRowWrap: {
-    flexDirection: "row",
-    justifyContent: "flex-start",
-    alignItems: "center",
-    position: "relative",
-    width: "100%",
-  },
-  otpHiddenInput: {
-    position: "absolute",
-    opacity: 0,
-    left: 0,
-    right: 0,
-    fontSize: 16,
-  },
-  otpBox: {
-    borderRadius: BorderRadius.sm,
-    backgroundColor: DesignTokens.login.cardBg,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: Spacing.xl,
-  },
-  otpBoxDigit: {
-    fontFamily: "Poppins",
-    fontWeight: "600",
-  },
-  resendRowOtp: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: Spacing.xl,
-    flexWrap: "wrap",
-    
-  },
-  verifyingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.md,
-    paddingVertical: Spacing.lg,
-    borderRadius: BorderRadius.sm,
-  },
-  verifyingText: {
-    fontFamily: "Poppins",
-    fontWeight: "600",
-  },
-  pillButton: {
-    borderRadius: 22,
-    minHeight: 46,
-  },
+  termsText: { fontSize: 14, color: "#3F4C52", textAlign: "center" },
+  termsLink: { color: "#1A8477", fontWeight: "600" },
+  // OTP Styles (Keep yours)
+  otpContent: { width: "100%", paddingHorizontal: 16 },
+  otpTitle: { fontSize: 28, fontWeight: "700", marginTop: 40 },
+  otpSubtitle: { fontSize: 16, color: "#77878E", marginBottom: 24 },
+  otpRowWrap: { flexDirection: "row", width: "100%" },
+  otpHiddenInput: { position: "absolute", opacity: 0, width: "100%" },
+  otpBox: { borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  otpBoxDigit: { fontWeight: "600" },
+  resendRowOtp: { flexDirection: "row", marginTop: 24 },
 });

@@ -206,7 +206,7 @@ export async function sendOtp(phoneNo: string, guestToken: string): Promise<void
   }
 }
 
-/** Backend may return tokens at data level and/or inside data.identity. We normalize to top-level. */
+/** Backend returns tokens + user with defaultRole / defaultHub (used app-wide). No roles / userRoles / hubs / userHubs. */
 export type VerifyOtpResponseData = {
   user: {
     id: string;
@@ -214,10 +214,8 @@ export type VerifyOtpResponseData = {
     userType?: string;
     status?: string;
     userContacts?: Array<{ phoneNo: string; isPrimary?: boolean }>;
-    roles?: Array<{ name: string }>;
-    userRoles?: Array<{ role: { name: string } }>;
-    hubs?: Array<{ id: string }>;
-    userHubs?: Array<{ hubId?: string; hub?: { id: string } }>;
+    defaultRole?: { id: string; name: string };
+    defaultHub?: { id: string; name: string };
   };
   accessToken: string;
   refreshToken: string;

@@ -26,9 +26,19 @@ const ALL_TABS: {
   icon: keyof typeof MaterialIcons.glyphMap;
   screen: keyof RootStackParamList;
 }[] = [
-  { id: "Entry", label: "Entry", icon: "local-parking", screen: "VisitorType" },
-  { id: "Ticket", label: "Ticket", icon: "confirmation-number", screen: "TicketList" },
-  { id: "Account", label: "Account", icon: "account-circle", screen: "Profile" },
+  { id: "Entry", label: "Entry", icon: "door-sliding", screen: "VisitorType" },
+  {
+    id: "Ticket",
+    label: "Ticket",
+    icon: "confirmation-number",
+    screen: "TicketList",
+  },
+  {
+    id: "Account",
+    label: "Account",
+    icon: "person",
+    screen: "Profile",
+  },
 ];
 
 export function AppFooter({ activeTab }: AppFooterProps) {
@@ -39,7 +49,7 @@ export function AppFooter({ activeTab }: AppFooterProps) {
 
   const visibleTabs = useMemo(
     () => ALL_TABS.filter((tab) => canAccessScreen(tab.screen, allowedRole)),
-    [allowedRole]
+    [allowedRole],
   );
 
   const handleTabPress = (tab: AppFooterTab) => {
@@ -76,14 +86,8 @@ export function AppFooter({ activeTab }: AppFooterProps) {
               accessibilityRole="button"
               accessibilityState={{ selected: isActive }}
             >
-              <MaterialIcons
-                name={tab.icon}
-                size={ICON_SIZE}
-                color={color}
-              />
-              <Text style={[styles.tabLabel, { color }]}>
-                {tab.label}
-              </Text>
+              <MaterialIcons name={tab.icon} size={ICON_SIZE} color={color} />
+              <Text style={[styles.tabLabel, { color }]}>{tab.label}</Text>
             </Pressable>
           );
         })}

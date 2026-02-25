@@ -18,9 +18,9 @@ React Native (Expo) app for guards and hub managers: visitor entry, OTP login, t
 ## 2. Login & OTP flow
 
 1. User enters phone on **LoginOtpScreen** → **send OTP** (`auth.ts`: `sendOtp`) with guest token in `Authorization`.
-2. User enters OTP → **verify OTP** (`auth.ts`: `verifyOtp`) → backend returns `accessToken`, `refreshToken`, user, roles, hub.
-3. **AuthContext.setTokensAfterVerify(data)** saves tokens, user, roles, selectedHubId to state and AsyncStorage; **hub-bridge** gets the hub id for API calls.
-4. **OTPVerificationScreen** uses **getRoleAndHubFromVerifyData** to decide where to navigate: no role → `NoRoleBlock`, no hub → `NoHubBlock`, else → `VisitorType`.
+2. User enters OTP → **verify OTP** (`auth.ts`: `verifyOtp`) → backend returns `accessToken`, `refreshToken`, user (with **defaultRole** and **defaultHub**), identity.
+3. **AuthContext.setTokensAfterVerify(data)** uses **defaultRole** and **defaultHub** from the verify payload only. It saves tokens, user, **defaultRole** (id + name), and **defaultHub** (id + name); **hub-bridge** is set to `defaultHub.id` so all API requests send the hub id.
+4. **OTPVerificationScreen** uses **getRoleAndHubFromVerifyData(data)** (which reads `defaultRole` / `defaultHub`) to decide where to navigate: no role → `NoRoleBlock`, no hub → `NoHubBlock`, else → `VisitorType`.
 
 Guest token is only for identity + send OTP + verify OTP. After verify, we use access + refresh only; guest is cleared from storage.
 
@@ -108,7 +108,7 @@ Keep each folder focused; avoid “misc” or duplicate helpers. Navigation stay
 - **Env**: Set `EXPO_PUBLIC_API_URL` to your backend base URL (no trailing slash).
 - **Entry point**: `client/index.js` → `App.tsx`.
 - **Role config**: `client/permissions/rolePermissions.ts`.
-- **Auth**: `client/docs/AUTH_README.md` (login, refresh, logout, identity, file roles). Auth files: `client/lib/storage.ts`, `client/lib/auth.ts`, `client/api/requestClient.ts`, `client/contexts/AuthContext.tsx`.
+- **Auth**: `client/docs/AUTH_README.md` (login, refresh, logout, identity, file roles). Auth files: `client/lib/storage.ts`, `client/lib/auth.ts`, `client/api/requestClient.ts`, `client/contexts/AuthContext.tsx`. After OTP verify only **defaultRole** and **defaultHub** (id + name each) are stored; hub id is passed in APIs via hub-bridge.
 - **Networking**: One engine — **client/api/requestClient.ts**. All backend calls go through **client/apis/** (ticket.api, driver.api); screens call apis only, never requestClient directly. React Query config: **client/query/queryClient.ts**.
 
 A boring, obvious, lightweight codebase is a good codebase. Prefer deletion over abstraction and explicit logic over magic.

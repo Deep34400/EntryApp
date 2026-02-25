@@ -6,7 +6,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { fetchIdentity, refreshToken, type VerifyOtpResponseData } from "@/lib/auth";
-import { loadAuth, saveAuth, clearAuth, defaultStored, type StoredAuth } from "@/lib/storage";
+import { loadAuth, saveAuth, clearAuth, defaultStored, type StoredAuth, type DefaultRoleOrHub } from "@/lib/storage";
 import { setHubId } from "@/lib/hub-bridge";
 import { ServerUnavailableError, isServerUnavailableError } from "@/lib/server-unavailable";
 
@@ -43,26 +43,11 @@ export function notifyUnauthorized(): void {
   unauthorizedHandler?.();
 }
 
-// ----- Helpers -----
-function extractRoles(user: VerifyOtpResponseData["user"]): string[] {
-  const fromRoles = user.roles?.map((r) => (r.name ?? "").trim().toLowerCase()).filter(Boolean) ?? [];
-  const fromUserRoles = user.userRoles?.map((ur) => (ur.role?.name ?? "").trim().toLowerCase()).filter(Boolean) ?? [];
-  return Array.from(new Set([...fromRoles, ...fromUserRoles]));
-}
-
-function extractSelectedHubId(user: VerifyOtpResponseData["user"]): string | null {
-  const fromHubs = user.hubs?.[0]?.id?.trim();
-  if (fromHubs) return fromHubs;
-  const first = user.userHubs?.[0];
-  return first?.hubId?.trim() ?? first?.hub?.id?.trim() ?? null;
-}
-
-function getAllowedRole(roles: string[]): AllowedRole | null {
-  for (const r of roles) {
-    if (r === "guard") return "guard";
-    if (r === "hub_manager" || r === "hm") return "hub_manager";
-    if (ALLOWED_ROLES.includes(r as AllowedRole)) return r as AllowedRole;
-  }
+function getAllowedRole(roleName: string | undefined): AllowedRole | null {
+  const r = (roleName ?? "").trim().toLowerCase();
+  if (r === "guard") return "guard";
+  if (r === "hub_manager" || r === "hm") return "hub_manager";
+  if (ALLOWED_ROLES.includes(r as AllowedRole)) return r as AllowedRole;
   return null;
 }
 
@@ -70,9 +55,10 @@ export function getRoleAndHubFromVerifyData(data: VerifyOtpResponseData): {
   allowedRole: AllowedRole | null;
   hasHub: boolean;
 } {
-  const roles = extractRoles(data.user);
-  const selectedHubId = extractSelectedHubId(data.user);
-  return { allowedRole: getAllowedRole(roles), hasHub: !!selectedHubId };
+  return {
+    allowedRole: getAllowedRole(data.user.defaultRole?.name),
+    hasHub: !!(data.user.defaultHub?.id?.trim()),
+  };
 }
 
 function isTokenVersionMismatch(err: unknown): boolean {
@@ -87,22 +73,23 @@ type AuthContextValue = {
   isRestored: boolean;
   isGuestReady: boolean;
   authError: string | null;
-  /** Set on logout so SessionExpiredHandler can redirect to login once. */
   sessionExpired: boolean;
   clearSessionExpiredFlag: () => void;
   isAuthenticated: boolean;
   user: AuthUser | null;
   guestToken: string | null;
   accessToken: string | null;
+  /** From OTP verify; used for role checks and APIs. */
+  defaultRole: DefaultRoleOrHub | null;
+  /** From OTP verify; hub id is passed in APIs via hub-bridge. */
+  defaultHub: DefaultRoleOrHub | null;
   allowedRole: AllowedRole | null;
-  selectedHubId: string | null;
   hasValidRole: boolean;
   hasHub: boolean;
   ensureGuestToken: () => Promise<void>;
   setTokensAfterVerify: (data: VerifyOtpResponseData) => Promise<void>;
   setAccessToken: (accessToken: string) => void;
   logout: () => void;
-  /** Alias for logout (clear session and get new guest). */
   clearAuth: () => void;
   retryGuestIdentity: () => void;
 };
@@ -120,8 +107,9 @@ const defaultValue: AuthContextValue = {
   user: null,
   guestToken: null,
   accessToken: null,
+  defaultRole: null,
+  defaultHub: null,
   allowedRole: null,
-  selectedHubId: null,
   hasValidRole: false,
   hasHub: false,
   ensureGuestToken: async () => {},
@@ -220,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (cancelled) return;
       setStored(s);
       setIsRestored(true);
-      if (s.selectedHubId?.trim()) setHubId(s.selectedHubId);
+      if (s.defaultHub?.id?.trim()) setHubId(s.defaultHub.id);
       const hasAccess = !!s.accessToken?.trim();
       const hasRefresh = !!s.refreshToken?.trim();
       const hasGuest = !!s.guestToken?.trim();
@@ -328,8 +316,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         phone: primaryPhone,
         userType: data.user.userType,
       };
-      const roles = extractRoles(data.user);
-      const selectedHubId = extractSelectedHubId(data.user);
+      const defaultRole =
+        data.user.defaultRole?.id?.trim()
+          ? {
+              id: data.user.defaultRole.id.trim(),
+              name: (data.user.defaultRole.name ?? "").trim() || data.user.defaultRole.id.trim(),
+            }
+          : null;
+      const defaultHub =
+        data.user.defaultHub?.id?.trim()
+          ? {
+              id: data.user.defaultHub.id.trim(),
+              name: (data.user.defaultHub.name ?? "").trim() || data.user.defaultHub.id.trim(),
+            }
+          : null;
       const next: StoredAuth = {
         ...stored,
         guestToken: "",
@@ -338,11 +338,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshToken: data.refreshToken,
         tokenVersion: stored.tokenVersion + 1,
         user,
-        roles,
-        selectedHubId,
+        defaultRole,
+        defaultHub,
       };
       await persist(next);
-      setHubId(selectedHubId);
+      setHubId(defaultHub?.id ?? null);
       setStatus("authenticated");
     },
     [stored, persist]
@@ -355,7 +355,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [stored, persist]
   );
 
-  const allowedRole = getAllowedRole(stored.roles);
+  const allowedRole = getAllowedRole(stored.defaultRole?.name);
   const value: AuthContextValue = {
     status,
     isRestored,
@@ -367,10 +367,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user: stored.user,
     guestToken: stored.guestToken || null,
     accessToken: stored.accessToken || null,
+    defaultRole: stored.defaultRole ?? null,
+    defaultHub: stored.defaultHub ?? null,
     allowedRole,
-    selectedHubId: stored.selectedHubId ?? null,
     hasValidRole: allowedRole != null,
-    hasHub: !!(stored.selectedHubId?.trim()),
+    hasHub: !!(stored.defaultHub?.id?.trim()),
     ensureGuestToken,
     setTokensAfterVerify,
     setAccessToken,
