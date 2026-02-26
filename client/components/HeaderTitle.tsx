@@ -1,8 +1,9 @@
 import React from "react";
-import { View, StyleSheet, Image } from "react-native";
+import { View, StyleSheet } from "react-native";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Spacing, Typography } from "@/constants/theme";
+import LatestLogo from "../../assets/images/latestLogo.svg";
 
 interface HeaderTitleProps {
   title: string;
@@ -13,10 +14,10 @@ interface HeaderTitleProps {
 export function HeaderTitle({ title, variant = "default" }: HeaderTitleProps) {
   return (
     <View style={styles.container}>
-      <Image
-        source={require("../../assets/images/latestLogo.png")}
+      <LatestLogo
+        width={28}
+        height={28}
         style={[styles.icon, variant === "light" && styles.iconLight]}
-        resizeMode="contain"
       />
       <ThemedText style={styles.title}>{title}</ThemedText>
     </View>

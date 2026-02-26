@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TextInput,
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -27,6 +26,7 @@ import { Button } from "@/components/Button";
 import { SessionExpiredScreen } from "@/components/SessionExpiredScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
+import LatestLogo from "../../assets/images/latestLogo.svg";
 import { DesignTokens } from "@/constants/designTokens";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
@@ -398,10 +398,10 @@ export default function LoginOtpScreen() {
     >
       <View style={[styles.loginHeader, { paddingTop: insets.top }]}>
         <Animated.View entering={FadeIn.duration(280)} style={styles.hero}>
-          <Image
-            source={require("../../assets/images/latestLogo.png")}
+          <LatestLogo
+            width={206}
+            height={139}
             style={styles.heroLogoOnRed}
-            resizeMode="contain"
           />
         </Animated.View>
       </View>

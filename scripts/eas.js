@@ -38,6 +38,11 @@ if (!cmd) {
 
 if (cmd === "build") {
   console.log("APP_TYPE=" + appType + " → building " + profile);
+  const gen = spawnSync("node", [path.join(process.cwd(), "scripts", "generate-icons.js")], { stdio: "inherit", cwd: process.cwd() });
+  if (gen.status !== 0) {
+    console.error("generate:icons failed");
+    process.exit(gen.status ?? 1);
+  }
   const r = spawnSync("eas", ["build", "--profile", profile, "--platform", "android", "--non-interactive"], { stdio: "inherit", shell: true });
   process.exit(r.status ?? 1);
 }

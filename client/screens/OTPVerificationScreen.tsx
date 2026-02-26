@@ -3,7 +3,6 @@ import {
   View,
   StyleSheet,
   TextInput,
-  Image,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
@@ -20,6 +19,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { BackArrow } from "@/components/BackArrow";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
+import LatestLogo from "../../assets/images/latestLogo.svg";
 import { useAuth, getRoleAndHubFromVerifyData } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -215,10 +215,10 @@ export default function OTPVerificationScreen() {
             />
           </View>
           <View style={[styles.logoWrap, { backgroundColor: theme.backgroundTertiary }]}>
-            <Image
-              source={require("../../assets/images/latestLogo.png")}
+            <LatestLogo
+              width={28}
+              height={28}
               style={styles.logo}
-              resizeMode="contain"
             />
           </View>
           <View style={styles.headerTextWrap}>
