@@ -1,7 +1,3 @@
-/**
- * Generates padded app-icon.png and splash-icon.png from SVGs.
- * This prevents the icons from being cut off on Android devices.
- */
 const fs = require("fs");
 const path = require("path");
 
@@ -19,26 +15,31 @@ async function main() {
     process.exit(1);
   }
 
-  // 1. GENERATE APP ICON (With 20% Safe-Zone Padding)
-  // We shrink the logo to 660px inside a 1024px canvas
+  /**
+   * 1. GENERATE APP ICON
+   * We shrink the logo to 580px (approx 56%) to ensure it fits
+   * perfectly within Android's circular mask "Safe Zone".
+   */
   await sharp(appIconSvg)
-    .resize(660, 660, {
+    .resize(580, 580, {
       fit: "contain",
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
+      background: { r: 0, g: 0, b: 0, alpha: 0 }, // Force transparency
     })
     .extend({
-      top: 182,
-      bottom: 182,
-      left: 182,
-      right: 182,
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
+      top: 222,
+      bottom: 222,
+      left: 222,
+      right: 222,
+      background: { r: 0, g: 0, b: 0, alpha: 0 }, // Padding is transparent
     })
     .png()
     .toFile(appIconPng);
-  console.log("✅ Generated: Padded App Icon");
+  console.log("✅ Generated: Padded App Icon (Transparent)");
 
-  // 2. GENERATE SPLASH ICON
-  // Splash icons usually look better if they are slightly smaller
+  /**
+   * 2. GENERATE SPLASH ICON
+   * Centered splash logo.
+   */
   await sharp(splashIconSvg)
     .resize(512, 512, {
       fit: "contain",
