@@ -20,7 +20,6 @@
         "foregroundImage": "./assets/images/app-icon.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
       "package": "com.gateentry.app"
     },
     "web": {
@@ -34,28 +33,18 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF",
+          "backgroundColor": "#B31D38",
           "dark": {
-            "backgroundColor": "#FFFFFF"
+            "backgroundColor": "#B31D38"
           }
         }
       ],
       "expo-web-browser"
     ],
-    "experiments": {
-      "reactCompiler": true
-    },
     "extra": {
       "eas": {
         "projectId": "09511a6a-5a9e-46b1-9c05-4b25b5d190e5"
       }
-    },
-    "owner": "tech3440",
-    "updates": {
-      "enabled": true,
-      "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/09511a6a-5a9e-46b1-9c05-4b25b5d190e5"
     }
   }
 }
