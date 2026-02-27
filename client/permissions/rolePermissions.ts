@@ -1,31 +1,11 @@
-/**
- * ROLE CONFIG — single source of truth for screens and actions per role.
- * Change this file only to: add a screen, restrict a screen to a role, or add a new role.
- * No role checks in screens; access is enforced by which screens are registered in navigation.
- * Roles: guard | hub_manager (hm is normalized to hub_manager).
- */
-
 import type { AllowedRole } from "@/contexts/AuthContext";
 
-/** Screen names that exist in RootStackParamList. */
 export type RootScreenName =
-  | "LoginOtp"
-  | "OTPVerification"
-  | "NoRoleBlock"
-  | "NoHubBlock"
-  | "VisitorType"
-  | "EntryForm"
-  | "CategorySelect"
-  | "OnboardingPurpose"
-  | "SettlementPurpose"
-  | "MaintenancePurpose"
-  | "TokenDisplay"
-  | "ExitConfirmation"
-  | "TicketList"
-  | "TicketDetail"
-  | "Profile";
+  | "LoginOtp" | "OTPVerification" | "NoRoleBlock" | "NoHubBlock"
+  | "VisitorType" | "EntryForm" | "CategorySelect" | "OnboardingPurpose"
+  | "SettlementPurpose" | "MaintenancePurpose" | "TokenDisplay"
+  | "ExitConfirmation" | "TicketList" | "TicketDetail" | "Profile";
 
-/** Screens always available (auth flow + block screens). Not role-gated. */
 export const COMMON_SCREENS: readonly RootScreenName[] = [
   "LoginOtp",
   "OTPVerification",
@@ -33,7 +13,7 @@ export const COMMON_SCREENS: readonly RootScreenName[] = [
   "NoHubBlock",
 ];
 
-/** Screens allowed for guard: entry creation, token display, ticket close, gate operations. */
+/** Screens for Guard */
 const GUARD_SCREENS: readonly RootScreenName[] = [
   "VisitorType",
   "EntryForm",
@@ -48,22 +28,13 @@ const GUARD_SCREENS: readonly RootScreenName[] = [
   "Profile",
 ];
 
-/** Screens allowed for HM: monitoring, viewing tickets. No entry creation, token display, or gate ops. */
+/** * HM_SCREENS inherits EVERYTHING from GUARD_SCREENS.
+ * Add manager-only screens here if needed.
+ */
 const HM_SCREENS: readonly RootScreenName[] = [
-  "VisitorType",
-  "EntryForm",
-  "CategorySelect",
-  "OnboardingPurpose",
-  "SettlementPurpose",
-  "MaintenancePurpose",
-  "TokenDisplay",
-  "ExitConfirmation",
-  "TicketList",
-  "TicketDetail",
-  "Profile",
+  ...GUARD_SCREENS,
 ];
 
-/** Returns the list of screen names to register for the given role. Only these screens are reachable. */
 export function getScreensForRole(role: AllowedRole | null): readonly RootScreenName[] {
   if (!role) return COMMON_SCREENS;
   if (role === "guard") return [...COMMON_SCREENS, ...GUARD_SCREENS];
@@ -71,11 +42,7 @@ export function getScreensForRole(role: AllowedRole | null): readonly RootScreen
   return COMMON_SCREENS;
 }
 
-/** Returns true if the role is allowed to access the given screen. */
-export function canAccessScreen(
-  screenName: RootScreenName,
-  role: AllowedRole | null,
-): boolean {
+export function canAccessScreen(screenName: RootScreenName, role: AllowedRole | null): boolean {
   if (COMMON_SCREENS.includes(screenName)) return true;
   if (!role) return false;
   if (role === "guard") return GUARD_SCREENS.includes(screenName);
@@ -83,7 +50,7 @@ export function canAccessScreen(
   return false;
 }
 
-// ----- Action-level permissions (UI safety: enable/hide destructive or operational actions) -----
+// ----- Action-level permissions -----
 
 export type ActionPermission =
   | "createEntry"
@@ -99,11 +66,12 @@ const GUARD_ACTIONS: readonly ActionPermission[] = [
   "verifyToken",
   "gateOperations",
   "viewTickets",
-  "viewReports",
 ];
 
+/** * HM inherits all Guard actions + gets "viewReports".
+ */
 const HM_ACTIONS: readonly ActionPermission[] = [
-  "viewTickets",
+  ...GUARD_ACTIONS,
   "viewReports",
 ];
 
@@ -118,27 +86,10 @@ export function canDo(action: ActionPermission, role: AllowedRole | null): boole
   return getActionsForRole(role).includes(action);
 }
 
-/** Convenience: can create entry (guard only). */
-export function canCreateEntry(role: AllowedRole | null): boolean {
-  return canDo("createEntry", role);
-}
-
-/** Convenience: can close ticket (guard only). */
-export function canCloseTicket(role: AllowedRole | null): boolean {
-  return canDo("closeTicket", role);
-}
-
-/** Convenience: can verify token / display token (guard only). */
-export function canVerifyToken(role: AllowedRole | null): boolean {
-  return canDo("verifyToken", role);
-}
-
-/** Convenience: gate operations (guard only). */
-export function canGateOperations(role: AllowedRole | null): boolean {
-  return canDo("gateOperations", role);
-}
-
-/** Convenience: view tickets (guard + HM). */
-export function canViewTickets(role: AllowedRole | null): boolean {
-  return canDo("viewTickets", role);
-}
+/** Convenience Helpers */
+export const canCreateEntry = (r: AllowedRole | null) => canDo("createEntry", r);
+export const canCloseTicket = (r: AllowedRole | null) => canDo("closeTicket", r);
+export const canVerifyToken = (r: AllowedRole | null) => canDo("verifyToken", r);
+export const canGateOperations = (r: AllowedRole | null) => canDo("gateOperations", r);
+export const canViewTickets = (r: AllowedRole | null) => canDo("viewTickets", r);
+export const canViewReports = (r: AllowedRole | null) => canDo("viewReports", r);
