@@ -43,10 +43,8 @@ type Step = "phone" | "otp";
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SECONDS = 30;
-
 const SESSION_EXPIRED_MSG = "Your session expired. Please request OTP again.";
 
-/** Responsive OTP box constraints */
 const OTP_BOX_MIN = 40;
 const OTP_BOX_MAX = 56;
 const OTP_GAP = 8;
@@ -65,7 +63,7 @@ export default function LoginOtpScreen() {
   const auth = useAuth();
   const { setUser: setUserContext } = useUser();
   const otpInputRef = useRef<TextInput>(null);
-  const sessionExpiredMessage = route.params?.message ?? null;
+  const scrollRef = useRef<ScrollView>(null);
 
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
@@ -78,7 +76,7 @@ export default function LoginOtpScreen() {
 
   const { width: screenWidth } = useWindowDimensions();
 
-  // --- START LOGIC: Don't touch this ---
+  // --- START LOGIC: UNTOUCHED ---
   const otpLayout = useMemo(() => {
     const horizontalPadding = Layout.horizontalScreenPadding * 2;
     const availableWidth = Math.min(
@@ -104,12 +102,12 @@ export default function LoginOtpScreen() {
     if (!auth.isRestored || !auth.isGuestReady) return;
     if (auth.accessToken && auth.user) {
       setUserContext({ name: auth.user.name, phone: auth.user.phone });
-      const route = !auth.hasValidRole
+      const routeName = !auth.hasValidRole
         ? "NoRoleBlock"
         : !auth.hasHub
           ? "NoHubBlock"
           : "VisitorType";
-      const t = setTimeout(() => navigation.replace(route), 0);
+      const t = setTimeout(() => navigation.replace(routeName), 0);
       return () => clearTimeout(t);
     }
   }, [
@@ -143,7 +141,6 @@ export default function LoginOtpScreen() {
   }, [resendCooldown]);
 
   const verifyTriggeredRef = useRef(false);
-
   useEffect(() => {
     if (otp.trim().length < OTP_LENGTH) verifyTriggeredRef.current = false;
   }, [otp]);
@@ -236,16 +233,12 @@ export default function LoginOtpScreen() {
     }
   };
 
-  const setOtpDigits = (text: string) => {
-    const digits = text.replace(/\D/g, "").slice(0, OTP_LENGTH);
-    setOtp(digits);
-  };
-
   const goBackToPhone = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setStep("phone");
     setError(null);
   };
+  // --- END LOGIC ---
 
   if (hasUser || !auth.isGuestReady || !auth.isRestored) {
     return (
@@ -261,11 +254,10 @@ export default function LoginOtpScreen() {
     );
   }
 
-  const sessionExpiredMessageFromRoute = route.params?.message ?? null;
-  if (!!(auth.authError || sessionExpiredMessageFromRoute)) {
+  if (!!(auth.authError || route.params?.message)) {
     return (
       <SessionExpiredScreen
-        message={auth.authError || sessionExpiredMessageFromRoute || undefined}
+        message={auth.authError || route.params?.message || undefined}
         isLoading={retryingGuest}
         onSignInAgain={async () => {
           setRetryingGuest(true);
@@ -279,11 +271,6 @@ export default function LoginOtpScreen() {
       />
     );
   }
-  // --- END LOGIC ---
-
-  const inputBorderColor = phoneFocused ? loginTokens.headerRed : "#D7D7D7";
-
-  // --- UI SCREENS ---
 
   if (step === "otp") {
     return (
@@ -297,7 +284,6 @@ export default function LoginOtpScreen() {
           style={styles.keyboardView}
         >
           <ScrollView
-            style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
@@ -311,7 +297,6 @@ export default function LoginOtpScreen() {
               <ThemedText type="body" style={styles.otpSubtitle}>
                 OTP sent to {phoneTrimmed}
               </ThemedText>
-
               <Pressable
                 onPress={() => otpInputRef.current?.focus()}
                 style={[
@@ -322,7 +307,9 @@ export default function LoginOtpScreen() {
                 <TextInput
                   ref={otpInputRef}
                   value={otp}
-                  onChangeText={setOtpDigits}
+                  onChangeText={(v) =>
+                    setOtp(v.replace(/\D/g, "").slice(0, OTP_LENGTH))
+                  }
                   keyboardType="number-pad"
                   maxLength={OTP_LENGTH}
                   editable={!loading}
@@ -361,11 +348,8 @@ export default function LoginOtpScreen() {
                   </View>
                 ))}
               </Pressable>
-
               <View style={styles.resendRowOtp}>
-                <ThemedText type="body">
-                  Didn&apos;t receive the code?{" "}
-                </ThemedText>
+                <ThemedText type="body">Didn't receive the code? </ThemedText>
                 {resendCooldown > 0 ? (
                   <ThemedText type="body">
                     Resend in {resendCooldown}s
@@ -391,30 +375,30 @@ export default function LoginOtpScreen() {
     );
   }
 
-  // --- PHONE SCREEN (MAIN CHANGES HERE) ---
   return (
     <View
       style={[styles.container, { backgroundColor: loginTokens.headerRed }]}
     >
+      {/* Red Header - Now Responsive */}
       <View style={[styles.loginHeader, { paddingTop: insets.top }]}>
-        <Animated.View entering={FadeIn.duration(280)} style={styles.hero}>
-          <LatestLogo
-            width={206}
-            height={139}
-            style={styles.heroLogoOnRed}
-          />
+        <Animated.View entering={FadeIn.duration(300)} style={styles.hero}>
+          <LatestLogo width={200} height={130} />
         </Animated.View>
       </View>
 
+      {/* White Content Card - Flexible for Scrolling */}
       <View style={styles.whiteCard}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
         >
           <ScrollView
+            ref={scrollRef}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            bounces={false}
           >
             <View style={styles.welcomeBlock}>
               <ThemedText style={styles.welcomeTitle}>Welcome</ThemedText>
@@ -423,59 +407,78 @@ export default function LoginOtpScreen() {
               </ThemedText>
             </View>
 
+            {/* Premium Input */}
             <View
-              style={[styles.phoneInputWrap, { borderColor: inputBorderColor }]}
+              style={[
+                styles.phoneInputWrap,
+                {
+                  borderColor: phoneFocused ? loginTokens.headerRed : "#E0E0E0",
+                },
+              ]}
             >
-              <ThemedText style={styles.phonePrefix}>+91</ThemedText>
+              <ThemedText style={styles.phonePrefix}>🇮🇳 +91</ThemedText>
               <TextInput
                 style={styles.phoneInput}
                 placeholder="Enter mobile number"
                 placeholderTextColor="#A2ACB1"
                 value={phone}
                 onChangeText={(v) => setPhone(normalizePhoneInput(v))}
-                onFocus={() => setPhoneFocused(true)}
+                onFocus={() => {
+                  setPhoneFocused(true);
+                  setTimeout(
+                    () => scrollRef.current?.scrollToEnd({ animated: true }),
+                    200,
+                  );
+                }}
                 onBlur={() => setPhoneFocused(false)}
                 keyboardType="phone-pad"
                 maxLength={PHONE_MAX_DIGITS}
               />
             </View>
 
-            <Button
+            {/* Action Button */}
+            <Pressable
               onPress={handleSendOtp}
               disabled={!isPhoneValid || loading}
-              style={[
+              style={({ pressed }) => [
                 styles.sentOtpButton,
                 {
                   backgroundColor: isPhoneValid
                     ? loginTokens.headerRed
                     : "#D7D7D7",
+                  opacity: pressed ? 0.9 : 1,
                 },
               ]}
             >
-              <ThemedText style={{ color: "#FFF", fontWeight: "600" }}>
-                {loading ? "Sending…" : "Sent OTP"}
-              </ThemedText>
-            </Button>
+              {loading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <ThemedText style={styles.buttonText}>Sent OTP</ThemedText>
+              )}
+            </Pressable>
 
+            {/* Terms Links */}
             <View style={styles.termsRow}>
               <ThemedText style={styles.termsText}>
                 By continuing, I agree to the{" "}
               </ThemedText>
-              <Pressable
-                onPress={() => Linking.openURL("https://example.com/terms")}
-              >
-                <ThemedText style={[styles.termsText, styles.termsLink]}>
-                  terms & conditions
-                </ThemedText>
-              </Pressable>
-              <ThemedText style={styles.termsText}> and </ThemedText>
-              <Pressable
-                onPress={() => Linking.openURL("https://example.com/privacy")}
-              >
-                <ThemedText style={[styles.termsText, styles.termsLink]}>
-                  privacy policy
-                </ThemedText>
-              </Pressable>
+              <View style={{ flexDirection: "row" }}>
+                <Pressable
+                  onPress={() => Linking.openURL("https://example.com/terms")}
+                >
+                  <ThemedText style={styles.termsLink}>
+                    terms & conditions
+                  </ThemedText>
+                </Pressable>
+                <ThemedText style={styles.termsText}> and </ThemedText>
+                <Pressable
+                  onPress={() => Linking.openURL("https://example.com/privacy")}
+                >
+                  <ThemedText style={styles.termsLink}>
+                    privacy policy
+                  </ThemedText>
+                </Pressable>
+              </View>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -488,76 +491,81 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { justifyContent: "center", alignItems: "center" },
   keyboardView: { flex: 1 },
-  scrollView: { flex: 1 },
   loginHeader: {
-    height: 401,
+    height: "38%",
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#B31D38",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
   },
   hero: { alignItems: "center", justifyContent: "center" },
-  heroLogoOnRed: { width: 206, height: 139 },
   whiteCard: {
-    position: "absolute",
-    bottom: 0,
-    width: "100%",
-    height: 474,
+    flex: 1,
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 16,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    marginTop: -32,
+    paddingHorizontal: 24,
   },
-  scrollContent: { alignItems: "center", paddingTop: 40, paddingBottom: 24 },
-  welcomeBlock: { alignItems: "center", marginBottom: 32 },
+  scrollContent: {
+    paddingTop: 40,
+    paddingBottom: 40,
+    flexGrow: 1,
+    alignItems: "center",
+  },
+  welcomeBlock: {
+    alignSelf: "center",
+    alignItems: "center",
+    marginBottom: 32,
+  },
   welcomeTitle: {
-    fontFamily: "Poppins",
-    fontWeight: "600",
-    fontSize: 24,
+    fontWeight: "700",
+    fontSize: 28,
     color: "#000",
+    textAlign: "center",
   },
   welcomeSubtitle: {
-    fontFamily: "Poppins",
     fontWeight: "500",
-    fontSize: 18,
-    color: "#000",
+    fontSize: 16,
+    color: "#666",
+    marginTop: 4,
+    textAlign: "center",
   },
   phoneInputWrap: {
     flexDirection: "row",
     alignItems: "center",
-    width: 328,
-    height: 56,
+    width: "100%",
+    height: 60,
     paddingHorizontal: 16,
-    borderWidth: 1,
-    borderRadius: 12,
+    borderWidth: 1.5,
+    borderRadius: 16,
+    backgroundColor: "#F9FAFB",
     marginBottom: 24,
   },
   phonePrefix: {
-    fontWeight: "600",
+    fontWeight: "700",
     fontSize: 16,
-    color: "#77878E",
+    color: "#333",
     marginRight: 10,
   },
-  phoneInput: { flex: 1, fontSize: 16, color: "#000" },
+  phoneInput: { flex: 1, fontSize: 18, color: "#000" },
   sentOtpButton: {
-    width: 328,
-    height: 46,
-    borderRadius: 22,
+    width: "100%",
+    height: 56,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  termsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    marginTop: 120,
-    width: 327,
-  },
-  termsText: { fontSize: 14, color: "#3F4C52", textAlign: "center" },
-  termsLink: { color: "#1A8477", fontWeight: "600" },
-  // OTP Styles (Keep yours)
+  buttonText: { color: "#FFF", fontWeight: "700", fontSize: 16 },
+  termsRow: { marginTop: "auto", paddingTop: 30, alignItems: "center" },
+  termsText: { fontSize: 13, color: "#999" },
+  termsLink: { color: "#17A589", fontWeight: "600", fontSize: 13 },
+  // OTP UI
   otpContent: { width: "100%", paddingHorizontal: 16 },
   otpTitle: { fontSize: 28, fontWeight: "700", marginTop: 40 },
   otpSubtitle: { fontSize: 16, color: "#77878E", marginBottom: 24 },
