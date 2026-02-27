@@ -91,6 +91,8 @@ type AuthContextValue = {
   setAccessToken: (accessToken: string) => void;
   logout: () => void;
   clearAuth: () => void;
+  /** Clears session and storage without showing session-expired UI (e.g. voluntary logout → go to login screen). */
+  logoutToLoginScreen: () => void;
   retryGuestIdentity: () => void;
 };
 
@@ -117,6 +119,7 @@ const defaultValue: AuthContextValue = {
   setAccessToken: () => {},
   logout: () => {},
   clearAuth: () => {},
+  logoutToLoginScreen: () => {},
   retryGuestIdentity: () => {},
 };
 
@@ -152,6 +155,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await clearAuth(stored.identityId);
     setStored({ ...defaultStored, guestToken: "", identityId: stored.identityId });
     // Do NOT call fetchIdentity here. Identity runs only in the single guarded useEffect.
+  }, [stored.identityId]);
+
+  /** Voluntary logout: clear session and go to login screen without showing session-expired message. */
+  const logoutToLoginScreen = useCallback(async () => {
+    setHubId(null);
+    setAuthError(null);
+    setSessionExpired(false);
+    setStatus("unauthenticated");
+    identityStartedRef.current = false;
+    await clearAuth(stored.identityId);
+    setStored({ ...defaultStored, guestToken: "", identityId: stored.identityId });
   }, [stored.identityId]);
 
   const handleUnauthorized = useCallback(() => {
@@ -377,6 +391,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccessToken,
     logout,
     clearAuth: logout,
+    logoutToLoginScreen,
     retryGuestIdentity,
   };
 

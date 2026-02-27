@@ -78,7 +78,7 @@ export default function ProfileScreen() {
   const initials = useMemo(() => getInitials(displayName), [displayName]);
   const phoneFormatted = useMemo(
     () => formatPhoneDisplay(displayPhone),
-    [displayPhone]
+    [displayPhone],
   );
 
   useLayoutEffect(() => {
@@ -94,16 +94,16 @@ export default function ProfileScreen() {
         {
           text: "Log out",
           style: "destructive",
-          onPress: () => {
+          onPress: async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            auth.clearAuth();
             clearUser();
+            await auth.logoutToLoginScreen();
             navigation.dispatch(
-              CommonActions.reset({ index: 0, routes: [{ name: "LoginOtp" }] })
+              CommonActions.reset({ index: 0, routes: [{ name: "LoginOtp" }] }),
             );
           },
         },
-      ]
+      ],
     );
   };
 
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   profileSection: {
     alignItems: "center",
     width: "100%",
-    marginTop:50,
+    marginTop: 50,
   },
   avatarWrap: {
     width: AVATAR_SIZE,
@@ -238,7 +238,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: LOGOUT_ICON_TEXT_GAP,
-    
   },
   logoutText: {
     fontFamily: FONT_SERIF,
