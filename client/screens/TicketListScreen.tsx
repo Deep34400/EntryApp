@@ -11,7 +11,12 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+  RouteProp,
+} from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 
@@ -31,7 +36,10 @@ export type { TicketListItem } from "@/types/ticket";
 
 type TabId = "Delayed" | "Open" | "Closed";
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, "TicketList">;
+type NavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "TicketList"
+>;
 type TicketListRouteProp = RouteProp<RootStackParamList, "TicketList">;
 
 const FONT_POPPINS = "Poppins";
@@ -83,10 +91,15 @@ function TicketCard({
           <View style={styles.cardTopRow}>
             <View style={styles.cardTopLeft}>
               <Text style={styles.ticketId}>#{item.token_no}</Text>
-              <Text style={styles.cardDate}>{formatEntryTime(item.entry_time)}</Text>
+              <Text style={styles.cardDate}>
+                {formatEntryTime(item.entry_time)}
+              </Text>
             </View>
             <View style={[styles.timeBadge, { backgroundColor: timeBadgeBg }]}>
-              <Text style={[styles.timeBadgeValue, { color: timeBadgeColor }]} numberOfLines={1}>
+              <Text
+                style={[styles.timeBadgeValue, { color: timeBadgeColor }]}
+                numberOfLines={1}
+              >
                 {timeLabel}
               </Text>
             </View>
@@ -97,12 +110,18 @@ function TicketCard({
           <View style={styles.driverRow}>
             <View style={styles.avatarPlaceholder}>
               <Text style={styles.avatarLetter}>
-                {driverName !== "—" ? driverName.trim().charAt(0).toUpperCase() : "?"}
+                {driverName !== "—"
+                  ? driverName.trim().charAt(0).toUpperCase()
+                  : "?"}
               </Text>
             </View>
             <View style={styles.driverInfo}>
-              <Text style={styles.driverName} numberOfLines={1}>{driverName}</Text>
-              <Text style={styles.driverRole} numberOfLines={1}>{role}</Text>
+              <Text style={styles.driverName} numberOfLines={1}>
+                {driverName}
+              </Text>
+              <Text style={styles.driverRole} numberOfLines={1}>
+                {role}
+              </Text>
             </View>
           </View>
 
@@ -112,7 +131,10 @@ function TicketCard({
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               onPress();
             }}
-            style={({ pressed }) => [styles.viewDetailBtn, pressed && styles.viewDetailBtnPressed]}
+            style={({ pressed }) => [
+              styles.viewDetailBtn,
+              pressed && styles.viewDetailBtnPressed,
+            ]}
           >
             <Text style={styles.viewDetailBtnText}>View Detail</Text>
           </Pressable>
@@ -129,24 +151,23 @@ export default function TicketListScreen() {
   const auth = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabId>("Open");
-  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(new Set(["Open"]));
 
   const handleTabSwitch = (tab: TabId) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setVisitedTabs((prev) => new Set(prev).add(tab));
     setActiveTab(tab);
   };
 
   /*
-   * Lazy-loading API strategy:
-   * 1. On screen open: 2 APIs — counts + open list (default tab). No accessToken in queryKey so token refresh does NOT refire all queries.
-   * 2. Delayed/Closed list: fetched ONLY when user taps that tab (visitedTabs).
-   * 3. Next page: scroll-to-bottom via fetchNextPage.
-   * 4. Cache: staleTime Infinity; pull-to-refresh refetches counts + active tab only.
-   * 5. Token refresh: only counts + active tab are enabled; no refetch unless key changed (we don't put token in key).
+   * Production API strategy:
+   * 1. On screen open (default Open tab): call COUNT API + OPEN LIST only. No Delayed/Closed list until user switches tab.
+   * 2. When opened from "Track Tickets" (filter: "open"): count + open list run only from focus effect (once each, no duplicate).
+   * 3. When user switches tab: call that tab's list API only (Delayed or Closed).
+   * 4. Pull-to-refresh: refetch COUNT + active tab list together.
    */
 
-  // ── Counts (accessToken only in queryFn, not in key — token refresh won't refire) ─
+  const isFromTrackTickets = route.params?.filter === "open";
+
+  // Counts — on mount when not from Track Tickets; when from Track Tickets we fetch once in focus effect.
   const {
     data: counts = { open: 0, closed: 0, delayed: 0 },
     isLoading: loadingCounts,
@@ -156,39 +177,49 @@ export default function TicketListScreen() {
     queryKey: ["ticket-counts"],
     queryFn: () => getTicketCounts(auth.accessToken),
     staleTime: 15_000,
+    enabled: !isFromTrackTickets,
   });
 
-  // ── Open list (only when user has visited Open AND is on Open tab) ───────────
+  // Open list — when Open tab is active. When from Track Tickets we fetch once in focus effect (no mount fetch).
   const openQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "open"],
-    queryFn: ({ pageParam }) => getTicketList("open", auth.accessToken, pageParam, PAGE_SIZE),
+    queryFn: ({ pageParam }) =>
+      getTicketList("open", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
-      lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,
+      lastPage.page * lastPage.limit < lastPage.total
+        ? lastPage.page + 1
+        : undefined,
     staleTime: Infinity,
-    enabled: visitedTabs.has("Open") && activeTab === "Open",
+    enabled: activeTab === "Open" && !isFromTrackTickets,
   });
 
-  // ── Delayed list (only when user has tapped Delayed tab) ─────────────────────
+  // Delayed list — only when user switches to Delayed tab.
   const delayedQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "delayed"],
-    queryFn: ({ pageParam }) => getTicketList("delayed", auth.accessToken, pageParam, PAGE_SIZE),
+    queryFn: ({ pageParam }) =>
+      getTicketList("delayed", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
-      lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,
+      lastPage.page * lastPage.limit < lastPage.total
+        ? lastPage.page + 1
+        : undefined,
     staleTime: Infinity,
-    enabled: visitedTabs.has("Delayed") && activeTab === "Delayed",
+    enabled: activeTab === "Delayed",
   });
 
-  // ── Closed list (only when user has tapped Closed tab) ──────────────────────
+  // Closed list — only when user switches to Closed tab.
   const closedQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "closed"],
-    queryFn: ({ pageParam }) => getTicketList("closed", auth.accessToken, pageParam, PAGE_SIZE),
+    queryFn: ({ pageParam }) =>
+      getTicketList("closed", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
-      lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,
+      lastPage.page * lastPage.limit < lastPage.total
+        ? lastPage.page + 1
+        : undefined,
     staleTime: Infinity,
-    enabled: visitedTabs.has("Closed") && activeTab === "Closed",
+    enabled: activeTab === "Closed",
   });
 
   // ── Active query — derived from current tab ──────────────────────────────
@@ -198,29 +229,39 @@ export default function TicketListScreen() {
     return openQuery;
   }, [activeTab, openQuery, delayedQuery, closedQuery]);
 
-  // ── FIX: isLoading/isRefetching only checks active tab, not all 3 ───────
   const isLoading = loadingCounts || activeQuery.isLoading;
   const isRefetching = refetchingCounts || activeQuery.isRefetching;
 
-  // ── FIX: refetch only refetches counts + active tab, not all 3 ──────────
+  // Pull-to-refresh: count + active tab list only (production: no refetch of other tabs).
   const refetch = () => {
     refetchCounts();
     activeQuery.refetch();
   };
 
-  const { currentList, fetchNextPage, hasNextPage, isFetchingNextPage } = useMemo(() => {
-    return {
-      currentList: activeQuery.data?.pages.flatMap((p) => p.list) ?? [],
-      fetchNextPage: activeQuery.fetchNextPage,
-      hasNextPage: activeQuery.hasNextPage ?? false,
-      isFetchingNextPage: activeQuery.isFetchingNextPage,
-    };
-  }, [
-    activeQuery.data?.pages,
-    activeQuery.fetchNextPage,
-    activeQuery.hasNextPage,
-    activeQuery.isFetchingNextPage,
-  ]);
+  // When opened from "Track Tickets" (filter: "open"): fetch count + open list once here (we disabled mount fetch for this case to avoid duplicate).
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.filter === "open") {
+        refetchCounts();
+        openQuery.refetch();
+      }
+    }, [route.params?.filter, refetchCounts, openQuery.refetch]),
+  );
+
+  const { currentList, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useMemo(() => {
+      return {
+        currentList: activeQuery.data?.pages.flatMap((p) => p.list) ?? [],
+        fetchNextPage: activeQuery.fetchNextPage,
+        hasNextPage: activeQuery.hasNextPage ?? false,
+        isFetchingNextPage: activeQuery.isFetchingNextPage,
+      };
+    }, [
+      activeQuery.data?.pages,
+      activeQuery.fetchNextPage,
+      activeQuery.hasNextPage,
+      activeQuery.isFetchingNextPage,
+    ]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -234,7 +275,8 @@ export default function TicketListScreen() {
     { id: "Closed", label: "Closed", count: counts.closed },
   ];
 
-  const listContentPaddingBottom = APP_FOOTER_HEIGHT + insets.bottom + Spacing["2xl"];
+  const listContentPaddingBottom =
+    APP_FOOTER_HEIGHT + insets.bottom + Spacing["2xl"];
   const showShimmer = isLoading || isRefetching;
 
   return (
@@ -277,7 +319,9 @@ export default function TicketListScreen() {
             <TicketCard
               item={item}
               variant={activeTab}
-              onPress={() => navigation.navigate("TicketDetail", { ticketId: item.id })}
+              onPress={() =>
+                navigation.navigate("TicketDetail", { ticketId: item.id })
+              }
             />
           )}
           contentContainerStyle={[
