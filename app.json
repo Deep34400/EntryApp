@@ -4,7 +4,7 @@
     "slug": "carrumguard",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/app-icon.png",
+    "icon": "./assets/images/assetAppicon/appstore.png",
     "scheme": "carrumguard",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -17,14 +17,14 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/images/app-icon.png"
+        "foregroundImage": "./assets/images/assetAppicon/appstore.png"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.carrumguard.app"
     },
     "web": {
       "output": "single",
-      "favicon": "./assets/images/app-icon.png"
+      "favicon": "./assets/images/assetAppicon/appstore.png"
     },
     "plugins": [
       [
