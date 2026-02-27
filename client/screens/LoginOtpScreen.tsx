@@ -375,94 +375,109 @@ export default function LoginOtpScreen() {
     );
   }
 
+  // --- PHONE SCREEN (FIXED FOR PRODUCTION BUILD SCROLLING) ---
   return (
     <View
       style={[styles.container, { backgroundColor: loginTokens.headerRed }]}
     >
-      {/* Red Header - Now Responsive */}
+      {/* 1. Header (Fixed Height on top) */}
       <View style={[styles.loginHeader, { paddingTop: insets.top }]}>
         <Animated.View entering={FadeIn.duration(300)} style={styles.hero}>
           <LatestLogo width={200} height={130} />
         </Animated.View>
       </View>
 
-      {/* White Content Card - Flexible for Scrolling */}
+      {/* 2. White Card (Takes remaining space) */}
       <View style={styles.whiteCard}>
         <KeyboardAvoidingView
+          // iOS needs padding, Android works best with 'height' or undefined in builds
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
           keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
         >
           <ScrollView
             ref={scrollRef}
+            // flexGrow: 1 ensures content stretches so scrolling can happen
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             bounces={false}
           >
-            <View style={styles.welcomeBlock}>
-              <ThemedText style={styles.welcomeTitle}>Welcome</ThemedText>
-              <ThemedText style={styles.welcomeSubtitle}>
-                Entry/ Exit Application
-              </ThemedText>
+            {/* Form Section */}
+            <View style={{ width: "100%", alignItems: "center" }}>
+              <View style={styles.welcomeBlock}>
+                <ThemedText style={styles.welcomeTitle}>Welcome</ThemedText>
+                <ThemedText style={styles.welcomeSubtitle}>
+                  Entry/ Exit Application
+                </ThemedText>
+              </View>
+
+              {/* Input Wrap */}
+              <View
+                style={[
+                  styles.phoneInputWrap,
+                  {
+                    borderColor: phoneFocused
+                      ? loginTokens.headerRed
+                      : "#E0E0E0",
+                  },
+                ]}
+              >
+                <ThemedText style={styles.phonePrefix}>🇮🇳 +91</ThemedText>
+                <TextInput
+                  style={styles.phoneInput}
+                  placeholder="Enter mobile number"
+                  placeholderTextColor="#A2ACB1"
+                  value={phone}
+                  onChangeText={(v) => setPhone(normalizePhoneInput(v))}
+                  onFocus={() => {
+                    setPhoneFocused(true);
+                    // Delayed scroll for build stability
+                    setTimeout(
+                      () => scrollRef.current?.scrollToEnd({ animated: true }),
+                      300,
+                    );
+                  }}
+                  onBlur={() => setPhoneFocused(false)}
+                  keyboardType="phone-pad"
+                  maxLength={PHONE_MAX_DIGITS}
+                />
+              </View>
+
+              {/* Button */}
+              <Pressable
+                onPress={handleSendOtp}
+                disabled={!isPhoneValid || loading}
+                style={({ pressed }) => [
+                  styles.sentOtpButton,
+                  {
+                    backgroundColor: isPhoneValid
+                      ? loginTokens.headerRed
+                      : "#D7D7D7",
+                    opacity: pressed ? 0.9 : 1,
+                  },
+                ]}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <ThemedText style={styles.buttonText}>Sent OTP</ThemedText>
+                )}
+              </Pressable>
             </View>
 
-            {/* Premium Input */}
-            <View
-              style={[
-                styles.phoneInputWrap,
-                {
-                  borderColor: phoneFocused ? loginTokens.headerRed : "#E0E0E0",
-                },
-              ]}
-            >
-              <ThemedText style={styles.phonePrefix}>🇮🇳 +91</ThemedText>
-              <TextInput
-                style={styles.phoneInput}
-                placeholder="Enter mobile number"
-                placeholderTextColor="#A2ACB1"
-                value={phone}
-                onChangeText={(v) => setPhone(normalizePhoneInput(v))}
-                onFocus={() => {
-                  setPhoneFocused(true);
-                  setTimeout(
-                    () => scrollRef.current?.scrollToEnd({ animated: true }),
-                    200,
-                  );
-                }}
-                onBlur={() => setPhoneFocused(false)}
-                keyboardType="phone-pad"
-                maxLength={PHONE_MAX_DIGITS}
-              />
-            </View>
-
-            {/* Action Button */}
-            <Pressable
-              onPress={handleSendOtp}
-              disabled={!isPhoneValid || loading}
-              style={({ pressed }) => [
-                styles.sentOtpButton,
-                {
-                  backgroundColor: isPhoneValid
-                    ? loginTokens.headerRed
-                    : "#D7D7D7",
-                  opacity: pressed ? 0.9 : 1,
-                },
-              ]}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <ThemedText style={styles.buttonText}>Sent OTP</ThemedText>
-              )}
-            </Pressable>
-
-            {/* Terms Links */}
+            {/* Terms Links (Will stay at bottom or scroll up if keyboard opens) */}
             <View style={styles.termsRow}>
               <ThemedText style={styles.termsText}>
                 By continuing, I agree to the{" "}
               </ThemedText>
-              <View style={{ flexDirection: "row" }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                }}
+              >
                 <Pressable
                   onPress={() => Linking.openURL("https://example.com/terms")}
                 >
@@ -492,7 +507,7 @@ const styles = StyleSheet.create({
   centered: { justifyContent: "center", alignItems: "center" },
   keyboardView: { flex: 1 },
   loginHeader: {
-    height: "38%",
+    height: "35%", // Set to % for better build responsiveness
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
@@ -500,18 +515,20 @@ const styles = StyleSheet.create({
   },
   hero: { alignItems: "center", justifyContent: "center" },
   whiteCard: {
-    flex: 1,
+    flex: 1, // Full height share
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    marginTop: -32,
+    marginTop: -32, // Overlap logo area
     paddingHorizontal: 24,
+    overflow: "hidden",
   },
   scrollContent: {
     paddingTop: 40,
-    paddingBottom: 40,
-    flexGrow: 1,
+    paddingBottom: 24,
+    flexGrow: 1, // Content stretches to allow scrolling
     alignItems: "center",
+    justifyContent: "space-between", // Keeps Terms at bottom
   },
   welcomeBlock: {
     alignSelf: "center",
@@ -562,9 +579,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   buttonText: { color: "#FFF", fontWeight: "700", fontSize: 16 },
-  termsRow: { marginTop: "auto", paddingTop: 30, alignItems: "center" },
-  termsText: { fontSize: 13, color: "#999" },
-  termsLink: { color: "#17A589", fontWeight: "600", fontSize: 13 },
+  termsRow: {
+    width: "100%",
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+  termsText: { fontSize: 12, color: "#999", textAlign: "center" },
+  termsLink: { color: "#17A589", fontWeight: "600", fontSize: 12 },
+
   // OTP UI
   otpContent: { width: "100%", paddingHorizontal: 16 },
   otpTitle: { fontSize: 28, fontWeight: "700", marginTop: 40 },
