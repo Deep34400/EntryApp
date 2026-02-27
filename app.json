@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Gate Entry",
-    "slug": "gate-entry",
+    "name": "CarrumGuard",
+    "slug": "carrumguard",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon.png",
-    "scheme": "gateentry",
+    "scheme": "carrumguard",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "runtimeVersion": "sdkVersion",
     "jsEngine": "hermes",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gateentry.app"
+      "bundleIdentifier": "com.carrumguard.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +20,7 @@
         "foregroundImage": "./assets/images/app-icon.png"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.gateentry.app"
+      "package": "com.carrumguard.app"
     },
     "web": {
       "output": "single",
