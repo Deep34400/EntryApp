@@ -20,7 +20,8 @@
         "foregroundImage": "./assets/images/app-icon.png"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.carrumguard.app"
+      "package": "com.carrumguard.app",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "output": "single",

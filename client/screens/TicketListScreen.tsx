@@ -11,12 +11,7 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  useNavigation,
-  useRoute,
-  useFocusEffect,
-  RouteProp,
-} from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 
@@ -40,11 +35,10 @@ type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   "TicketList"
 >;
-type TicketListRouteProp = RouteProp<RootStackParamList, "TicketList">;
-
 const FONT_POPPINS = "Poppins";
 const primaryRed = DesignTokens.login.headerRed;
 const PAGE_SIZE = 50;
+const STALE_TIME_MS = 10_000;
 
 function formatWaitingLabel(entryTime?: string | null): string {
   const mins = getWaitingMinutes(entryTime);
@@ -146,7 +140,6 @@ function TicketCard({
 
 export default function TicketListScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<TicketListRouteProp>();
   const insets = useSafeAreaInsets();
   const auth = useAuth();
 
@@ -157,17 +150,6 @@ export default function TicketListScreen() {
     setActiveTab(tab);
   };
 
-  /*
-   * Production API strategy:
-   * 1. On screen open (default Open tab): call COUNT API + OPEN LIST only. No Delayed/Closed list until user switches tab.
-   * 2. When opened from "Track Tickets" (filter: "open"): count + open list run only from focus effect (once each, no duplicate).
-   * 3. When user switches tab: call that tab's list API only (Delayed or Closed).
-   * 4. Pull-to-refresh: refetch COUNT + active tab list together.
-   */
-
-  const isFromTrackTickets = route.params?.filter === "open";
-
-  // Counts — on mount when not from Track Tickets; when from Track Tickets we fetch once in focus effect.
   const {
     data: counts = { open: 0, closed: 0, delayed: 0 },
     isLoading: loadingCounts,
@@ -176,11 +158,9 @@ export default function TicketListScreen() {
   } = useQuery({
     queryKey: ["ticket-counts"],
     queryFn: () => getTicketCounts(auth.accessToken),
-    staleTime: 15_000,
-    enabled: !isFromTrackTickets,
+    staleTime: STALE_TIME_MS,
   });
 
-  // Open list — when Open tab is active. When from Track Tickets we fetch once in focus effect (no mount fetch).
   const openQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "open"],
     queryFn: ({ pageParam }) =>
@@ -190,11 +170,10 @@ export default function TicketListScreen() {
       lastPage.page * lastPage.limit < lastPage.total
         ? lastPage.page + 1
         : undefined,
-    staleTime: Infinity,
-    enabled: activeTab === "Open" && !isFromTrackTickets,
+    staleTime: STALE_TIME_MS,
+    enabled: activeTab === "Open",
   });
 
-  // Delayed list — only when user switches to Delayed tab.
   const delayedQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "delayed"],
     queryFn: ({ pageParam }) =>
@@ -204,11 +183,10 @@ export default function TicketListScreen() {
       lastPage.page * lastPage.limit < lastPage.total
         ? lastPage.page + 1
         : undefined,
-    staleTime: Infinity,
+    staleTime: STALE_TIME_MS,
     enabled: activeTab === "Delayed",
   });
 
-  // Closed list — only when user switches to Closed tab.
   const closedQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "closed"],
     queryFn: ({ pageParam }) =>
@@ -218,11 +196,10 @@ export default function TicketListScreen() {
       lastPage.page * lastPage.limit < lastPage.total
         ? lastPage.page + 1
         : undefined,
-    staleTime: Infinity,
+    staleTime: STALE_TIME_MS,
     enabled: activeTab === "Closed",
   });
 
-  // ── Active query — derived from current tab ──────────────────────────────
   const activeQuery = useMemo(() => {
     if (activeTab === "Delayed") return delayedQuery;
     if (activeTab === "Closed") return closedQuery;
@@ -232,21 +209,10 @@ export default function TicketListScreen() {
   const isLoading = loadingCounts || activeQuery.isLoading;
   const isRefetching = refetchingCounts || activeQuery.isRefetching;
 
-  // Pull-to-refresh: count + active tab list only (production: no refetch of other tabs).
   const refetch = () => {
     refetchCounts();
     activeQuery.refetch();
   };
-
-  // When opened from "Track Tickets" (filter: "open"): fetch count + open list once here (we disabled mount fetch for this case to avoid duplicate).
-  useFocusEffect(
-    React.useCallback(() => {
-      if (route.params?.filter === "open") {
-        refetchCounts();
-        openQuery.refetch();
-      }
-    }, [route.params?.filter, refetchCounts, openQuery.refetch]),
-  );
 
   const { currentList, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useMemo(() => {

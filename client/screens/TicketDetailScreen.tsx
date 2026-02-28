@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect } from "react";
+import React, { useLayoutEffect } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
-import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
@@ -30,14 +35,16 @@ type InfiniteListData = { pages: { list: TicketListItem[] }[] };
 function getTicketFromListCache(
   queryClient: QueryClient,
   ticketId: string,
-): TicketDetailResult | null {
+): TicketDetailResult | undefined {
   const listKeys = [
     ["ticket-list", "open"],
     ["ticket-list", "delayed"],
     ["ticket-list", "closed"],
   ] as const;
   for (const key of listKeys) {
-    const queriesData = queryClient.getQueriesData<InfiniteListData>({ queryKey: key });
+    const queriesData = queryClient.getQueriesData<InfiniteListData>({
+      queryKey: key,
+    });
     for (const [, data] of queriesData) {
       const pages = data?.pages;
       if (!pages) continue;
@@ -47,7 +54,7 @@ function getTicketFromListCache(
       }
     }
   }
-  return null;
+  return undefined;
 }
 
 function listItemToDetailResult(item: TicketListItem): TicketDetailResult {
@@ -70,7 +77,7 @@ function listItemToDetailResult(item: TicketListItem): TicketDetailResult {
 }
 
 const FONT_POPPINS = "Poppins";
-const HEADER_HEIGHT = 56; // Standard height for the back button area
+const HEADER_HEIGHT = 56;
 const CARD_PADDING = 16;
 const CARD_GAP = 16;
 const CARD_BORDER_RADIUS = 12;
@@ -83,8 +90,18 @@ const CLOSE_BUTTON_RADIUS = 26;
 
 type TicketDetailRouteProp = RouteProp<RootStackParamList, "TicketDetail">;
 
-const isClosed = (status: string | undefined) =>
-  status != null && (status.toUpperCase() === "CLOSED" || status === "closed");
+function isClosed(ticket: {
+  status?: string;
+  exit_time?: string | null;
+} | null | undefined): boolean {
+  if (ticket == null) return false;
+  if (ticket.exit_time != null && String(ticket.exit_time).trim() !== "")
+    return true;
+  return (
+    ticket.status != null &&
+    (ticket.status.toUpperCase() === "CLOSED" || ticket.status === "closed")
+  );
+}
 
 function formatWaitingHoursDecimal(entryTime?: string | null): string {
   const mins = getWaitingMinutes(entryTime);
@@ -102,33 +119,29 @@ export default function TicketDetailScreen() {
   const auth = useAuth();
   const { canCloseTicket } = usePermissions();
 
-  const ticketDetailQueryFn = useCallback(async (): Promise<TicketDetailResult | null> => {
-    const fromCache = getTicketFromListCache(queryClient, ticketId);
-    if (fromCache) return fromCache;
-    return getTicketById(ticketId, auth.accessToken);
-  }, [queryClient, ticketId, auth.accessToken]);
-
   const {
     data: ticket,
     isLoading,
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["ticket-detail", ticketId, auth.accessToken],
-    queryFn: ticketDetailQueryFn,
-    staleTime: 30_000,
+    queryKey: ["ticket-detail", ticketId],
+    queryFn: () => getTicketById(ticketId, auth.accessToken),
+    initialData: getTicketFromListCache(queryClient, ticketId),
+    staleTime: 0,
   });
 
   const closeMutation = useMutation({
     mutationFn: async () => {
       await updateTicket(ticketId, { status: "CLOSED" }, auth.accessToken);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["ticket-detail", ticketId] });
-      queryClient.invalidateQueries({ queryKey: ["ticket-list"] });
-      queryClient.invalidateQueries({ queryKey: ["ticket-counts"] });
-      refetch();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["ticket-detail", ticketId] }),
+        queryClient.invalidateQueries({ queryKey: ["ticket-list"], exact: false }),
+        queryClient.invalidateQueries({ queryKey: ["ticket-counts"] }),
+      ]);
       navigation.goBack();
     },
     onError: () => {
@@ -140,7 +153,7 @@ export default function TicketDetailScreen() {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  const closed = ticket ? isClosed(ticket.status) : false;
+  const closed = isClosed(ticket);
   const waitingHours = formatWaitingHoursDecimal(ticket?.entry_time);
   const isStaff = getEntryTypeDisplayLabel(ticket?.type) === "Staff";
 
@@ -148,11 +161,17 @@ export default function TicketDetailScreen() {
     closeMutation.mutate();
   };
 
-  // --- LOADING / ERROR STATE ---
   if (isLoading || !ticket) {
     return (
       <View style={styles.screen}>
-        <View style={{ paddingTop: insets.top, paddingHorizontal: 8, height: insets.top + HEADER_HEIGHT, justifyContent: 'center' }}>
+        <View
+          style={{
+            paddingTop: insets.top,
+            paddingHorizontal: 8,
+            height: insets.top + HEADER_HEIGHT,
+            justifyContent: "center",
+          }}
+        >
           <BackArrow color="#161B1D" />
         </View>
         <View style={styles.centered}>
@@ -165,7 +184,9 @@ export default function TicketDetailScreen() {
             <>
               <Feather name="alert-circle" size={48} color="#3F4C52" />
               <Text style={styles.errorTitle}>Ticket not found</Text>
-              <Text style={styles.errorSubtitle}>The ticket may have been removed.</Text>
+              <Text style={styles.errorSubtitle}>
+                The ticket may have been removed.
+              </Text>
             </>
           )}
         </View>
@@ -173,29 +194,38 @@ export default function TicketDetailScreen() {
     );
   }
 
-  const scrollPaddingBottom = closed ? insets.bottom + 24 : insets.bottom + CLOSE_BUTTON_HEIGHT + 40;
+  const scrollPaddingBottom = closed
+    ? insets.bottom + 24
+    : insets.bottom + CLOSE_BUTTON_HEIGHT + 40;
 
   return (
     <View style={styles.screen}>
-      {/* FIXED HEADER: Arrow now respects Safe Area (Notches) */}
-      <View style={{ 
-        paddingTop: insets.top, 
-        height: insets.top + HEADER_HEIGHT, 
-        justifyContent: 'center',
-        paddingHorizontal: 8 
-      }}>
+      <View
+        style={{
+          paddingTop: insets.top,
+          height: insets.top + HEADER_HEIGHT,
+          justifyContent: "center",
+          paddingHorizontal: 8,
+        }}
+      >
         <BackArrow color="#161B1D" />
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollPaddingBottom }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: scrollPaddingBottom },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor="#B31D38" />
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => refetch()}
+            tintColor="#B31D38"
+          />
         }
       >
-        {/* Card 1 — Token Info */}
         <View style={styles.card}>
           <View style={styles.tokenCardTopRow}>
             <View style={styles.tokenCardLeft}>
@@ -215,8 +245,12 @@ export default function TicketDetailScreen() {
           </View>
           <View style={styles.divider} />
           <View style={styles.entryTimeRow}>
-            <Text style={styles.entryTimeLabel}>{isStaff ? "Out Time" : "Entry Time"}</Text>
-            <Text style={styles.entryTimeValue}>{formatDateTime(ticket.entry_time)}</Text>
+            <Text style={styles.entryTimeLabel}>
+              {isStaff ? "Out Time" : "Entry Time"}
+            </Text>
+            <Text style={styles.entryTimeValue}>
+              {formatDateTime(ticket.entry_time)}
+            </Text>
           </View>
           {closed && (
             <View style={[styles.entryTimeRow, { marginTop: 12 }]}>
@@ -228,29 +262,36 @@ export default function TicketDetailScreen() {
           )}
         </View>
 
-        {/* Card 2 — Driver Info */}
         <View style={styles.card}>
           <View style={styles.driverRow}>
             <View style={styles.avatarPlaceholder}>
               <Text style={styles.avatarLetter}>
-                {ticket.name?.trim() ? ticket.name.trim().charAt(0).toUpperCase() : "?"}
+                {ticket.name?.trim()
+                  ? ticket.name.trim().charAt(0).toUpperCase()
+                  : "?"}
               </Text>
             </View>
             <View style={styles.driverInfo}>
               <Text style={styles.driverName}>{ticket.name ?? "—"}</Text>
-              <Text style={styles.driverRole}>{getEntryTypeDisplayLabel(ticket.type)}</Text>
+              <Text style={styles.driverRole}>
+                {getEntryTypeDisplayLabel(ticket.type)}
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Card 3 — Assignment */}
         <View style={styles.card}>
           <Text style={styles.assignmentTitle}>Assignment</Text>
           <View style={styles.divider} />
           <View style={styles.assignmentRow}>
             <Text style={styles.assignmentLabel}>Ticket</Text>
             <Text style={styles.assignmentValue}>
-              {getCategoryLabel({ purpose: ticket.purpose, reason: ticket.reason, category: ticket.category, subCategory: ticket.subCategory }) || "—"}
+              {getCategoryLabel({
+                purpose: ticket.purpose,
+                reason: ticket.reason,
+                category: ticket.category,
+                subCategory: ticket.subCategory,
+              }) || "—"}
             </Text>
           </View>
           <View style={styles.assignmentRow}>
@@ -259,13 +300,20 @@ export default function TicketDetailScreen() {
           </View>
           <View style={styles.assignmentRow}>
             <Text style={styles.assignmentLabel}>Desk/Location</Text>
-            <Text style={styles.assignmentValue}>{ticket.desk_location ?? "—"}</Text>
+            <Text style={styles.assignmentValue}>
+              {ticket.desk_location ?? "—"}
+            </Text>
           </View>
         </View>
       </ScrollView>
 
       {!closed && canCloseTicket && (
-        <View style={[styles.closeButtonWrap, { paddingBottom: insets.bottom + 20 }]}>
+        <View
+          style={[
+            styles.closeButtonWrap,
+            { paddingBottom: insets.bottom + 20 },
+          ]}
+        >
           <Pressable
             onPress={handleCloseTicket}
             disabled={closeMutation.isPending}
@@ -277,7 +325,11 @@ export default function TicketDetailScreen() {
             {closeMutation.isPending ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.closeButtonText}>{isStaff ? "Close Ticket (Mark IN)" : "Close Ticket (Mark Exit)"}</Text>
+              <Text style={styles.closeButtonText}>
+                {isStaff
+                  ? "Close Ticket (Mark IN)"
+                  : "Close Ticket (Mark Exit)"}
+              </Text>
             )}
           </Pressable>
         </View>

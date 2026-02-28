@@ -286,6 +286,8 @@ export default function LoginOtpScreen() {
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            automaticallyAdjustKeyboardInsets={true} // Fixed for Build
+            keyboardShouldPersistTaps="handled"
           >
             <Animated.View
               entering={FadeIn.duration(260)}
@@ -380,30 +382,27 @@ export default function LoginOtpScreen() {
     <View
       style={[styles.container, { backgroundColor: loginTokens.headerRed }]}
     >
-      {/* 1. Header (Fixed Height on top) */}
       <View style={[styles.loginHeader, { paddingTop: insets.top }]}>
         <Animated.View entering={FadeIn.duration(300)} style={styles.hero}>
           <LatestLogo width={200} height={130} />
         </Animated.View>
       </View>
 
-      {/* 2. White Card (Takes remaining space) */}
       <View style={styles.whiteCard}>
         <KeyboardAvoidingView
-          // iOS needs padding, Android works best with 'height' or undefined in builds
+          // Changed to height for Android Build stability
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
           keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
         >
           <ScrollView
             ref={scrollRef}
-            // flexGrow: 1 ensures content stretches so scrolling can happen
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true} // Fixed for Build
             bounces={false}
           >
-            {/* Form Section */}
             <View style={{ width: "100%", alignItems: "center" }}>
               <View style={styles.welcomeBlock}>
                 <ThemedText style={styles.welcomeTitle}>Welcome</ThemedText>
@@ -412,7 +411,6 @@ export default function LoginOtpScreen() {
                 </ThemedText>
               </View>
 
-              {/* Input Wrap */}
               <View
                 style={[
                   styles.phoneInputWrap,
@@ -432,10 +430,9 @@ export default function LoginOtpScreen() {
                   onChangeText={(v) => setPhone(normalizePhoneInput(v))}
                   onFocus={() => {
                     setPhoneFocused(true);
-                    // Delayed scroll for build stability
                     setTimeout(
                       () => scrollRef.current?.scrollToEnd({ animated: true }),
-                      300,
+                      200, // Reduced delay for better feel
                     );
                   }}
                   onBlur={() => setPhoneFocused(false)}
@@ -444,7 +441,6 @@ export default function LoginOtpScreen() {
                 />
               </View>
 
-              {/* Button */}
               <Pressable
                 onPress={handleSendOtp}
                 disabled={!isPhoneValid || loading}
@@ -466,7 +462,6 @@ export default function LoginOtpScreen() {
               </Pressable>
             </View>
 
-            {/* Terms Links (Will stay at bottom or scroll up if keyboard opens) */}
             <View style={styles.termsRow}>
               <ThemedText style={styles.termsText}>
                 By continuing, I agree to the{" "}
@@ -507,7 +502,7 @@ const styles = StyleSheet.create({
   centered: { justifyContent: "center", alignItems: "center" },
   keyboardView: { flex: 1 },
   loginHeader: {
-    height: "35%", // Set to % for better build responsiveness
+    height: "35%",
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
@@ -515,20 +510,20 @@ const styles = StyleSheet.create({
   },
   hero: { alignItems: "center", justifyContent: "center" },
   whiteCard: {
-    flex: 1, // Full height share
+    flex: 1,
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    marginTop: -32, // Overlap logo area
+    marginTop: -32,
     paddingHorizontal: 24,
-    overflow: "hidden",
+    overflow: "visible", // Removed 'hidden' for scroll stability
   },
   scrollContent: {
     paddingTop: 40,
     paddingBottom: 24,
-    flexGrow: 1, // Content stretches to allow scrolling
+    flexGrow: 1,
     alignItems: "center",
-    justifyContent: "space-between", // Keeps Terms at bottom
+    justifyContent: "space-between",
   },
   welcomeBlock: {
     alignSelf: "center",
@@ -587,7 +582,6 @@ const styles = StyleSheet.create({
   termsText: { fontSize: 12, color: "#999", textAlign: "center" },
   termsLink: { color: "#17A589", fontWeight: "600", fontSize: 12 },
 
-  // OTP UI
   otpContent: { width: "100%", paddingHorizontal: 16 },
   otpTitle: { fontSize: 28, fontWeight: "700", marginTop: 40 },
   otpSubtitle: { fontSize: 16, color: "#77878E", marginBottom: 24 },
