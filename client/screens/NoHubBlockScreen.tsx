@@ -5,7 +5,7 @@
 
 import React from "react";
 import { View, StyleSheet, Pressable } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, CommonActions } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
@@ -25,9 +25,11 @@ export default function NoHubBlockScreen() {
   const auth = useAuth();
   const navigation = useNavigation<NavProp>();
 
-  const handleLogout = () => {
-    auth.logout();
-    navigation.replace("LoginOtp");
+  const handleLogout = async () => {
+    await auth.logoutToLoginScreen();
+    navigation.dispatch(
+      CommonActions.reset({ index: 0, routes: [{ name: "LoginOtp" }] }),
+    );
   };
 
   return (
