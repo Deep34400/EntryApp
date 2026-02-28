@@ -20,13 +20,17 @@ import CategorySelectScreen from "../screens/CategorySelectScreen";
 import OnboardingPurposeScreen from "../screens/OnboardingPurposeScreen";
 import SettlementPurposeScreen from "../screens/SettlementPurposeScreen";
 import MaintenancePurposeScreen from "../screens/MaintenancePurposeScreen";
+import StaffPurposeScreen from "../screens/StaffPurposeScreen";
 import TokenDisplayScreen from "@/screens/TokenDisplayScreen";
 import ExitConfirmationScreen from "@/screens/ExitConfirmationScreen";
 import TicketListScreen from "@/screens/TicketListScreen";
 import TicketDetailScreen from "@/screens/TicketDetailScreen";
 import ProfileScreen from "@/screens/ProfileScreen";
 
-import { getScreensForRole, type RootScreenName } from "@/permissions/rolePermissions";
+import {
+  getScreensForRole,
+  type RootScreenName,
+} from "@/permissions/rolePermissions";
 
 /** Visitor form data (phone, name, optional vehicle reg, optional referral). */
 export interface EntryFormData {
@@ -46,11 +50,12 @@ export type RootStackParamList = {
   NoRoleBlock: undefined;
   NoHubBlock: undefined;
   VisitorType: undefined;
-  EntryForm: undefined;
-  CategorySelect: { formData: EntryFormData };
+  EntryForm: { entryType?: "non_dp" } | undefined;
+  CategorySelect: { formData: EntryFormData; entryType?: string };
   OnboardingPurpose: { formData: EntryFormData };
   SettlementPurpose: { formData: EntryFormData };
   MaintenancePurpose: { formData: EntryFormData };
+  StaffPurpose: { formData: EntryFormData };
   TokenDisplay: {
     token: string;
     assignee: string;
@@ -74,6 +79,7 @@ const SCREENS_WITH_BACK: RootScreenName[] = [
   "OnboardingPurpose",
   "SettlementPurpose",
   "MaintenancePurpose",
+  "StaffPurpose",
   "TicketList",
   "TicketDetail",
   "Profile",
@@ -121,7 +127,10 @@ const SCREEN_CONFIG: Record<
   },
   CategorySelect: {
     component: CategorySelectScreen,
-    options: () => ({ headerTitle: "Select Category", headerShadowVisible: false }),
+    options: () => ({
+      headerTitle: "Select Category",
+      headerShadowVisible: false,
+    }),
   },
   OnboardingPurpose: {
     component: OnboardingPurposeScreen,
@@ -134,6 +143,10 @@ const SCREEN_CONFIG: Record<
   MaintenancePurpose: {
     component: MaintenancePurposeScreen,
     options: () => ({ headerTitle: "Maintenance", headerShadowVisible: false }),
+  },
+  StaffPurpose: {
+    component: StaffPurposeScreen,
+    options: () => ({ headerTitle: "Staff", headerShadowVisible: false }),
   },
   TicketList: {
     component: TicketListScreen,

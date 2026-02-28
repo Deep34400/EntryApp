@@ -10,6 +10,7 @@ export function getAssignee(category: VisitorCategory | null): string | null {
   if (category === "Maintenance") return "FLEET EXECUTIVE";
   if (category === "Settlement") return "DRIVER MANAGER";
   if (category === "Onboarding") return "ONBOARDING";
+  if (category === "Staff") return null;
   return null;
 }
 
@@ -21,6 +22,8 @@ export function buildEntryPayload(params: {
   referralName?: string;
   userPhone?: string;
   userName?: string;
+  /** When "non_dp", payload type is Staff (no driver lookup). */
+  entryType?: "non_dp";
 }): Record<string, string> {
   const {
     formData,
@@ -30,6 +33,7 @@ export function buildEntryPayload(params: {
     referralName = "",
     userPhone = "",
     userName = "",
+    entryType,
   } = params;
 
   let phone = (formData.phone ?? "").trim() || (userPhone ?? "").trim();
@@ -40,7 +44,7 @@ export function buildEntryPayload(params: {
   if (!name) throw new Error("Driver name is required.");
 
   const body: Record<string, string> = {
-    type: "Driver Partner",
+    type: entryType === "non_dp" ? "Staff" : "Driver Partner",
     name,
     phone,
     category,

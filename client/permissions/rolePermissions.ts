@@ -3,7 +3,7 @@ import type { AllowedRole } from "@/contexts/AuthContext";
 export type RootScreenName =
   | "LoginOtp" | "OTPVerification" | "NoRoleBlock" | "NoHubBlock"
   | "VisitorType" | "EntryForm" | "CategorySelect" | "OnboardingPurpose"
-  | "SettlementPurpose" | "MaintenancePurpose" | "TokenDisplay"
+  | "SettlementPurpose" | "MaintenancePurpose" | "StaffPurpose" | "TokenDisplay"
   | "ExitConfirmation" | "TicketList" | "TicketDetail" | "Profile";
 
 export const COMMON_SCREENS: readonly RootScreenName[] = [
@@ -21,6 +21,7 @@ const GUARD_SCREENS: readonly RootScreenName[] = [
   "OnboardingPurpose",
   "SettlementPurpose",
   "MaintenancePurpose",
+  "StaffPurpose",
   "TokenDisplay",
   "ExitConfirmation",
   "TicketList",

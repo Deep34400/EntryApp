@@ -28,13 +28,22 @@ const DEFAULT_TITLE = "Error";
 
 /**
  * Safely extracts a single user-friendly message from backend payload.
- * Handles: message as string, nested message (e.g. message.message),
- * message as array (uses first element), or missing → fallback.
+ * Handles: data.message (e.g. { success: false, data: { message: "Ticket already exists..." } }),
+ * top-level message, nested message, message as array, or missing → fallback.
  */
 export function extractMessage(body: unknown): string {
   if (body == null) return DEFAULT_FALLBACK_MESSAGE;
 
-  const msg = (body as Record<string, unknown>).message;
+  const b = body as Record<string, unknown>;
+
+  // Backend shape: { success: false, data: { message: "Ticket already exists for this phone number", code: 400 } }
+  const data = b.data;
+  if (data != null && typeof data === "object" && !Array.isArray(data)) {
+    const dataMsg = (data as Record<string, unknown>).message;
+    if (typeof dataMsg === "string" && dataMsg.trim()) return dataMsg.trim();
+  }
+
+  const msg = b.message;
   if (typeof msg === "string" && msg.trim()) return msg.trim();
 
   // Nested: { message: { message: "Ticket already exists...", error, statusCode } }
@@ -49,7 +58,7 @@ export function extractMessage(body: unknown): string {
     if (typeof first === "string" && first.trim()) return first.trim();
   }
 
-  const err = (body as Record<string, unknown>).error;
+  const err = b.error;
   if (typeof err === "string" && err.trim()) return err.trim();
 
   return DEFAULT_FALLBACK_MESSAGE;

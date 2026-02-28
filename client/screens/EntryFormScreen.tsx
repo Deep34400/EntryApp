@@ -8,7 +8,7 @@ import {
   Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Haptics from "expo-haptics";
 
@@ -28,12 +28,15 @@ type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   "EntryForm"
 >;
+type EntryFormRouteProp = RouteProp<RootStackParamList, "EntryForm">;
 
 const FONT = "Poppins";
 
 export default function EntryFormScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<EntryFormRouteProp>();
   const insets = useSafeAreaInsets();
+  const entryType = route.params?.entryType;
 
   const [formData, setFormData] = useState<EntryFormData>({
     phone: "",
@@ -62,6 +65,7 @@ export default function EntryFormScreen() {
         ...formData,
         vehicle_reg_number: formData.vehicle_reg_number || undefined,
       },
+      ...(entryType ? { entryType } : {}),
     });
   };
 

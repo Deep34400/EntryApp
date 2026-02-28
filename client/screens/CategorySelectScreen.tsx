@@ -40,7 +40,7 @@ const D = {
 type NavProp = NativeStackNavigationProp<RootStackParamList, "CategorySelect">;
 type RoutePropType = RouteProp<RootStackParamList, "CategorySelect">;
 
-const CATEGORIES: {
+const DP_CATEGORIES: {
   id: "Onboarding" | "Settlement" | "Maintenance";
   label: string;
   subtitle: string;
@@ -67,6 +67,14 @@ const CATEGORIES: {
     icon_key: "tool",
   },
 ];
+
+const STAFF_CATEGORY = {
+  id: "Staff",
+  label: "Staff",
+  subtitle: "Self recovery, testing, police, test drive, personal use",
+  icon_key: "user",
+  icon_library: "feather" as IconLibrary,
+};
 
 function CategoryRowCard({
   label,
@@ -127,11 +135,16 @@ export default function CategorySelectScreen() {
   const navigation = useNavigation<NavProp>();
   const route = useRoute<RoutePropType>();
   const insets = useSafeAreaInsets();
-  const { formData } = route.params;
+  const { formData, entryType } = route.params;
+  const isStaff = entryType === "non_dp";
+  const categories = isStaff
+    ? [STAFF_CATEGORY]
+    : DP_CATEGORIES;
 
   const handleCategoryPress = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate(`${id}Purpose` as any, { formData });
+    const screenName = id === "Staff" ? "StaffPurpose" : `${id}Purpose`;
+    navigation.navigate(screenName as any, { formData });
   };
 
   return (
@@ -154,7 +167,9 @@ export default function CategorySelectScreen() {
               {formData.name || "ddd"}
             </ThemedText>
             <View style={styles.rolePill}>
-              <ThemedText style={styles.roleText}>Driver Partner</ThemedText>
+              <ThemedText style={styles.roleText}>
+                {isStaff ? "Staff" : "Driver Partner"}
+              </ThemedText>
             </View>
           </View>
           <View style={styles.phonePill}>
@@ -177,7 +192,7 @@ export default function CategorySelectScreen() {
 
         {/* Category List - Cards are now bigger */}
         <View style={styles.list}>
-          {CATEGORIES.map((cat, i) => (
+          {categories.map((cat, i) => (
             <CategoryRowCard
               key={cat.id}
               label={cat.label}
