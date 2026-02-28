@@ -90,10 +90,15 @@ const CLOSE_BUTTON_RADIUS = 26;
 
 type TicketDetailRouteProp = RouteProp<RootStackParamList, "TicketDetail">;
 
-function isClosed(ticket: {
-  status?: string;
-  exit_time?: string | null;
-} | null | undefined): boolean {
+function isClosed(
+  ticket:
+    | {
+        status?: string;
+        exit_time?: string | null;
+      }
+    | null
+    | undefined,
+): boolean {
   if (ticket == null) return false;
   if (ticket.exit_time != null && String(ticket.exit_time).trim() !== "")
     return true;
@@ -135,13 +140,17 @@ export default function TicketDetailScreen() {
     mutationFn: async () => {
       await updateTicket(ticketId, { status: "CLOSED" }, auth.accessToken);
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["ticket-detail", ticketId] }),
-        queryClient.invalidateQueries({ queryKey: ["ticket-list"], exact: false }),
-        queryClient.invalidateQueries({ queryKey: ["ticket-counts"] }),
-      ]);
+
+      // ✅ Do NOT invalidate ticket-detail — no need to refetch this screen
+      // Just update the list cache and counts in background, then go back immediately
+      queryClient.invalidateQueries({
+        queryKey: ["ticket-list"],
+        exact: false,
+      });
+      queryClient.invalidateQueries({ queryKey: ["ticket-counts"] });
+
       navigation.goBack();
     },
     onError: () => {
@@ -161,7 +170,9 @@ export default function TicketDetailScreen() {
     closeMutation.mutate();
   };
 
-  if (isLoading || !ticket) {
+  // ✅ FIX: Only show full-screen loader if ticket data is truly absent
+  // When closeMutation is pending, ticket is still available — don't show full loader
+  if (isLoading && !ticket) {
     return (
       <View style={styles.screen}>
         <View
@@ -175,20 +186,33 @@ export default function TicketDetailScreen() {
           <BackArrow color="#161B1D" />
         </View>
         <View style={styles.centered}>
-          {isLoading ? (
-            <>
-              <ActivityIndicator size="large" color="#B31D38" />
-              <Text style={styles.loadingText}>Loading ticket…</Text>
-            </>
-          ) : (
-            <>
-              <Feather name="alert-circle" size={48} color="#3F4C52" />
-              <Text style={styles.errorTitle}>Ticket not found</Text>
-              <Text style={styles.errorSubtitle}>
-                The ticket may have been removed.
-              </Text>
-            </>
-          )}
+          <ActivityIndicator size="large" color="#B31D38" />
+          <Text style={styles.loadingText}>Loading ticket…</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Ticket not found (after loading finished)
+  if (!ticket) {
+    return (
+      <View style={styles.screen}>
+        <View
+          style={{
+            paddingTop: insets.top,
+            paddingHorizontal: 8,
+            height: insets.top + HEADER_HEIGHT,
+            justifyContent: "center",
+          }}
+        >
+          <BackArrow color="#161B1D" />
+        </View>
+        <View style={styles.centered}>
+          <Feather name="alert-circle" size={48} color="#3F4C52" />
+          <Text style={styles.errorTitle}>Ticket not found</Text>
+          <Text style={styles.errorSubtitle}>
+            The ticket may have been removed.
+          </Text>
         </View>
       </View>
     );
@@ -319,9 +343,11 @@ export default function TicketDetailScreen() {
             disabled={closeMutation.isPending}
             style={({ pressed }) => [
               styles.closeButton,
-              pressed && styles.closeButtonPressed,
+              closeMutation.isPending && styles.closeButtonLoading,
+              pressed && !closeMutation.isPending && styles.closeButtonPressed,
             ]}
           >
+            {/* ✅ Loader ONLY on button — nowhere else */}
             {closeMutation.isPending ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
@@ -543,6 +569,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     width: "100%",
+  },
+  closeButtonLoading: {
+    opacity: 0.85,
   },
   closeButtonPressed: {
     opacity: 0.85,
