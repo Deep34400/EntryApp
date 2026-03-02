@@ -1,4 +1,4 @@
-import React, { useLayoutEffect } from "react";
+import React, { useLayoutEffect, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRoute, useNavigation } from "@react-navigation/native";
+import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { BackArrow } from "@/components/BackArrow";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -20,7 +20,26 @@ type NavigationProp = NativeStackNavigationProp<
   "TokenDisplay"
 >;
 
-const FONT = "Poppins";
+type TokenDisplayRoute = RouteProp<RootStackParamList, "TokenDisplay">;
+
+/** Expected params for TokenDisplay screen. All optional for runtime safety. */
+interface TokenDisplayRouteParams {
+  token?: string | number;
+  assignee?: string;
+  desk_location?: string;
+  driverName?: string;
+  driverPhone?: string;
+  entryType?: string;
+  purpose?: string;
+}
+
+/**
+ * Safe param value for display and Share. Returns "" for null/undefined, otherwise String(val).trim().
+ */
+function sanitizeParam(val: unknown): string {
+  if (val == null) return "";
+  return String(val).trim();
+}
 
 // ---- DESIGN CONSTANTS ----
 const GREEN_HEADER_HEIGHT = 260;
@@ -39,10 +58,11 @@ const TEXT_SECONDARY = "#3F4C52";
 const ACCENT_RED = "#B31D38";
 
 export default function TokenDisplayScreen() {
-  const route = useRoute<any>();
+  const route = useRoute<TokenDisplayRoute>();
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
 
+  const params: TokenDisplayRouteParams = route.params ?? {};
   const {
     token,
     assignee,
@@ -51,18 +71,29 @@ export default function TokenDisplayScreen() {
     driverPhone,
     entryType,
     purpose,
-  } = route.params ?? {};
+  } = params;
 
-  const roleLabel = getEntryTypeDisplayLabel(entryType);
+  const tokenStr = sanitizeParam(token);
+  const displayToken =
+    tokenStr === "" ? "#—" : String(tokenStr).startsWith("#") ? tokenStr : `#${tokenStr}`;
 
-  // ✅ ONLY NEW LOGIC
+  const roleLabel = getEntryTypeDisplayLabel(sanitizeParam(entryType) || "");
   const isStaff = roleLabel === "Staff";
 
-  const displayToken = token
-    ? token.startsWith("#")
-      ? token
-      : `#${token}`
-    : "#—";
+  const displayDriverName = sanitizeParam(driverName) || "—";
+  const displayPhone = sanitizeParam(driverPhone) || "—";
+  const displayAssignee = sanitizeParam(assignee) || "—";
+  const displayDeskLocation = sanitizeParam(desk_location) || "—";
+  const displayPurpose = sanitizeParam(purpose) || "—";
+  const avatarChar =
+    (displayDriverName !== "—" ? displayDriverName?.[0]?.toUpperCase() : null) || "?";
+
+  useEffect(() => {
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.log("[TokenDisplayScreen] route.params", JSON.stringify(route.params ?? {}));
+    }
+  }, []);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -90,19 +121,17 @@ export default function TokenDisplayScreen() {
         <View style={styles.driverCard}>
           <View style={styles.driverLeft}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {driverName?.[0]?.toUpperCase() || "?"}
-              </Text>
+              <Text style={styles.avatarText}>{avatarChar}</Text>
             </View>
             <View style={styles.driverTextBlock}>
               <Text style={styles.name} numberOfLines={1}>
-                {driverName || "—"}
+                {displayDriverName}
               </Text>
-              <Text style={styles.role}>{roleLabel}</Text>
+              <Text style={styles.role}>{roleLabel || "—"}</Text>
             </View>
           </View>
           <Text style={styles.phone} numberOfLines={1}>
-            {driverPhone ?? "—"}
+            {displayPhone}
           </Text>
         </View>
       </View>
@@ -127,22 +156,19 @@ export default function TokenDisplayScreen() {
 
           <View style={styles.assignmentRow}>
             <Text style={styles.assignmentLabel}>Purpose</Text>
-            <Text style={styles.assignmentValue}>{purpose ?? "—"}</Text>
+            <Text style={styles.assignmentValue}>{displayPurpose}</Text>
           </View>
 
-          {/* ✅ ONLY CHANGE: Agent hidden for Staff */}
           {!isStaff && (
             <View style={styles.assignmentRow}>
               <Text style={styles.assignmentLabel}>Agent</Text>
-              <Text style={styles.assignmentValue}>{assignee ?? "—"}</Text>
+              <Text style={styles.assignmentValue}>{displayAssignee}</Text>
             </View>
           )}
 
           <View style={styles.assignmentRow}>
             <Text style={styles.assignmentLabel}>Desk/Location</Text>
-            <Text style={styles.assignmentValue}>
-              {desk_location ?? "—"}
-            </Text>
+            <Text style={styles.assignmentValue}>{displayDeskLocation}</Text>
           </View>
         </View>
       </ScrollView>
@@ -158,13 +184,13 @@ export default function TokenDisplayScreen() {
         ]}
       >
         <Pressable
-          onPress={() =>
+          onPress={() => {
+            const agentLine = isStaff ? "" : `\nAgent: ${displayAssignee === "—" ? "" : displayAssignee}`;
+            const deskLine = `\nDesk: ${displayDeskLocation === "—" ? "" : displayDeskLocation}`;
             Share.share({
-              message: `Token: ${displayToken}\nAgent: ${
-                assignee ?? ""
-              }\nDesk: ${desk_location ?? ""}`,
-            })
-          }
+              message: `Token: ${String(displayToken)}${agentLine}${deskLine}`,
+            });
+          }}
           style={({ pressed }) => [
             styles.shareBtn,
             pressed && styles.buttonPressed,

@@ -57,9 +57,9 @@ export type RootStackParamList = {
   MaintenancePurpose: { formData: EntryFormData };
   StaffPurpose: { formData: EntryFormData };
   TokenDisplay: {
-    token: string;
-    assignee: string;
-    desk_location: string;
+    token?: string | number;
+    assignee?: string;
+    desk_location?: string;
     driverName?: string;
     driverPhone?: string;
     entryType?: string;
@@ -208,6 +208,11 @@ export default function RootStackNavigator() {
       key={navigatorKey}
       screenOptions={({ route, navigation }) => ({
         ...screenOptions,
+        headerShadowVisible: false,
+        headerStyle: {
+          elevation: 0,
+          shadowColor: "transparent",
+        } as Record<string, unknown>,
         ...(SCREENS_WITH_BACK.includes(route.name as RootScreenName)
           ? {
               headerLeft: (props: { canGoBack?: boolean }) =>
