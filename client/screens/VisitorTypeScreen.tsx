@@ -717,7 +717,11 @@ export default function VisitorTypeScreen() {
         {!kbVisible && !IS_COMPACT && (
           <View style={s.illWrap}>
             <Image
-              source={require("../../assets/images/car.png")}
+              source={
+                visitorType === "staff"
+                  ? require("../../assets/images/staff.png")
+                  : require("../../assets/images/car.png")
+              }
               style={s.ill}
               resizeMode="contain"
             />
