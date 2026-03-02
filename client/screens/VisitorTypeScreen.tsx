@@ -1,12 +1,13 @@
 /**
  * VisitorTypeScreen — Create Visitor Entry
  *
- * Key UX rules:
- *  - On first field focus: scroll so ALL inputs + Next button are
- *    visible just above the keyboard — no over-scroll, no gap
- *  - Next button sticks right below Vehicle field with normal padding
- *  - Footer hidden when keyboard is open
- *  - Compact mode for small phones (< 700px height)
+ * API calling logic:
+ *  1. Phone blur → fetch by phone → auto-fill name + vehicle list
+ *     (if exactly 1 vehicle, auto-select it)
+ *  2. Reg blur → fetch by reg → auto-fill name + phone
+ *  3. Cross (✕) on reg clears field WITHOUT triggering fetch
+ *  4. After reg-fetch fills phone, focusing phone does NOT re-fetch
+ *     (guard: skip if driver already loaded for that phone)
  */
 import React, {
   useLayoutEffect,
@@ -211,6 +212,20 @@ function FormInput({
 }
 
 // ─── VehicleField ─────────────────────────────────────────────────────────────
+/**
+ * Two modes:
+ *
+ * A) NO vehicles (vehicles.length === 0):
+ *    Plain text input. User types reg number manually.
+ *    On blur → triggers fetchByReg in parent.
+ *    ✕ clears WITHOUT triggering fetch.
+ *
+ * B) HAS vehicles (vehicles.length > 0):
+ *    Dropdown picker showing the driver's registered vehicles.
+ *    User can ONLY pick from the list — no free-type that triggers API.
+ *    ✕ clears selection WITHOUT triggering fetch.
+ *    "Remove vehicle" in dropdown also clears without fetch.
+ */
 function VehicleField({
   vehicles,
   selectedReg,
@@ -235,6 +250,8 @@ function VehicleField({
   const [query, setQuery] = useState(selectedReg ?? "");
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
+  // Suppress blur→fetch when ✕ was pressed
+  const clearPressedRef = useRef(false);
   const heightAnim = useRef(new Animated.Value(0)).current;
   const inputRef = useRef<TextInput>(null);
 
@@ -272,38 +289,14 @@ function VehicleField({
     [onSelect, closeDrop],
   );
 
-  const handleFocus = useCallback(() => {
-    setFocused(true);
+  // ✕ pressed — clear without triggering fetch
+  const handleClear = useCallback(() => {
+    clearPressedRef.current = true;
     setQuery("");
-    openDrop();
-    onFocused?.();
-  }, [openDrop, onFocused]);
-
-  const handleBlur = useCallback(() => {
-    setFocused(false);
-    const t = query.trim().toUpperCase();
-    if (t && !vehicles.some((v) => v.regNumber === t)) onCustomChange(t);
-    onBlurField?.();
-    onBlur?.();
+    onClear();
     closeDrop();
-  }, [query, vehicles, onCustomChange, onBlur, onBlurField, closeDrop]);
+  }, [onClear, closeDrop]);
 
-  const handleChange = useCallback(
-    (text: string) => {
-      const u = text.toUpperCase();
-      setQuery(u);
-      onCustomChange(u);
-      if (!open) openDrop();
-    },
-    [open, openDrop, onCustomChange],
-  );
-
-  const filtered = query.trim()
-    ? vehicles.filter((v) => v.regNumber.includes(query.trim().toUpperCase()))
-    : vehicles;
-  const isCustom =
-    query.trim().length > 0 &&
-    !vehicles.some((v) => v.regNumber === query.trim().toUpperCase());
   const maxDropH = IS_COMPACT ? 150 : 220;
   const listH = heightAnim.interpolate({
     inputRange: [0, 1],
@@ -315,6 +308,7 @@ function VehicleField({
   });
   const isOpen = focused || open;
 
+  // ── MODE A: No vehicles loaded → plain input, fetch on blur ──────────────
   if (vehicles.length === 0) {
     return (
       <View style={s.field}>
@@ -331,28 +325,33 @@ function VehicleField({
             placeholder="e.g. HR55AB3849"
             placeholderTextColor={MUTED}
             value={query}
-            onChangeText={handleChange}
+            onChangeText={(text) => {
+              const u = text.toUpperCase();
+              setQuery(u);
+              onCustomChange(u);
+            }}
             onFocus={() => {
               setFocused(true);
               onFocused?.();
             }}
             onBlur={() => {
               setFocused(false);
+              if (clearPressedRef.current) {
+                // ✕ was pressed — skip fetch
+                clearPressedRef.current = false;
+                onBlurField?.();
+                return;
+              }
               onBlurField?.();
-              onBlur?.();
+              onBlur?.(); // → triggers fetchByReg in parent
             }}
             autoCapitalize="characters"
+            autoCorrect={false}
             returnKeyType="done"
             selectionColor={RED}
           />
           {query.length > 0 && (
-            <Pressable
-              onPress={() => {
-                setQuery("");
-                onClear();
-              }}
-              hitSlop={10}
-            >
+            <Pressable onPress={handleClear} hitSlop={10}>
               <View style={s.clearCircle}>
                 <Text style={s.clearX}>✕</Text>
               </View>
@@ -363,6 +362,7 @@ function VehicleField({
     );
   }
 
+  // ── MODE B: Vehicles loaded → dropdown picker only, no free-type fetch ───
   return (
     <View style={s.vehicleWrapper}>
       <Text style={s.label}>Vehicle Number (optional)</Text>
@@ -373,27 +373,31 @@ function VehicleField({
           isFocusedBorder && s.unifiedBoxFocused,
         ]}
       >
-        <View style={[s.vehicleInputRow, { height: INPUT_H }]}>
-          <TextInput
-            ref={inputRef}
-            style={s.vehicleSearchInput}
-            placeholder="Search or type reg number..."
-            placeholderTextColor={MUTED}
-            value={query}
-            onChangeText={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            returnKeyType="done"
-            selectionColor={RED}
-          />
-          {query.length > 0 ? (
+        <Pressable
+          onPress={() => {
+            if (isOpen) {
+              closeDrop();
+              setFocused(false);
+            } else {
+              setFocused(true);
+              openDrop();
+              onFocused?.();
+            }
+          }}
+          style={[s.vehicleInputRow, { height: INPUT_H }]}
+        >
+          <Text
+            style={[s.vehicleSearchInput, !selectedReg && { color: MUTED }]}
+            numberOfLines={1}
+          >
+            {selectedReg || "Select vehicle…"}
+          </Text>
+          {selectedReg ? (
             <Pressable
-              onPress={() => {
-                setQuery("");
-                onClear();
-                inputRef.current?.focus();
+              onPress={(e) => {
+                e.stopPropagation?.();
+                handleClear();
+                setFocused(false);
               }}
               hitSlop={10}
             >
@@ -404,7 +408,8 @@ function VehicleField({
           ) : (
             <Text style={[s.chevron, isOpen && s.chevronUp]}>▼</Text>
           )}
-        </View>
+        </Pressable>
+
         {open && (
           <Animated.View
             style={[s.dropInner, { maxHeight: listH, opacity: listAlpha }]}
@@ -416,64 +421,39 @@ function VehicleField({
               bounces={false}
               contentContainerStyle={{ paddingVertical: 4 }}
             >
-              {isCustom && (
-                <Pressable
-                  onPress={() => pick(query.trim().toUpperCase())}
-                  style={({ pressed }) => [
-                    s.dropRow,
-                    pressed && { opacity: 0.65 },
-                  ]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.dropCustomLabel}>
-                      Use "{query.trim().toUpperCase()}"
-                    </Text>
-                    <Text style={s.dropCustomHint}>Tap to confirm</Text>
-                  </View>
-                  <Text style={s.dropPlus}>＋</Text>
-                </Pressable>
-              )}
-              {filtered.length === 0 && !isCustom ? (
-                <View style={s.dropEmpty}>
-                  <Text style={s.dropEmptyTxt}>No registered vehicles</Text>
-                </View>
-              ) : (
-                filtered.map((v, idx) => {
-                  const sel = selectedReg === v.regNumber;
-                  return (
-                    <React.Fragment key={v.regNumber}>
-                      <Pressable
-                        onPress={() => pick(v.regNumber)}
-                        style={({ pressed }) => [
-                          s.dropRow,
-                          sel && s.dropRowSel,
-                          pressed && { opacity: 0.6 },
-                        ]}
-                      >
-                        <Text style={[s.dropRowReg, sel && s.dropRowRegSel]}>
-                          {v.regNumber}
-                        </Text>
-                        {v.modelName ? (
-                          <Text style={s.dropRowModel}>{v.modelName}</Text>
-                        ) : null}
-                        {sel && <Text style={s.dropTick}>✓</Text>}
-                      </Pressable>
-                      {idx < filtered.length - 1 && (
-                        <View style={s.dropRowDivider} />
-                      )}
-                    </React.Fragment>
-                  );
-                })
-              )}
+              {vehicles.map((v, idx) => {
+                const sel = selectedReg === v.regNumber;
+                return (
+                  <React.Fragment key={v.regNumber}>
+                    <Pressable
+                      onPress={() => pick(v.regNumber)}
+                      style={({ pressed }) => [
+                        s.dropRow,
+                        sel && s.dropRowSel,
+                        pressed && { opacity: 0.6 },
+                      ]}
+                    >
+                      <Text style={[s.dropRowReg, sel && s.dropRowRegSel]}>
+                        {v.regNumber}
+                      </Text>
+                      {v.modelName ? (
+                        <Text style={s.dropRowModel}>{v.modelName}</Text>
+                      ) : null}
+                      {sel && <Text style={s.dropTick}>✓</Text>}
+                    </Pressable>
+                    {idx < vehicles.length - 1 && (
+                      <View style={s.dropRowDivider} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
               {selectedReg.length > 0 && (
                 <>
                   <View style={s.dropSectionDivider} />
                   <Pressable
                     onPress={() => {
-                      onClear();
-                      setQuery("");
-                      closeDrop();
-                      inputRef.current?.blur();
+                      handleClear();
+                      setFocused(false);
                     }}
                     style={({ pressed }) => [
                       s.dropRemoveRow,
@@ -508,9 +488,13 @@ export default function VisitorTypeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [focusedField, setFocusedField] = useState<FocusedFieldKey>(null);
 
+  // Track the last phone/reg for which we successfully fetched a driver.
+  // This prevents re-fetching when the user just switches focus.
+  const lastFetchedPhone = useRef<string>("");
+  const lastFetchedReg = useRef<string>("");
+
   const scrollRef = useRef<ScrollView>(null);
   const kbHeightRef = useRef(0);
-  // We track the absolute Y position of the form block within the ScrollView
   const formBlockRef = useRef<View>(null);
   const formBlockLayout = useRef({ y: 0, height: 0 });
   const hasScrolled = useRef(false);
@@ -528,44 +512,29 @@ export default function VisitorTypeScreen() {
       kbHeightRef.current = h;
       setKbHeight(h);
       setKbVisible(true);
-
-      // Trigger scroll immediately when keyboard height is known
       if (!hasScrolled.current) {
         hasScrolled.current = true;
         doScroll(h);
       }
     });
-
     const hide = Keyboard.addListener(hideEv, () => {
       setKbHeight(0);
       setKbVisible(false);
       kbHeightRef.current = 0;
       hasScrolled.current = false;
     });
-
     return () => {
       show.remove();
       hide.remove();
     };
   }, []);
 
-  /**
-   * Scroll so the form block (all 3 inputs + Next button) sits snugly
-   * just above the keyboard with only a small 8px breathing room.
-   * No over-scroll, no large gaps.
-   */
   const doScroll = useCallback((kb: number) => {
     const { y, height } = formBlockLayout.current;
     if (!y && !height) return;
-
-    // Available visible area above keyboard
     const visibleH = SCREEN_H - kb;
-    // Negative gap = scroll LESS, so content above stays visible
     const GAP_BELOW = -80;
-
-    // Target: bottom of form block lands at (visibleH - GAP_BELOW)
     const targetScrollY = y + height - visibleH + GAP_BELOW;
-
     scrollRef.current?.scrollTo({
       y: Math.max(0, targetScrollY),
       animated: true,
@@ -574,14 +543,12 @@ export default function VisitorTypeScreen() {
 
   const handleFieldFocus = useCallback(
     (_fieldKey: FocusedFieldKey) => {
-      // If keyboard already visible, scroll now; otherwise wait for keyboardWillShow
       if (hasScrolled.current) return;
       const kb = kbHeightRef.current;
       if (kb > 0) {
         hasScrolled.current = true;
         doScroll(kb);
       }
-      // else: keyboardWillShow listener will call doScroll when height is known
     },
     [doScroll],
   );
@@ -595,6 +562,8 @@ export default function VisitorTypeScreen() {
     setRefreshing(true);
     setForm(EMPTY);
     setDriver(null);
+    lastFetchedPhone.current = "";
+    lastFetchedReg.current = "";
     await new Promise((r) => setTimeout(r, 500));
     setRefreshing(false);
   }, []);
@@ -606,56 +575,98 @@ export default function VisitorTypeScreen() {
 
   const set = (key: keyof EntryFormData, val: string) => {
     if (key === "phone") {
-      setForm((p) => ({ ...p, phone: normalizePhoneInput(val) }));
-      if (!val.trim()) setDriver(null);
+      const normalized = normalizePhoneInput(val);
+      setForm((p) => ({ ...p, phone: normalized }));
+      // If user is typing a new phone, clear previous driver data
+      if (!val.trim()) {
+        setDriver(null);
+        lastFetchedPhone.current = "";
+        lastFetchedReg.current = "";
+      }
     } else {
       setForm((p) => ({ ...p, [key]: val }));
     }
   };
 
-  const fetchByPhone = async () => {
-    if (visitorType !== "dp" || !isPhoneValid(form.phone) || !accessToken)
-      return;
+  /**
+   * Fetch by phone on blur.
+   * Guard: skip if already fetched for this exact phone number.
+   */
+  const fetchByPhone = useCallback(async () => {
+    if (visitorType !== "dp" || !accessToken) return;
+    const phone = form.phone.trim();
+    if (!isPhoneValid(phone)) return;
+
+    // Skip if we already fetched this phone (e.g., after reg-fetch filled it)
+    if (lastFetchedPhone.current === phone) return;
+
     setLoading(true);
     setDriver(null);
+    lastFetchedPhone.current = phone;
+    lastFetchedReg.current = "";
+
     try {
-      const d = await getDriverDetails({
-        phoneNo: form.phone.trim(),
-        accessToken,
-      });
+      const d = await getDriverDetails({ phoneNo: phone, accessToken });
       if (d) {
         setDriver(d);
+        // Auto-fill name
+        // Auto-select vehicle if exactly one is assigned
+        const autoVehicle =
+          d.vehicles?.length === 1 ? d.vehicles[0].regNumber : "";
         setForm((p) => ({
           ...p,
           name: d.name,
-          vehicle_reg_number: p.vehicle_reg_number || "",
+          vehicle_reg_number: autoVehicle,
         }));
       }
+    } catch {
+      lastFetchedPhone.current = "";
     } finally {
       setLoading(false);
     }
-  };
+  }, [visitorType, accessToken, form.phone]);
 
-  const fetchByReg = async () => {
+  /**
+   * Fetch by reg number on VehicleField blur.
+   * Guard: skip if:
+   *   - reg is empty or too short
+   *   - reg already exists in current driver's vehicle list (selected from dropdown)
+   *   - already fetched this exact reg
+   */
+  const fetchByReg = useCallback(async () => {
     if (visitorType !== "dp" || !accessToken) return;
-    const reg = (form.vehicle_reg_number ?? "").trim();
-    if (reg.length < 2 || vehicles.some((v) => v.regNumber === reg)) return;
+    const reg = (form.vehicle_reg_number ?? "").trim().toUpperCase();
+
+    if (reg.length < 2) return;
+    // Skip if this reg is already in the loaded vehicle list (just selected from dropdown)
+    if (vehicles.some((v) => v.regNumber === reg)) return;
+    // Skip duplicate fetch
+    if (lastFetchedReg.current === reg) return;
+
     setLoading(true);
     setDriver(null);
+    lastFetchedReg.current = reg;
+    lastFetchedPhone.current = "";
+
     try {
       const d = await getDriverDetails({ regNumber: reg, accessToken });
       if (d) {
         setDriver(d);
+        const normalizedPhone = normalizePhoneInput(d.phone);
+        // Mark phone as already "fetched" so phone-blur won't re-trigger
+        lastFetchedPhone.current = normalizedPhone;
         setForm((p) => ({
           ...p,
           name: d.name,
-          phone: normalizePhoneInput(d.phone),
+          phone: normalizedPhone,
         }));
       }
+    } catch {
+      lastFetchedReg.current = "";
     } finally {
       setLoading(false);
     }
-  };
+  }, [visitorType, accessToken, form.vehicle_reg_number, vehicles]);
 
   const handleNext = () => {
     if (!isValid) return;
@@ -674,10 +685,8 @@ export default function VisitorTypeScreen() {
   }, [navigation]);
 
   const footerTotalH = APP_FOOTER_HEIGHT + insets.bottom;
-
-  // Bottom padding: enough to scroll form above keyboard; when closed, footer height
   const scrollBottomPad = kbVisible
-    ? kbHeight + NEXT_BTN_HEIGHT + 16 // ensures Next is reachable
+    ? kbHeight + NEXT_BTN_HEIGHT + 16
     : footerTotalH + 16;
 
   return (
@@ -705,7 +714,6 @@ export default function VisitorTypeScreen() {
           />
         }
       >
-        {/* Hero image — only when keyboard is hidden */}
         {!kbVisible && !IS_COMPACT && (
           <View style={s.illWrap}>
             <Image
@@ -731,11 +739,6 @@ export default function VisitorTypeScreen() {
               />
             </View>
 
-            {/*
-             * KEY: We measure this entire block (inputs + Next button together)
-             * so we know exactly how tall it is and where it starts.
-             * We scroll so its BOTTOM lands just above the keyboard.
-             */}
             <View
               ref={formBlockRef}
               onLayout={(e) => {
@@ -790,9 +793,11 @@ export default function VisitorTypeScreen() {
                   onSelect={(r) =>
                     setForm((p) => ({ ...p, vehicle_reg_number: r }))
                   }
-                  onClear={() =>
-                    setForm((p) => ({ ...p, vehicle_reg_number: "" }))
-                  }
+                  onClear={() => {
+                    setForm((p) => ({ ...p, vehicle_reg_number: "" }));
+                    // Reset reg fetch guard so user can type a new reg
+                    lastFetchedReg.current = "";
+                  }}
                   onCustomChange={(v) => set("vehicle_reg_number", v)}
                   onBlur={fetchByReg}
                   onFocused={() => {
@@ -804,7 +809,6 @@ export default function VisitorTypeScreen() {
                 />
               </View>
 
-              {/* Next button sits immediately below the last input — no gap */}
               <View style={s.nextBarInline}>
                 <Pressable
                   onPress={handleNext}
@@ -829,7 +833,6 @@ export default function VisitorTypeScreen() {
         )}
       </ScrollView>
 
-      {/* Footer — hidden when keyboard open */}
       {!kbVisible && <AppFooter activeTab="Entry" />}
     </View>
   );
@@ -946,8 +949,8 @@ const s = StyleSheet.create({
   clearX: { fontSize: 9, color: MUTED, fontWeight: "700" },
 
   nextBarInline: {
-    paddingTop: IS_COMPACT ? 12 : 14, // small gap above Next
-    paddingBottom: 0, // NO extra padding below
+    paddingTop: IS_COMPACT ? 12 : 14,
+    paddingBottom: 0,
     paddingHorizontal: 0,
   },
   nextBtn: {
@@ -973,7 +976,6 @@ const s = StyleSheet.create({
   },
   nextTxtOff: { color: "#9AA3AA" },
 
-  // ── Vehicle dropdown ─────────────────────────────────────────────────────
   vehicleWrapper: { gap: 6 },
   unifiedBox: {
     borderWidth: 1.5,
