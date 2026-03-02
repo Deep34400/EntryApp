@@ -12,7 +12,8 @@ import { StatusBar } from "expo-status-bar";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/query/queryClient";
 
-import { ThemeProvider, useThemeContext } from "@/contexts/ThemeContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { useTheme } from "@/hooks/useTheme";
 import { UserProvider } from "@/contexts/UserContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import RootStackNavigator from "@/navigation/RootStackNavigator";
@@ -23,9 +24,14 @@ import { ServerUnavailableProvider } from "@/contexts/ServerUnavailableContext";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 function StatusBarStyle() {
-  const ctx = useThemeContext();
-  const isDark = ctx?.colorScheme === "dark";
-  return <StatusBar style={isDark ? "light" : "dark"} />;
+  const { theme, isDark } = useTheme();
+  return (
+    <StatusBar
+      style={isDark ? "light" : "dark"}
+      backgroundColor={theme.backgroundRoot}
+      translucent={false}
+    />
+  );
 }
 
 export default function App() {

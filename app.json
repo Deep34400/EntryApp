@@ -21,7 +21,10 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.carrumguard.app",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "androidStatusBar": {
+        "translucent": false
+      }
     },
     "web": {
       "output": "single",

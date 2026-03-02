@@ -7,13 +7,12 @@ import {
   Image,
   Pressable,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Haptics from "expo-haptics";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
-import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
+import { AppFooter, useFooterTotalHeight } from "@/components/AppFooter";
 import {
   RootStackParamList,
   EntryFormData,
@@ -35,7 +34,7 @@ const FONT = "Poppins";
 export default function EntryFormScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<EntryFormRouteProp>();
-  const insets = useSafeAreaInsets();
+  const footerTotalHeight = useFooterTotalHeight();
   const entryType = route.params?.entryType;
 
   const [formData, setFormData] = useState<EntryFormData>({
@@ -88,7 +87,7 @@ export default function EntryFormScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingBottom: APP_FOOTER_HEIGHT + insets.bottom + 24,
+            paddingBottom: footerTotalHeight,
           },
         ]}
       >

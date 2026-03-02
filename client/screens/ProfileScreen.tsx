@@ -14,7 +14,7 @@ import { Feather } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
-import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
+import { AppFooter, useFooterTotalHeight } from "@/components/AppFooter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -68,6 +68,7 @@ function formatPhoneDisplay(phone: string): string {
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
+  const footerTotalHeight = useFooterTotalHeight();
   const auth = useAuth();
   const { user: contextUser, clearUser } = useUser();
 
@@ -115,7 +116,7 @@ export default function ProfileScreen() {
           styles.scrollContent,
           {
             paddingTop: insets.top,
-            paddingBottom: APP_FOOTER_HEIGHT + insets.bottom + 24,
+            paddingBottom: footerTotalHeight,
           },
         ]}
         showsVerticalScrollIndicator={false}

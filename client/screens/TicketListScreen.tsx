@@ -15,7 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 
-import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
+import { AppFooter, useFooterTotalHeight } from "@/components/AppFooter";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import { DesignTokens } from "@/constants/designTokens";
 import { getTicketCounts, getTicketList } from "@/apis";
@@ -241,8 +241,8 @@ export default function TicketListScreen() {
     { id: "Closed", label: "Closed", count: counts.closed },
   ];
 
-  const listContentPaddingBottom =
-    APP_FOOTER_HEIGHT + insets.bottom + Spacing["2xl"];
+  const footerTotalHeight = useFooterTotalHeight();
+  const listContentPaddingBottom = footerTotalHeight;
   const showShimmer = isLoading || isRefetching;
 
   return (

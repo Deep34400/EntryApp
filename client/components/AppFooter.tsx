@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -15,6 +15,8 @@ interface AppFooterProps {
 }
 
 const FOOTER_HEIGHT = 72;
+const MIN_ANDROID_BOTTOM = 24;
+const MIN_IOS_BOTTOM = 8;
 const ICON_SIZE = 24;
 
 const COLOR_ACTIVE = "#B31D38";
@@ -52,6 +54,13 @@ export function AppFooter({ activeTab }: AppFooterProps) {
     [allowedRole],
   );
 
+  const bottomInset =
+    insets.bottom > 0
+      ? insets.bottom
+      : Platform.OS === "android"
+        ? MIN_ANDROID_BOTTOM
+        : MIN_IOS_BOTTOM;
+
   const handleTabPress = (tab: AppFooterTab) => {
     switch (tab) {
       case "Entry":
@@ -70,7 +79,10 @@ export function AppFooter({ activeTab }: AppFooterProps) {
     <View
       style={[
         styles.footer,
-        { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 },
+        {
+          paddingBottom: bottomInset,
+          height: FOOTER_HEIGHT + bottomInset,
+        },
       ]}
     >
       <View style={styles.tabRow}>
@@ -128,3 +140,15 @@ const styles = StyleSheet.create({
 });
 
 export const APP_FOOTER_HEIGHT = FOOTER_HEIGHT;
+
+/** Total height of footer (tab bar + bottom safe inset). Use for scroll content paddingBottom. */
+export function useFooterTotalHeight(): number {
+  const insets = useSafeAreaInsets();
+  const bottomInset =
+    insets.bottom > 0
+      ? insets.bottom
+      : Platform.OS === "android"
+        ? MIN_ANDROID_BOTTOM
+        : MIN_IOS_BOTTOM;
+  return FOOTER_HEIGHT + bottomInset;
+}

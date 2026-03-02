@@ -36,7 +36,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Haptics from "expo-haptics";
 
-import { AppFooter, APP_FOOTER_HEIGHT } from "@/components/AppFooter";
+import { AppFooter, useFooterTotalHeight } from "@/components/AppFooter";
 import {
   RootStackParamList,
   EntryFormData,
@@ -476,6 +476,7 @@ function VehicleField({
 export default function VisitorTypeScreen() {
   const navigation = useNavigation<NavProp>();
   const insets = useSafeAreaInsets();
+  const footerTotalHeight = useFooterTotalHeight();
   const { canCreateEntry } = usePermissions();
   const { accessToken } = useAuth();
 
@@ -684,10 +685,9 @@ export default function VisitorTypeScreen() {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  const footerTotalH = APP_FOOTER_HEIGHT + insets.bottom;
   const scrollBottomPad = kbVisible
     ? kbHeight + NEXT_BTN_HEIGHT + 16
-    : footerTotalH + 16;
+    : footerTotalHeight;
 
   return (
     <View style={s.container}>
