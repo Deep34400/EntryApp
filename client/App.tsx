@@ -25,6 +25,7 @@ import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 function StatusBarStyle() {
   const { theme, isDark } = useTheme();
+
   return (
     <StatusBar
       style={isDark ? "light" : "dark"}
@@ -35,8 +36,7 @@ function StatusBarStyle() {
 }
 
 export default function App() {
-  const navigationRef =
-    useNavigationContainerRef<RootStackParamList>();
+  const navigationRef = useNavigationContainerRef<RootStackParamList>();
 
   return (
     <ErrorBoundary>
@@ -44,15 +44,16 @@ export default function App() {
         <ThemeProvider>
           <AuthProvider>
             <ServerUnavailableProvider>
-              <SessionExpiredHandler navigationRef={navigationRef} />
               <UserProvider>
                 <SafeAreaProvider>
                   <GestureHandlerRootView style={styles.root}>
+                    {/* ✅ Move StatusBar ABOVE NavigationContainer */}
+                    <StatusBarStyle />
+
                     <KeyboardProvider>
                       <NavigationContainer ref={navigationRef}>
                         <RootStackNavigator />
                       </NavigationContainer>
-                      <StatusBarStyle />
                     </KeyboardProvider>
                   </GestureHandlerRootView>
                 </SafeAreaProvider>
