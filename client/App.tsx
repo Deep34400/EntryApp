@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet } from "react-native";
+import React, { useEffect } from "react";
+import { Platform, StyleSheet } from "react-native";
 import {
   NavigationContainer,
   useNavigationContainerRef,
@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import * as NavigationBar from "expo-navigation-bar";
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/query/queryClient";
@@ -25,6 +26,11 @@ import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 function StatusBarStyle() {
   const { theme, isDark } = useTheme();
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    NavigationBar.setBackgroundColorAsync(theme.backgroundRoot);
+  }, [isDark]);
 
   return (
     <StatusBar

@@ -52,7 +52,6 @@ export function AppFooter({ activeTab }: AppFooterProps) {
     [allowedRole],
   );
 
-  // ✅ Correct responsive logic — no hardcoded fallback
   const bottomInset = insets.bottom;
 
   const handleTabPress = (tab: AppFooterTab) => {
