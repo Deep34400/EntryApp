@@ -14,7 +14,7 @@ const TOUCH_SIZE = 44;
 const ICON_SIZE = 24;
 
 export type BackArrowProps = {
-  /** Override icon color; defaults to theme.text (visible in both light and dark) */
+  /** Override icon color; defaults to brand primary (always visible in light and dark) */
   color?: string;
   onPress?: () => void;
   inline?: boolean;
@@ -26,10 +26,14 @@ export function BackArrow({
   inline = false,
 }: BackArrowProps) {
   const { theme } = useTheme();
-  const iconColor = color ?? theme.text;
+
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const lastTapRef = useRef(0);
+
+  // Use brand primary so back arrow is always visible on all phones in both light and dark theme.
+  // theme.primary contrasts with both light and dark backgrounds; avoids invisible icon on theme switch.
+  const iconColor = color ?? theme.primary;
 
   const handlePress = () => {
     const now = Date.now();

@@ -215,11 +215,11 @@ export default function RootStackNavigator() {
         } as Record<string, unknown>,
         ...(SCREENS_WITH_BACK.includes(route.name as RootScreenName)
           ? {
-              headerLeft: (props: { canGoBack?: boolean }) =>
-                props.canGoBack ? (
+              headerLeft: () =>
+                navigation.canGoBack() ? (
                   <BackArrow onPress={() => navigation.goBack()} inline />
                 ) : null,
-              headerLeftContainerStyle: { minWidth: 56 },
+              headerLeftContainerStyle: { minWidth: 56, paddingLeft: 4 },
             }
           : {}),
       })}
