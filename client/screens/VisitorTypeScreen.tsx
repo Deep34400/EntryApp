@@ -704,6 +704,21 @@ export default function VisitorTypeScreen() {
     setFocusedField((prev) => (prev === key ? null : prev));
   }, []);
 
+  /** When switching between Driver Partner and Staff, clear all inputs and driver data. */
+  const handleVisitorTypeChange = useCallback(
+    (v: "left" | "right") => {
+      const newType = v === "left" ? "dp" : "staff";
+      if (newType === visitorType) return;
+      setVisitorType(newType);
+      setForm(EMPTY);
+      setDriver(null);
+      lastFetchedPhone.current = "";
+      lastFetchedReg.current = "";
+      setFocusedField(null);
+    },
+    [visitorType],
+  );
+
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
@@ -904,7 +919,7 @@ export default function VisitorTypeScreen() {
                 leftLabel="Driver Partner"
                 rightLabel="Staff"
                 value={visitorType === "dp" ? "left" : "right"}
-                onSelect={(v) => setVisitorType(v === "left" ? "dp" : "staff")}
+                onSelect={handleVisitorTypeChange}
                 isDark={isDark}
                 theme={theme}
               />

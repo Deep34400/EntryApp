@@ -236,6 +236,16 @@ export default function MaintenancePurposeScreen() {
   const displayPhone =
     (formData.phone ?? "").trim() || (user?.phone ?? "").trim() || "—";
 
+  const userCardBg = isDark ? theme.backgroundDefault : D.cardBg;
+  const userCardBorder = isDark ? theme.border : D.cardBorder;
+  const userNameColor = isDark ? theme.text : "#1C1F21";
+  const rolePillBg = isDark ? theme.backgroundSecondary : D.brandRedMid;
+  const roleTextColor = isDark ? theme.text : D.brandRed;
+  const phonePillBg = isDark ? theme.backgroundSecondary : "#F8FAFC";
+  const phonePillBorder = isDark ? theme.border : "#F1F5F9";
+  const phoneTextColor = isDark ? theme.textSecondary : "#475569";
+  const sectionTitleColor = isDark ? theme.text : D.textPrimary;
+
   const {
     data: purposeConfig,
     isLoading: configLoading,
@@ -361,9 +371,9 @@ export default function MaintenancePurposeScreen() {
           entering={FadeInDown.delay(0).springify()}
           style={[
             styles.userCard,
-            isDark && {
-              backgroundColor: theme.backgroundDefault,
-              borderColor: theme.border,
+            {
+              backgroundColor: userCardBg,
+              borderColor: userCardBorder,
             },
           ]}
         >
@@ -371,23 +381,39 @@ export default function MaintenancePurposeScreen() {
             <Feather name="user" size={18} color="#FFF" />
           </View>
           <View style={styles.userCardCenter}>
-            <ThemedText type="small" style={styles.userName} numberOfLines={1}>
+            <ThemedText
+              type="small"
+              style={[styles.userName, { color: userNameColor }]}
+              numberOfLines={1}
+            >
               {displayName}
             </ThemedText>
-            <View style={styles.rolePill}>
-              <ThemedText type="small" style={styles.roleText}>
+            <View style={[styles.rolePill, { backgroundColor: rolePillBg }]}>
+              <ThemedText type="small" style={[styles.roleText, { color: roleTextColor }]}>
                 Driver Partner
               </ThemedText>
             </View>
           </View>
-          <View style={styles.phonePill}>
+          <View
+            style={[
+              styles.phonePill,
+              {
+                backgroundColor: phonePillBg,
+                borderColor: phonePillBorder,
+              },
+            ]}
+          >
             <Feather
               name="phone"
-              size={11}
-              color={D.brandRed}
+              size={10}
+              color={isDark ? theme.primary : D.brandRed}
               style={{ marginRight: 4 }}
             />
-            <ThemedText type="small" style={styles.phoneText} numberOfLines={1}>
+            <ThemedText
+              type="small"
+              style={[styles.phoneText, { color: phoneTextColor }]}
+              numberOfLines={1}
+            >
               {displayPhone}
             </ThemedText>
           </View>
@@ -397,7 +423,7 @@ export default function MaintenancePurposeScreen() {
           entering={FadeInDown.delay(60).springify()}
           style={styles.sectionRow}
         >
-          <ThemedText type="h6" style={styles.sectionTitle}>
+          <ThemedText type="h6" style={[styles.sectionTitle, { color: sectionTitleColor }]}>
             Select purpose
           </ThemedText>
           {selectedItem && (
@@ -491,6 +517,12 @@ export default function MaintenancePurposeScreen() {
               backgroundColor: isCtaDisabled ? theme.backgroundTertiary : theme.primary,
             },
             !selectedItem && !isDark && styles.ctaButtonInactive,
+            !selectedItem && {
+              shadowColor: "#000",
+              shadowOpacity: 0.08,
+              shadowRadius: 6,
+              elevation: 2,
+            },
             pressed &&
               selectedItem &&
               !submitMutation.isPending &&
@@ -636,12 +668,10 @@ const styles = StyleSheet.create({
   userCard: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: Spacing.lg,
-    padding: Spacing.md,
-    borderRadius: D.cardRadius,
+    marginBottom: 24,
+    padding: 14,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: D.cardBorder,
-    backgroundColor: D.cardBg,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -655,28 +685,27 @@ const styles = StyleSheet.create({
     backgroundColor: D.brandRed,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.md,
+    marginRight: 12,
   },
-  userCardCenter: { flex: 1, minWidth: 0, gap: 4 },
-  userName: { fontSize: 14, fontWeight: "700", color: D.textPrimary },
+  userCardCenter: { flex: 1, minWidth: 0, gap: 2 },
+  userName: { fontSize: 15, fontWeight: "600", color: "#1C1F21" },
   rolePill: {
     alignSelf: "flex-start",
-    backgroundColor: D.brandRedMid,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 20,
+    borderRadius: 12,
   },
-  roleText: { fontSize: 11, fontWeight: "600", color: D.brandRed },
+  roleText: { fontSize: 10, fontWeight: "500", color: D.brandRed },
   phonePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F1F3F5",
     paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 20,
+    paddingVertical: 6,
+    borderRadius: 12,
     marginLeft: Spacing.sm,
+    borderWidth: 1,
   },
-  phoneText: { color: D.textPrimary, fontSize: 12, fontWeight: "600" },
+  phoneText: { fontSize: 11, fontWeight: "500", color: "#475569" },
   sectionRow: {
     flexDirection: "row",
     alignItems: "center",
