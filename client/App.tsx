@@ -41,9 +41,25 @@ function StatusBarStyle() {
   );
 }
 
-export default function App() {
+function AppRoot() {
+  const { theme, isDark } = useTheme();
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
 
+  return (
+    <GestureHandlerRootView
+      style={[styles.root, isDark && { backgroundColor: theme.backgroundRoot }]}
+    >
+      <StatusBarStyle />
+      <KeyboardProvider>
+        <NavigationContainer ref={navigationRef}>
+          <RootStackNavigator />
+        </NavigationContainer>
+      </KeyboardProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
@@ -52,16 +68,7 @@ export default function App() {
             <ServerUnavailableProvider>
               <UserProvider>
                 <SafeAreaProvider>
-                  <GestureHandlerRootView style={styles.root}>
-                    {/* ✅ Move StatusBar ABOVE NavigationContainer */}
-                    <StatusBarStyle />
-
-                    <KeyboardProvider>
-                      <NavigationContainer ref={navigationRef}>
-                        <RootStackNavigator />
-                      </NavigationContainer>
-                    </KeyboardProvider>
-                  </GestureHandlerRootView>
+                  <AppRoot />
                 </SafeAreaProvider>
               </UserProvider>
             </ServerUnavailableProvider>

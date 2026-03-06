@@ -21,6 +21,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { BackArrow } from "@/components/BackArrow";
+import { useTheme } from "@/hooks/useTheme";
 import { formatDateTime } from "@/lib/format";
 import { getWaitingMinutes, getCategoryLabel } from "@/lib/ticket-utils";
 import { getTicketById, updateTicket } from "@/apis";
@@ -123,6 +124,7 @@ export default function TicketDetailScreen() {
   const queryClient = useQueryClient();
   const auth = useAuth();
   const { canCloseTicket } = usePermissions();
+  const { theme, isDark } = useTheme();
 
   const {
     data: ticket,
@@ -170,11 +172,32 @@ export default function TicketDetailScreen() {
     closeMutation.mutate();
   };
 
+  const backArrowColor = isDark ? theme.text : "#161B1D";
+  const screenBg = isDark ? theme.backgroundRoot : undefined;
+  const cardBg = isDark ? theme.backgroundDefault : undefined;
+  const cardBorder = isDark ? theme.border : undefined;
+  const loadingTextColor = isDark ? theme.textSecondary : undefined;
+  const errorTitleColor = isDark ? theme.text : undefined;
+  const errorSubtitleColor = isDark ? theme.textSecondary : undefined;
+  const errorIconColor = isDark ? theme.textSecondary : "#3F4C52";
+  const tokenLabelColor = isDark ? theme.textSecondary : undefined;
+  const tokenValueColor = isDark ? theme.text : undefined;
+  const entryTimeLabelColor = isDark ? theme.textSecondary : undefined;
+  const entryTimeValueColor = isDark ? theme.text : undefined;
+  const dividerColor = isDark ? theme.border : undefined;
+  const avatarBg = isDark ? theme.backgroundSecondary : undefined;
+  const avatarLetterColor = isDark ? theme.text : undefined;
+  const driverNameColor = isDark ? theme.text : undefined;
+  const driverRoleColor = isDark ? theme.textSecondary : undefined;
+  const assignmentTitleColor = isDark ? theme.text : undefined;
+  const assignmentLabelColor = isDark ? theme.textSecondary : undefined;
+  const assignmentValueColor = isDark ? theme.text : undefined;
+
   // ✅ FIX: Only show full-screen loader if ticket data is truly absent
   // When closeMutation is pending, ticket is still available — don't show full loader
   if (isLoading && !ticket) {
     return (
-      <View style={styles.screen}>
+      <View style={[styles.screen, isDark && screenBg && { backgroundColor: screenBg }]}>
         <View
           style={{
             paddingTop: insets.top,
@@ -183,11 +206,11 @@ export default function TicketDetailScreen() {
             justifyContent: "center",
           }}
         >
-          <BackArrow color="#161B1D" />
+          <BackArrow color={backArrowColor} />
         </View>
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#B31D38" />
-          <Text style={styles.loadingText}>Loading ticket…</Text>
+          <ActivityIndicator size="large" color={isDark ? theme.primary : "#B31D38"} />
+          <Text style={[styles.loadingText, isDark && loadingTextColor && { color: loadingTextColor }]}>Loading ticket…</Text>
         </View>
       </View>
     );
@@ -196,7 +219,7 @@ export default function TicketDetailScreen() {
   // Ticket not found (after loading finished)
   if (!ticket) {
     return (
-      <View style={styles.screen}>
+      <View style={[styles.screen, isDark && screenBg && { backgroundColor: screenBg }]}>
         <View
           style={{
             paddingTop: insets.top,
@@ -205,12 +228,12 @@ export default function TicketDetailScreen() {
             justifyContent: "center",
           }}
         >
-          <BackArrow color="#161B1D" />
+          <BackArrow color={backArrowColor} />
         </View>
         <View style={styles.centered}>
-          <Feather name="alert-circle" size={48} color="#3F4C52" />
-          <Text style={styles.errorTitle}>Ticket not found</Text>
-          <Text style={styles.errorSubtitle}>
+          <Feather name="alert-circle" size={48} color={errorIconColor} />
+          <Text style={[styles.errorTitle, isDark && errorTitleColor && { color: errorTitleColor }]}>Ticket not found</Text>
+          <Text style={[styles.errorSubtitle, isDark && errorSubtitleColor && { color: errorSubtitleColor }]}>
             The ticket may have been removed.
           </Text>
         </View>
@@ -223,7 +246,7 @@ export default function TicketDetailScreen() {
     : insets.bottom + CLOSE_BUTTON_HEIGHT + 40;
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, isDark && screenBg && { backgroundColor: screenBg }]}>
       <View
         style={{
           paddingTop: insets.top,
@@ -232,7 +255,7 @@ export default function TicketDetailScreen() {
           paddingHorizontal: 8,
         }}
       >
-        <BackArrow color="#161B1D" />
+        <BackArrow color={backArrowColor} />
       </View>
 
       <ScrollView
@@ -246,15 +269,15 @@ export default function TicketDetailScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={() => refetch()}
-            tintColor="#B31D38"
+            tintColor={isDark ? theme.primary : "#B31D38"}
           />
         }
       >
-        <View style={styles.card}>
+        <View style={[styles.card, isDark && cardBg && { backgroundColor: cardBg, borderColor: cardBorder }]}>
           <View style={styles.tokenCardTopRow}>
             <View style={styles.tokenCardLeft}>
-              <Text style={styles.tokenLabel}>Token</Text>
-              <Text style={styles.tokenValue}>#{ticket.token_no}</Text>
+              <Text style={[styles.tokenLabel, isDark && tokenLabelColor && { color: tokenLabelColor }]}>Token</Text>
+              <Text style={[styles.tokenValue, isDark && tokenValueColor && { color: tokenValueColor }]}>#{ticket.token_no}</Text>
             </View>
             {!closed ? (
               <View style={styles.timeBadge}>
@@ -267,49 +290,49 @@ export default function TicketDetailScreen() {
               </View>
             )}
           </View>
-          <View style={styles.divider} />
+          <View style={[styles.divider, isDark && dividerColor && { backgroundColor: dividerColor }]} />
           <View style={styles.entryTimeRow}>
-            <Text style={styles.entryTimeLabel}>
+            <Text style={[styles.entryTimeLabel, isDark && entryTimeLabelColor && { color: entryTimeLabelColor }]}>
               {isStaff ? "Out Time" : "Entry Time"}
             </Text>
-            <Text style={styles.entryTimeValue}>
+            <Text style={[styles.entryTimeValue, isDark && entryTimeValueColor && { color: entryTimeValueColor }]}>
               {formatDateTime(ticket.entry_time)}
             </Text>
           </View>
           {closed && (
             <View style={[styles.entryTimeRow, { marginTop: 12 }]}>
-              <Text style={styles.entryTimeLabel}>Exit Time</Text>
-              <Text style={styles.entryTimeValue}>
+              <Text style={[styles.entryTimeLabel, isDark && entryTimeLabelColor && { color: entryTimeLabelColor }]}>Exit Time</Text>
+              <Text style={[styles.entryTimeValue, isDark && entryTimeValueColor && { color: entryTimeValueColor }]}>
                 {ticket.exit_time ? formatDateTime(ticket.exit_time) : "—"}
               </Text>
             </View>
           )}
         </View>
 
-        <View style={styles.card}>
+        <View style={[styles.card, isDark && cardBg && { backgroundColor: cardBg, borderColor: cardBorder }]}>
           <View style={styles.driverRow}>
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarLetter}>
+            <View style={[styles.avatarPlaceholder, isDark && avatarBg && { backgroundColor: avatarBg }]}>
+              <Text style={[styles.avatarLetter, isDark && avatarLetterColor && { color: avatarLetterColor }]}>
                 {ticket.name?.trim()
                   ? ticket.name.trim().charAt(0).toUpperCase()
                   : "?"}
               </Text>
             </View>
             <View style={styles.driverInfo}>
-              <Text style={styles.driverName}>{ticket.name ?? "—"}</Text>
-              <Text style={styles.driverRole}>
+              <Text style={[styles.driverName, isDark && driverNameColor && { color: driverNameColor }]}>{ticket.name ?? "—"}</Text>
+              <Text style={[styles.driverRole, isDark && driverRoleColor && { color: driverRoleColor }]}>
                 {getEntryTypeDisplayLabel(ticket.type)}
               </Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.assignmentTitle}>Assignment</Text>
-          <View style={styles.divider} />
+        <View style={[styles.card, isDark && cardBg && { backgroundColor: cardBg, borderColor: cardBorder }]}>
+          <Text style={[styles.assignmentTitle, isDark && assignmentTitleColor && { color: assignmentTitleColor }]}>Assignment</Text>
+          <View style={[styles.divider, isDark && dividerColor && { backgroundColor: dividerColor }]} />
           <View style={styles.assignmentRow}>
-            <Text style={styles.assignmentLabel}>Ticket</Text>
-            <Text style={styles.assignmentValue}>
+            <Text style={[styles.assignmentLabel, isDark && assignmentLabelColor && { color: assignmentLabelColor }]}>Ticket</Text>
+            <Text style={[styles.assignmentValue, isDark && assignmentValueColor && { color: assignmentValueColor }]}>
               {getCategoryLabel({
                 purpose: ticket.purpose,
                 reason: ticket.reason,
@@ -319,12 +342,12 @@ export default function TicketDetailScreen() {
             </Text>
           </View>
           <View style={styles.assignmentRow}>
-            <Text style={styles.assignmentLabel}>Agent</Text>
-            <Text style={styles.assignmentValue}>{ticket.assignee ?? "—"}</Text>
+            <Text style={[styles.assignmentLabel, isDark && assignmentLabelColor && { color: assignmentLabelColor }]}>Agent</Text>
+            <Text style={[styles.assignmentValue, isDark && assignmentValueColor && { color: assignmentValueColor }]}>{ticket.assignee ?? "—"}</Text>
           </View>
           <View style={styles.assignmentRow}>
-            <Text style={styles.assignmentLabel}>Desk/Location</Text>
-            <Text style={styles.assignmentValue}>
+            <Text style={[styles.assignmentLabel, isDark && assignmentLabelColor && { color: assignmentLabelColor }]}>Desk/Location</Text>
+            <Text style={[styles.assignmentValue, isDark && assignmentValueColor && { color: assignmentValueColor }]}>
               {ticket.desk_location ?? "—"}
             </Text>
           </View>

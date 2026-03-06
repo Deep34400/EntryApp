@@ -21,6 +21,7 @@ import {
 import * as Haptics from "expo-haptics";
 import { getReferralDisplayLabel, type ReferralNameItem } from "@/apis/referral/referral.api";
 import { useReferralNames } from "@/hooks/useReferralNames";
+import { useTheme } from "@/hooks/useTheme";
 
 const RED = "#B31D38";
 const RED_BG = "rgba(179,29,56,0.06)";
@@ -213,12 +214,21 @@ export function ReferralSection({
 
   if (!visible) return null;
 
+  const { theme, isDark } = useTheme();
+  const labelColor = isDark ? theme.text : TEXT;
+  const yesNoBtnBg = isDark ? theme.backgroundSecondary : "#FAFAFA";
+  const yesNoBtnBorder = isDark ? theme.border : BORDER;
+  const yesNoBtnActiveBg = isDark ? theme.primary : RED;
+  const yesNoBtnActiveBorder = isDark ? theme.primary : RED;
+  const yesNoTxtColor = isDark ? theme.textSecondary : MUTED;
+  const yesNoTxtActiveColor = isDark ? theme.onPrimary : "#FFFFFF";
+
   return (
     <View style={styles.section}>
       {/* ── Yes / No toggle — hidden when parent owns it ── */}
       {!hideToggle && (
         <View style={styles.field}>
-          <Text style={styles.label}>Referral</Text>
+          <Text style={[styles.label, isDark && { color: labelColor }]}>Referral</Text>
           <View style={styles.yesNoRow}>
             {(["yes", "no"] as const).map((val) => {
               const active = referral === val;
@@ -228,11 +238,16 @@ export function ReferralSection({
                   onPress={() => toggleReferral(val)}
                   style={({ pressed }) => [
                     styles.yesNoBtn,
-                    active && styles.yesNoBtnActive,
+                    isDark && { backgroundColor: yesNoBtnBg, borderColor: yesNoBtnBorder },
+                    active && (isDark ? { backgroundColor: yesNoBtnActiveBg, borderColor: yesNoBtnActiveBorder } : styles.yesNoBtnActive),
                     pressed && { opacity: 0.8 },
                   ]}
                 >
-                  <Text style={[styles.yesNoTxt, active && styles.yesNoTxtActive]}>
+                  <Text style={[
+                    styles.yesNoTxt,
+                    isDark && { color: active ? yesNoTxtActiveColor : yesNoTxtColor },
+                    active && !isDark && styles.yesNoTxtActive,
+                  ]}>
                     {val === "yes" ? "Yes" : "No"}
                   </Text>
                 </Pressable>
@@ -391,28 +406,53 @@ function ReferralNameFieldInner({
   });
   const isOpen = focused || open;
 
+  const { theme, isDark } = useTheme();
+  const innerLabelColor = isDark ? theme.text : TEXT;
+  const unifiedBoxBg = isDark ? theme.backgroundSecondary : "#FAFAFA";
+  const unifiedBoxBorder = isDark ? theme.border : BORDER;
+  const inputColor = isDark ? theme.text : TEXT;
+  const placeholderColor = isDark ? theme.textSecondary : MUTED;
+  const selectionColor = isDark ? theme.primary : RED;
+  const clearCircleBg = isDark ? theme.backgroundTertiary : "#E0E4E6";
+  const clearXColor = isDark ? theme.textSecondary : MUTED;
+  const chevronColor = isDark ? theme.textSecondary : MUTED;
+  const dropInnerBg = isDark ? theme.backgroundTertiary : "#F2F4F6";
+  const dropSeparatorColor = isDark ? theme.border : BORDER;
+  const dropRowSelBg = isDark ? theme.backgroundSecondary : RED_BG;
+  const dropRowRegColor = isDark ? theme.text : TEXT;
+  const dropRowRegSelColor = isDark ? theme.primary : RED;
+  const dropTickColor = isDark ? theme.primary : RED;
+  const dropRowDividerColor = isDark ? theme.border : "#DDE0E3";
+  const dropRemoveTxtColor = isDark ? theme.textSecondary : MUTED;
+  const dropSectionDividerColor = isDark ? theme.border : BORDER;
+
   return (
     <View style={styles.wrapper}>
-      <Text style={styles.label}>Referral Name</Text>
-      <View style={[styles.unifiedBox, isOpen && styles.unifiedBoxOpen]}>
+      <Text style={[styles.label, isDark && { color: innerLabelColor }]}>Referral Name</Text>
+      <View style={[
+        styles.unifiedBox,
+        isDark && { backgroundColor: unifiedBoxBg, borderColor: unifiedBoxBorder },
+        isOpen && styles.unifiedBoxOpen,
+      ]}
+      >
         <View style={styles.inputRow}>
           <TextInput
             ref={inputRef}
-            style={styles.input}
+            style={[styles.input, isDark && { color: inputColor }]}
             placeholder={loading ? "Loading names…" : "Search or enter name…"}
-            placeholderTextColor={MUTED}
+            placeholderTextColor={placeholderColor}
             value={query}
             onChangeText={handleChange}
             onFocus={handleFocus}
             onBlur={handleBlur}
             autoCorrect={false}
             returnKeyType="done"
-            selectionColor={RED}
+            selectionColor={selectionColor}
             editable={!loading}
             underlineColorAndroid="transparent"
           />
           {loading ? (
-            <ActivityIndicator size="small" color={MUTED} />
+            <ActivityIndicator size="small" color={isDark ? theme.textSecondary : MUTED} />
           ) : query.length > 0 ? (
             <Pressable
               onPress={() => {
@@ -422,19 +462,19 @@ function ReferralNameFieldInner({
               }}
               hitSlop={10}
             >
-              <View style={styles.clearCircle}>
-                <Text style={styles.clearX}>✕</Text>
+              <View style={[styles.clearCircle, isDark && { backgroundColor: clearCircleBg }]}>
+                <Text style={[styles.clearX, isDark && { color: clearXColor }]}>✕</Text>
               </View>
             </Pressable>
           ) : (
-            <Text style={[styles.chevron, isOpen && styles.chevronUp]}>▼</Text>
+            <Text style={[styles.chevron, isDark && { color: chevronColor }, isOpen && styles.chevronUp]}>▼</Text>
           )}
         </View>
         {open && !loading && (
           <Animated.View
-            style={[styles.dropInner, { maxHeight: listH, opacity: listAlpha }]}
+            style={[styles.dropInner, { maxHeight: listH, opacity: listAlpha }, isDark && { backgroundColor: dropInnerBg }]}
           >
-            <View style={styles.dropSeparator} />
+            <View style={[styles.dropSeparator, isDark && { backgroundColor: dropSeparatorColor }]} />
             <ScrollView
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
@@ -452,12 +492,12 @@ function ReferralNameFieldInner({
                   ]}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.dropCustomLabel}>
+                    <Text style={[styles.dropCustomLabel, isDark && { color: dropRowRegColor }]}>
                       Use "{query.trim()}"
                     </Text>
-                    <Text style={styles.dropCustomHint}>Tap to confirm</Text>
+                    <Text style={[styles.dropCustomHint, isDark && { color: dropRemoveTxtColor }]}>Tap to confirm</Text>
                   </View>
-                  <Text style={styles.dropPlus}>＋</Text>
+                  <Text style={[styles.dropPlus, isDark && { color: chevronColor }]}>＋</Text>
                 </Pressable>
               )}
               {filtered.map((n: ReferralNameItem, idx: number) => {
@@ -469,29 +509,33 @@ function ReferralNameFieldInner({
                       onPress={() => pick(n)}
                       style={({ pressed }) => [
                         styles.dropRow,
-                        sel && styles.dropRowSel,
+                        sel && (isDark ? { ...styles.dropRowSel, backgroundColor: dropRowSelBg, borderLeftColor: theme.primary } : styles.dropRowSel),
                         pressed && { opacity: 0.6 },
                       ]}
                     >
-                      <Text style={[styles.dropRowReg, sel && styles.dropRowRegSel]}>
+                      <Text style={[
+                        styles.dropRowReg,
+                        sel && styles.dropRowRegSel,
+                        isDark && { color: sel ? dropRowRegSelColor : dropRowRegColor },
+                      ]}>
                         {displayLabel}
                       </Text>
-                      {sel && <Text style={styles.dropTick}>✓</Text>}
+                      {sel && <Text style={[styles.dropTick, { color: dropTickColor }]}>✓</Text>}
                     </Pressable>
                     {idx < filtered.length - 1 && (
-                      <View style={styles.dropRowDivider} />
+                      <View style={[styles.dropRowDivider, isDark && { backgroundColor: dropRowDividerColor }]} />
                     )}
                   </React.Fragment>
                 );
               })}
               {filtered.length === 0 && !isCustom && (
                 <View style={styles.dropEmpty}>
-                  <Text style={styles.dropEmptyTxt}>No names found</Text>
+                  <Text style={[styles.dropEmptyTxt, isDark && { color: dropRemoveTxtColor }]}>No names found</Text>
                 </View>
               )}
               {selectedName.trim().length > 0 && (
                 <>
-                  <View style={styles.dropSectionDivider} />
+                  <View style={[styles.dropSectionDivider, isDark && { backgroundColor: dropSectionDividerColor }]} />
                   <Pressable
                     onPress={() => {
                       didPickRef.current = false;
@@ -505,7 +549,7 @@ function ReferralNameFieldInner({
                       pressed && { opacity: 0.55 },
                     ]}
                   >
-                    <Text style={styles.dropRemoveTxt}>✕  Remove referral</Text>
+                    <Text style={[styles.dropRemoveTxt, isDark && { color: dropRemoveTxtColor }]}>✕  Remove referral</Text>
                   </Pressable>
                 </>
               )}

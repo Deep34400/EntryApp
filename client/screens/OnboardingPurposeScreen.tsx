@@ -30,6 +30,7 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
+import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing } from "@/constants/theme";
 import { createTicket } from "@/apis";
 import { UnauthorizedError } from "@/api/requestClient";
@@ -77,6 +78,8 @@ function PurposeGridCard({
   onPress,
   selected,
   delay,
+  isDark,
+  theme,
 }: {
   displayTitle: string;
   iconKey: string;
@@ -84,11 +87,43 @@ function PurposeGridCard({
   onPress: () => void;
   selected: boolean;
   delay: number;
+  isDark?: boolean;
+  theme?: {
+    backgroundDefault: string;
+    border: string;
+    text: string;
+    textSecondary: string;
+    primary: string;
+  };
 }) {
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
+
+  const cardBg =
+    isDark && theme
+      ? selected
+        ? theme.backgroundDefault
+        : theme.backgroundDefault
+      : undefined;
+  const cardBorder = isDark && theme ? theme.border : undefined;
+  const iconWrapBg =
+    isDark && theme
+      ? selected
+        ? theme.primary
+        : theme.backgroundDefault
+      : undefined;
+  const iconColor =
+    isDark && theme
+      ? selected
+        ? "#FFF"
+        : theme.primary
+      : selected
+        ? "#FFF"
+        : D.brandRed;
+  const labelColor =
+    isDark && theme ? (selected ? theme.text : theme.textSecondary) : undefined;
 
   return (
     <Animated.View
@@ -104,7 +139,15 @@ function PurposeGridCard({
           onPressOut={() => {
             scale.value = withSpring(1, { damping: 18, stiffness: 220 });
           }}
-          style={[styles.gridCard, selected && styles.gridCardSelected]}
+          style={[
+            styles.gridCard,
+            selected && styles.gridCardSelected,
+            isDark &&
+              cardBg !== undefined && {
+                backgroundColor: cardBg,
+                borderColor: cardBorder,
+              },
+          ]}
         >
           {selected && (
             <Animated.View
@@ -118,13 +161,15 @@ function PurposeGridCard({
             style={[
               styles.gridCardIconWrap,
               selected && styles.gridCardIconWrapSelected,
+              isDark &&
+                iconWrapBg !== undefined && { backgroundColor: iconWrapBg },
             ]}
           >
             <AppIcon
               name={iconKey || "circle"}
               library={iconLibrary}
               size={20}
-              color={selected ? "#FFF" : D.brandRed}
+              color={iconColor}
             />
           </View>
           <ThemedText
@@ -134,6 +179,7 @@ function PurposeGridCard({
               selected
                 ? styles.gridCardLabelSelected
                 : styles.gridCardLabelDefault,
+              isDark && labelColor !== undefined && { color: labelColor },
             ]}
             numberOfLines={2}
           >
@@ -153,6 +199,8 @@ function ReferralBlock({
   onClear,
   accessToken,
   onInputFocus,
+  isDark,
+  theme,
 }: {
   referral: "yes" | "no";
   referralName: string;
@@ -161,15 +209,45 @@ function ReferralBlock({
   onClear: () => void;
   accessToken: string | null;
   onInputFocus?: () => void;
+  isDark?: boolean;
+  theme?: {
+    text: string;
+    textSecondary: string;
+    border: string;
+    backgroundSecondary: string;
+    backgroundTertiary: string;
+    primary: string;
+    onPrimary: string;
+  };
 }) {
+  const dividerBg = isDark && theme ? theme.border : undefined;
+  const questionColor = isDark && theme ? theme.text : undefined;
+  const chipBg = isDark && theme ? theme.backgroundSecondary : undefined;
+  const chipBorder = isDark && theme ? theme.border : undefined;
+  const chipYesBg = isDark && theme ? theme.primary : undefined;
+  const chipNoBg = isDark && theme ? theme.backgroundTertiary : undefined;
+  const chipTextColor = isDark && theme ? theme.textSecondary : undefined;
+  const chipTextActiveColor = isDark && theme ? theme.onPrimary : undefined;
+
   return (
     <Animated.View
       entering={FadeInDown.duration(260).springify()}
       style={styles.referralWrap}
     >
-      <View style={styles.referralDivider} />
+      <View
+        style={[
+          styles.referralDivider,
+          isDark && dividerBg && { backgroundColor: dividerBg },
+        ]}
+      />
       <View style={styles.referralRow}>
-        <ThemedText type="small" style={styles.referralQuestion}>
+        <ThemedText
+          type="small"
+          style={[
+            styles.referralQuestion,
+            isDark && questionColor && { color: questionColor },
+          ]}
+        >
           Was this driver referred by someone?
         </ThemedText>
         <View style={styles.referralChipRow}>
@@ -186,15 +264,37 @@ function ReferralBlock({
               }}
               style={[
                 styles.referralChip,
+                isDark &&
+                  chipBg !== undefined && {
+                    backgroundColor: chipBg,
+                    borderColor: chipBorder,
+                  },
                 referral === val &&
-                  (val === "yes" ? styles.chipYes : styles.chipNo),
+                  (val === "yes"
+                    ? isDark && theme && chipYesBg
+                      ? {
+                          backgroundColor: chipYesBg,
+                          borderColor: theme.primary,
+                        }
+                      : styles.chipYes
+                    : isDark && theme && chipNoBg
+                      ? {
+                          backgroundColor: chipNoBg,
+                          borderColor: theme.border,
+                        }
+                      : styles.chipNo),
               ]}
             >
               <ThemedText
                 type="small"
                 style={[
                   styles.chipText,
-                  referral === val && styles.chipTextActive,
+                  isDark &&
+                    chipTextColor !== undefined && {
+                      color:
+                        referral === val ? chipTextActiveColor : chipTextColor,
+                    },
+                  referral === val && !isDark && styles.chipTextActive,
                 ]}
               >
                 {val === "yes" ? "Yes" : "No"}
@@ -227,6 +327,7 @@ export default function OnboardingPurposeScreen() {
   const { user } = useUser();
   const { accessToken, clearAuth } = useAuth();
   const scrollViewRef = useRef<ScrollView>(null);
+  const { theme, isDark } = useTheme();
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
@@ -330,8 +431,15 @@ export default function OnboardingPurposeScreen() {
     !!configError ||
     !purposeConfig;
 
+  const safeAreaBg = isDark ? theme.backgroundRoot : D.screenBg;
+  const userCardBg = isDark ? theme.backgroundDefault : D.cardBg;
+  const userCardBorder = isDark ? theme.border : D.cardBorder;
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
+    <SafeAreaView
+      style={[styles.safeArea, isDark && { backgroundColor: safeAreaBg }]}
+      edges={["bottom"]}
+    >
       <KeyboardAvoidingView
         style={styles.flex}
         behavior="padding"
@@ -350,7 +458,13 @@ export default function OnboardingPurposeScreen() {
         >
           <Animated.View
             entering={FadeInDown.delay(0).springify()}
-            style={styles.userCard}
+            style={[
+              styles.userCard,
+              isDark && {
+                backgroundColor: userCardBg,
+                borderColor: userCardBorder,
+              },
+            ]}
           >
             <View style={styles.avatar}>
               <Feather name="user" size={18} color="#FFF" />
@@ -464,6 +578,8 @@ export default function OnboardingPurposeScreen() {
                   delay={80 + i * 45}
                   onPress={() => handleCardPress(item.key)}
                   selected={selectedItem === item.key}
+                  isDark={isDark}
+                  theme={theme}
                 />
               ))}
             </View>
@@ -490,6 +606,8 @@ export default function OnboardingPurposeScreen() {
               onInputFocus={() =>
                 scrollViewRef.current?.scrollToEnd({ animated: true })
               }
+              isDark={isDark}
+              theme={theme}
             />
           )}
         </ScrollView>
@@ -499,6 +617,7 @@ export default function OnboardingPurposeScreen() {
         style={[
           styles.bottomBar,
           { paddingBottom: insets.bottom + Spacing.sm },
+          isDark && { backgroundColor: theme.backgroundDefault },
         ]}
       >
         <Pressable
@@ -506,7 +625,12 @@ export default function OnboardingPurposeScreen() {
           disabled={isCtaDisabled}
           style={({ pressed }) => [
             styles.ctaButton,
-            !selectedItem && styles.ctaButtonInactive,
+            isDark && {
+              backgroundColor: isCtaDisabled
+                ? theme.backgroundTertiary
+                : theme.primary,
+            },
+            !selectedItem && !isDark && styles.ctaButtonInactive,
             pressed &&
               selectedItem &&
               !submitMutation.isPending &&
@@ -514,17 +638,30 @@ export default function OnboardingPurposeScreen() {
           ]}
         >
           {submitMutation.isPending ? (
-            <ActivityIndicator size="small" color="#FFF" />
+            <ActivityIndicator
+              size="small"
+              color={isDark ? theme.onPrimary : "#FFF"}
+            />
           ) : (
             <View style={styles.ctaInner}>
-              <ThemedText type="label" style={styles.ctaText}>
+              <ThemedText
+                type="label"
+                style={[
+                  styles.ctaText,
+                  isDark && {
+                    color: isCtaDisabled
+                      ? theme.textSecondary
+                      : theme.onPrimary,
+                  },
+                ]}
+              >
                 {selectedItem ? "Confirm & Generate Token" : "Select a Purpose"}
               </ThemedText>
               {selectedItem && (
                 <Feather
                   name="arrow-right"
                   size={17}
-                  color="#FFF"
+                  color={isDark ? theme.onPrimary : "#FFF"}
                   style={{ marginLeft: 8 }}
                 />
               )}

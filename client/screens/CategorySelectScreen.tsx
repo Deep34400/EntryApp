@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { AppIcon } from "@/components/AppIcon";
+import { useTheme } from "@/hooks/useTheme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { Layout, Spacing } from "@/constants/theme";
 import type { IconLibrary } from "@/types/purposeConfig";
@@ -83,6 +84,8 @@ function CategoryRowCard({
   iconLibrary,
   onPress,
   delay,
+  isDark,
+  theme,
 }: {
   label: string;
   subtitle: string;
@@ -90,11 +93,26 @@ function CategoryRowCard({
   iconLibrary?: IconLibrary;
   onPress: () => void;
   delay: number;
+  isDark?: boolean;
+  theme?: {
+    backgroundDefault: string;
+    border: string;
+    text: string;
+    textSecondary: string;
+    primary: string;
+  };
 }) {
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
+
+  const cardBg = isDark && theme ? theme.backgroundDefault : D.cardBg;
+  const cardBorder = isDark && theme ? theme.border : D.cardBorder;
+  const iconWrapBg = isDark && theme ? theme.backgroundDefault : "#FFF1F2";
+  const iconColor = isDark && theme ? theme.primary : D.brandRed;
+  const chevronColor = isDark && theme ? theme.textSecondary : D.chevronTint;
+  const cardPressedBg = isDark && theme ? theme.backgroundDefault : "#F8FAFC";
 
   return (
     <Animated.View
@@ -110,21 +128,39 @@ function CategoryRowCard({
           onPressOut={() => {
             scale.value = withSpring(1);
           }}
-          style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+          style={({ pressed }) => [
+            styles.card,
+            { backgroundColor: cardBg, borderColor: cardBorder },
+            pressed && { backgroundColor: cardPressedBg },
+          ]}
         >
-          <View style={styles.iconWrap}>
+          <View style={[styles.iconWrap, { backgroundColor: iconWrapBg }]}>
             <AppIcon
               name={iconKey}
               library={iconLibrary}
               size={24}
-              color={D.brandRed}
+              color={iconColor}
             />
           </View>
           <View style={styles.cardContent}>
-            <ThemedText style={styles.cardTitle}>{label}</ThemedText>
-            <ThemedText style={styles.cardSubtitle}>{subtitle}</ThemedText>
+            <ThemedText
+              style={[
+                styles.cardTitle,
+                isDark && theme && { color: theme.text },
+              ]}
+            >
+              {label}
+            </ThemedText>
+            <ThemedText
+              style={[
+                styles.cardSubtitle,
+                isDark && theme && { color: theme.textSecondary },
+              ]}
+            >
+              {subtitle}
+            </ThemedText>
           </View>
-          <Feather name="chevron-right" size={20} color={D.chevronTint} />
+          <Feather name="chevron-right" size={20} color={chevronColor} />
         </Pressable>
       </Animated.View>
     </Animated.View>
@@ -137,9 +173,8 @@ export default function CategorySelectScreen() {
   const insets = useSafeAreaInsets();
   const { formData, entryType } = route.params;
   const isStaff = entryType === "non_dp";
-  const categories = isStaff
-    ? [STAFF_CATEGORY]
-    : DP_CATEGORIES;
+  const categories = isStaff ? [STAFF_CATEGORY] : DP_CATEGORIES;
+  const { theme, isDark } = useTheme();
 
   const handleCategoryPress = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -147,8 +182,23 @@ export default function CategorySelectScreen() {
     navigation.navigate(screenName as any, { formData });
   };
 
+  const safeAreaBg = isDark ? theme.backgroundRoot : D.screenBg;
+  const userCardBg = isDark ? theme.backgroundDefault : D.cardBg;
+  const userCardBorder = isDark ? theme.border : D.cardBorder;
+  const userNameColor = isDark ? theme.text : "#000";
+  const rolePillBg = isDark ? theme.backgroundSecondary : D.brandRedMid;
+  const roleTextColor = isDark ? theme.text : D.brandRed;
+  const phonePillBg = isDark ? theme.backgroundSecondary : "#F8FAFC";
+  const phonePillBorder = isDark ? theme.border : "#F1F5F9";
+  const phoneTextColor = isDark ? theme.textSecondary : "#475569";
+  const headerTitleColor = isDark ? theme.textSecondary : "#94A3B8";
+  const headerLineColor = isDark ? theme.border : "#E2E8F0";
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
+    <SafeAreaView
+      style={[styles.safeArea, isDark && { backgroundColor: safeAreaBg }]}
+      edges={["bottom"]}
+    >
       <ScrollView
         style={styles.flex}
         contentContainerStyle={[
@@ -158,36 +208,72 @@ export default function CategorySelectScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Profile Card - Same as your image */}
-        <View style={styles.userCard}>
+        <View
+          style={[
+            styles.userCard,
+            isDark && {
+              backgroundColor: userCardBg,
+              borderColor: userCardBorder,
+            },
+          ]}
+        >
           <View style={styles.avatar}>
             <Feather name="user" size={18} color="#FFF" />
           </View>
           <View style={styles.userCardCenter}>
-            <ThemedText style={styles.userName}>
+            <ThemedText
+              style={[styles.userName, isDark && { color: userNameColor }]}
+            >
               {formData.name || "ddd"}
             </ThemedText>
-            <View style={styles.rolePill}>
-              <ThemedText style={styles.roleText}>
+            <View
+              style={[
+                styles.rolePill,
+                isDark && { backgroundColor: rolePillBg },
+              ]}
+            >
+              <ThemedText
+                style={[styles.roleText, isDark && { color: roleTextColor }]}
+              >
                 {isStaff ? "Staff" : "Driver Partner"}
               </ThemedText>
             </View>
           </View>
-          <View style={styles.phonePill}>
+          <View
+            style={[
+              styles.phonePill,
+              isDark && {
+                backgroundColor: phonePillBg,
+                borderColor: phonePillBorder,
+              },
+            ]}
+          >
             <Feather
               name="phone"
               size={10}
-              color={D.brandRed}
+              color={isDark ? theme.primary : D.brandRed}
               style={{ marginRight: 4 }}
             />
-            <ThemedText style={styles.phoneText}>
+            <ThemedText
+              style={[styles.phoneText, isDark && { color: phoneTextColor }]}
+            >
               {formData.phone || "7474747477"}
             </ThemedText>
           </View>
         </View>
 
         <View style={styles.headerRow}>
-          <ThemedText style={styles.headerTitle}>CATEGORIES</ThemedText>
-          <View style={styles.headerLine} />
+          <ThemedText
+            style={[styles.headerTitle, isDark && { color: headerTitleColor }]}
+          >
+            CATEGORIES
+          </ThemedText>
+          <View
+            style={[
+              styles.headerLine,
+              isDark && { backgroundColor: headerLineColor },
+            ]}
+          />
         </View>
 
         {/* Category List - Cards are now bigger */}
@@ -201,6 +287,8 @@ export default function CategorySelectScreen() {
               iconLibrary={cat.icon_library}
               delay={80 + i * 50}
               onPress={() => handleCategoryPress(cat.id)}
+              isDark={isDark}
+              theme={theme}
             />
           ))}
         </View>

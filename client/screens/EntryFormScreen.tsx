@@ -13,6 +13,7 @@ import * as Haptics from "expo-haptics";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { AppFooter, useFooterTotalHeight } from "@/components/AppFooter";
+import { useTheme } from "@/hooks/useTheme";
 import {
   RootStackParamList,
   EntryFormData,
@@ -36,6 +37,7 @@ export default function EntryFormScreen() {
   const route = useRoute<EntryFormRouteProp>();
   const footerTotalHeight = useFooterTotalHeight();
   const entryType = route.params?.entryType;
+  const { theme, isDark } = useTheme();
 
   const [formData, setFormData] = useState<EntryFormData>({
     phone: "",
@@ -81,8 +83,28 @@ export default function EntryFormScreen() {
 
   const isPhoneFilled = formData.phone.length >= 10;
 
+  const containerBg = isDark ? theme.backgroundRoot : undefined;
+  const illustrationBg = isDark ? theme.backgroundDefault : undefined;
+  const titleColor = isDark ? theme.text : undefined;
+  const subtitleColor = isDark ? theme.textSecondary : undefined;
+  const phoneRowBg = isDark ? theme.backgroundSecondary : undefined;
+  const phoneRowBorder = isDark ? theme.border : undefined;
+  const phoneRowValidBorder = isDark ? "rgba(179, 29, 56, 0.3)" : undefined;
+  const prefixColor = isDark ? theme.text : undefined;
+  const prefixDividerBg = isDark ? theme.border : undefined;
+  const phoneInputColor = isDark ? theme.text : undefined;
+  const placeholderColor = isDark ? theme.textSecondary : "#A2ACB1";
+  const labelColor = isDark ? theme.text : undefined;
+  const inputWrapperBg = isDark ? theme.backgroundSecondary : undefined;
+  const inputWrapperBorder = isDark ? theme.border : undefined;
+  const inputColor = isDark ? theme.text : undefined;
+  const optionalLabelColor = isDark ? theme.textSecondary : undefined;
+  const nextBtnBg = isDark ? (isFormValid ? theme.primary : theme.backgroundTertiary) : undefined;
+  const nextTextColor = isDark ? (isFormValid ? theme.onPrimary : theme.textSecondary) : undefined;
+  const disabledBtnBg = isDark ? theme.backgroundTertiary : undefined;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && containerBg && { backgroundColor: containerBg }]}>
       <KeyboardAwareScrollViewCompat
         contentContainerStyle={[
           styles.scrollContent,
@@ -92,7 +114,7 @@ export default function EntryFormScreen() {
         ]}
       >
         {/* Header illustration area — Figma: pt-10 pb-2, h-[140px] */}
-        <View style={styles.illustrationWrapper}>
+        <View style={[styles.illustrationWrapper, isDark && illustrationBg && { backgroundColor: illustrationBg }]}>
           <Image
             source={require("../../assets/images/car.png")}
             style={styles.illustration}
@@ -104,8 +126,8 @@ export default function EntryFormScreen() {
         <View style={styles.mainContent}>
           {/* Title section — gap-2, center */}
           <View style={styles.titleSection}>
-            <Text style={styles.title}>Create Visitor Entry</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, isDark && titleColor && { color: titleColor }]}>Create Visitor Entry</Text>
+            <Text style={[styles.subtitle, isDark && subtitleColor && { color: subtitleColor }]}>
               Please enter the phone number of the visitor
             </Text>
           </View>
@@ -117,15 +139,16 @@ export default function EntryFormScreen() {
               <View
                 style={[
                   styles.phoneRow,
-                  isPhoneFilled && styles.phoneRowValid,
+                  isDark && phoneRowBg && { backgroundColor: phoneRowBg, borderColor: isPhoneFilled ? phoneRowValidBorder : phoneRowBorder },
+                  !isDark && isPhoneFilled && styles.phoneRowValid,
                 ]}
               >
-                <Text style={styles.prefix}>+91</Text>
-                <View style={styles.prefixDivider} />
+                <Text style={[styles.prefix, isDark && prefixColor && { color: prefixColor }]}>+91</Text>
+                <View style={[styles.prefixDivider, isDark && prefixDividerBg && { backgroundColor: prefixDividerBg }]} />
                 <TextInput
-                  style={styles.phoneInput}
+                  style={[styles.phoneInput, isDark && phoneInputColor && { color: phoneInputColor }]}
                   placeholder="Phone number"
-                  placeholderTextColor="#A2ACB1"
+                  placeholderTextColor={placeholderColor}
                   keyboardType="phone-pad"
                   value={formData.phone}
                   onChangeText={(v) => updateField("phone", v)}
@@ -136,14 +159,14 @@ export default function EntryFormScreen() {
 
             {/* Name — label + input */}
             <View style={styles.field}>
-              <Text style={styles.label}>
+              <Text style={[styles.label, isDark && labelColor && { color: labelColor }]}>
                 Name <Text style={styles.requiredAsterisk}>*</Text>
               </Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, isDark && inputWrapperBg && { backgroundColor: inputWrapperBg, borderColor: inputWrapperBorder }]}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, isDark && inputColor && { color: inputColor }]}
                   placeholder="Enter full name"
-                  placeholderTextColor="#A2ACB1"
+                  placeholderTextColor={placeholderColor}
                   value={formData.name}
                   onChangeText={(v) => updateField("name", v)}
                 />
@@ -152,15 +175,15 @@ export default function EntryFormScreen() {
 
             {/* Vehicle — optional label */}
             <View style={styles.field}>
-              <Text style={styles.label}>
+              <Text style={[styles.label, isDark && labelColor && { color: labelColor }]}>
                 Vehicle Number{" "}
-                <Text style={styles.optionalLabel}>(optional)</Text>
+                <Text style={[styles.optionalLabel, isDark && optionalLabelColor && { color: optionalLabelColor }]}>(optional)</Text>
               </Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, isDark && inputWrapperBg && { backgroundColor: inputWrapperBg, borderColor: inputWrapperBorder }]}>
                 <TextInput
-                  style={[styles.input, styles.vehicleInput]}
+                  style={[styles.input, styles.vehicleInput, isDark && inputColor && { color: inputColor }]}
                   placeholder="e.g. HR55AB3849"
-                  placeholderTextColor="#A2ACB1"
+                  placeholderTextColor={placeholderColor}
                   value={formData.vehicle_reg_number}
                   onChangeText={(v) =>
                     updateField("vehicle_reg_number", v)
@@ -176,12 +199,13 @@ export default function EntryFormScreen() {
               disabled={!isFormValid}
               style={({ pressed }) => [
                 styles.nextBtn,
-                !isFormValid && styles.disabledBtn,
+                !isFormValid && !isDark && styles.disabledBtn,
+                isDark && { backgroundColor: nextBtnBg },
                 isFormValid && styles.nextBtnActive,
                 pressed && isFormValid && styles.nextBtnPressed,
               ]}
             >
-              <Text style={styles.nextText}>Next</Text>
+              <Text style={[styles.nextText, isDark && { color: nextTextColor }]}>Next</Text>
             </Pressable>
           </View>
         </View>

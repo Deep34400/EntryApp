@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { BackArrow } from "@/components/BackArrow";
+import { useTheme } from "@/hooks/useTheme";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { getEntryTypeDisplayLabel } from "@/utils/entryType";
 
@@ -61,6 +62,7 @@ export default function TokenDisplayScreen() {
   const route = useRoute<TokenDisplayRoute>();
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
+  const { theme, isDark } = useTheme();
 
   const params: TokenDisplayRouteParams = route.params ?? {};
   const {
@@ -99,8 +101,23 @@ export default function TokenDisplayScreen() {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
+  const rootBg = isDark ? theme.backgroundRoot : "#FFFFFF";
+  const driverCardBg = isDark ? theme.surface : "#FFF";
+  const driverCardBorder = isDark ? theme.border : CARD_BORDER;
+  const avatarBg = isDark ? theme.backgroundTertiary : CARD_BORDER;
+  const textPrimary = isDark ? theme.text : TEXT_PRIMARY;
+  const textSecondary = isDark ? theme.textSecondary : TEXT_SECONDARY;
+  const assignmentCardBg = isDark ? theme.surface : "#FFF";
+  const assignmentHeaderColor = isDark ? theme.text : undefined;
+  const assignmentDividerColor = isDark ? theme.border : CARD_BORDER;
+  const bottomBarBg = isDark ? theme.backgroundDefault : "#FFF";
+  const shareBtnBorder = isDark ? theme.primary : ACCENT_RED;
+  const shareTextColor = isDark ? theme.primary : ACCENT_RED;
+  const trackBtnBg = isDark ? theme.primary : ACCENT_RED;
+  const trackTextColor = isDark ? theme.onPrimary : "#FFF";
+
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, isDark && { backgroundColor: rootBg }]}>
       <BackArrow color="#FFFFFF" />
 
       {/* GREEN HEADER */}
@@ -118,19 +135,19 @@ export default function TokenDisplayScreen() {
 
       {/* DRIVER CARD */}
       <View style={styles.driverCardFloating}>
-        <View style={styles.driverCard}>
+        <View style={[styles.driverCard, isDark && { backgroundColor: driverCardBg, borderColor: driverCardBorder }]}>
           <View style={styles.driverLeft}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{avatarChar}</Text>
+            <View style={[styles.avatar, isDark && { backgroundColor: avatarBg }]}>
+              <Text style={[styles.avatarText, isDark && { color: textPrimary }]}>{avatarChar}</Text>
             </View>
             <View style={styles.driverTextBlock}>
-              <Text style={styles.name} numberOfLines={1}>
+              <Text style={[styles.name, isDark && { color: textPrimary }]} numberOfLines={1}>
                 {displayDriverName}
               </Text>
-              <Text style={styles.role}>{roleLabel || "—"}</Text>
+              <Text style={[styles.role, isDark && { color: textSecondary }]}>{roleLabel || "—"}</Text>
             </View>
           </View>
-          <Text style={styles.phone} numberOfLines={1}>
+          <Text style={[styles.phone, isDark && { color: textPrimary }]} numberOfLines={1}>
             {displayPhone}
           </Text>
         </View>
@@ -150,25 +167,25 @@ export default function TokenDisplayScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ASSIGNMENT CARD */}
-        <View style={styles.assignmentCard}>
-          <Text style={styles.assignmentHeader}>Assignment</Text>
-          <View style={styles.assignmentDivider} />
+        <View style={[styles.assignmentCard, isDark && { backgroundColor: assignmentCardBg, borderColor: theme.border }]}>
+          <Text style={[styles.assignmentHeader, isDark && { color: assignmentHeaderColor }]}>Assignment</Text>
+          <View style={[styles.assignmentDivider, isDark && { backgroundColor: assignmentDividerColor }]} />
 
           <View style={styles.assignmentRow}>
-            <Text style={styles.assignmentLabel}>Purpose</Text>
-            <Text style={styles.assignmentValue}>{displayPurpose}</Text>
+            <Text style={[styles.assignmentLabel, isDark && { color: textSecondary }]}>Purpose</Text>
+            <Text style={[styles.assignmentValue, isDark && { color: textPrimary }]}>{displayPurpose}</Text>
           </View>
 
           {!isStaff && (
             <View style={styles.assignmentRow}>
-              <Text style={styles.assignmentLabel}>Agent</Text>
-              <Text style={styles.assignmentValue}>{displayAssignee}</Text>
+              <Text style={[styles.assignmentLabel, isDark && { color: textSecondary }]}>Agent</Text>
+              <Text style={[styles.assignmentValue, isDark && { color: textPrimary }]}>{displayAssignee}</Text>
             </View>
           )}
 
           <View style={styles.assignmentRow}>
-            <Text style={styles.assignmentLabel}>Desk/Location</Text>
-            <Text style={styles.assignmentValue}>{displayDeskLocation}</Text>
+            <Text style={[styles.assignmentLabel, isDark && { color: textSecondary }]}>Desk/Location</Text>
+            <Text style={[styles.assignmentValue, isDark && { color: textPrimary }]}>{displayDeskLocation}</Text>
           </View>
         </View>
       </ScrollView>
@@ -181,6 +198,7 @@ export default function TokenDisplayScreen() {
             paddingBottom: insets.bottom + BOTTOM_PADDING,
             paddingHorizontal: BOTTOM_PADDING,
           },
+          isDark && { backgroundColor: bottomBarBg },
         ]}
       >
         <Pressable
@@ -193,10 +211,11 @@ export default function TokenDisplayScreen() {
           }}
           style={({ pressed }) => [
             styles.shareBtn,
+            isDark && { borderColor: shareBtnBorder },
             pressed && styles.buttonPressed,
           ]}
         >
-          <Text style={styles.shareText}>Share Receipt</Text>
+          <Text style={[styles.shareText, isDark && { color: shareTextColor }]}>Share Receipt</Text>
         </Pressable>
 
         <Pressable
@@ -205,10 +224,11 @@ export default function TokenDisplayScreen() {
           }
           style={({ pressed }) => [
             styles.trackBtn,
+            isDark && { backgroundColor: trackBtnBg },
             pressed && styles.buttonPressed,
           ]}
         >
-          <Text style={styles.trackText}>Track Tickets</Text>
+          <Text style={[styles.trackText, isDark && { color: trackTextColor }]}>Track Tickets</Text>
         </Pressable>
       </View>
     </View>

@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { AppFooter, useFooterTotalHeight } from "@/components/AppFooter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
+import { useTheme } from "@/hooks/useTheme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
@@ -71,6 +72,7 @@ export default function ProfileScreen() {
   const footerTotalHeight = useFooterTotalHeight();
   const auth = useAuth();
   const { user: contextUser, clearUser } = useUser();
+  const { theme, isDark } = useTheme();
 
   const displayName =
     auth.user?.name?.trim() || contextUser?.name?.trim() || "—";
@@ -108,8 +110,19 @@ export default function ProfileScreen() {
     );
   };
 
+  const containerBg = isDark ? theme.backgroundDefault : BG;
+  const avatarBg = isDark ? theme.backgroundTertiary : AVATAR_BG;
+  const avatarInitialsColor = isDark ? theme.text : INITIALS_COLOR;
+  const nameColor = isDark ? theme.text : NAME_COLOR;
+  const phoneColor = isDark ? theme.text : PHONE_COLOR;
+  const logoutCardBg = isDark ? theme.surface : BG;
+  const logoutBorder = isDark ? theme.border : LOGOUT_BORDER;
+  const logoutIconBg = isDark ? theme.backgroundSecondary : LOGOUT_ICON_BG;
+  const logoutIconColor = isDark ? theme.primary : LOGOUT_ICON_COLOR;
+  const logoutTextColor = isDark ? theme.text : LOGOUT_TEXT_COLOR;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: containerBg }]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
@@ -125,15 +138,15 @@ export default function ProfileScreen() {
           entering={FadeInDown.delay(0).springify()}
           style={styles.profileSection}
         >
-          <View style={styles.avatarWrap}>
-            <Text style={styles.avatarInitials} numberOfLines={1}>
+          <View style={[styles.avatarWrap, { backgroundColor: avatarBg }]}>
+            <Text style={[styles.avatarInitials, { color: avatarInitialsColor }]} numberOfLines={1}>
               {initials}
             </Text>
           </View>
-          <Text style={styles.userName} numberOfLines={2} ellipsizeMode="tail">
+          <Text style={[styles.userName, { color: nameColor }]} numberOfLines={2} ellipsizeMode="tail">
             {displayName}
           </Text>
-          <Text style={styles.userPhone} numberOfLines={1} ellipsizeMode="tail">
+          <Text style={[styles.userPhone, { color: phoneColor }]} numberOfLines={1} ellipsizeMode="tail">
             {phoneFormatted}
           </Text>
         </Animated.View>
@@ -146,13 +159,14 @@ export default function ProfileScreen() {
             onPress={handleLogout}
             style={({ pressed }) => [
               styles.logoutCard,
+              { backgroundColor: logoutCardBg, borderColor: logoutBorder },
               pressed && styles.logoutCardPressed,
             ]}
           >
-            <View style={styles.logoutIconWrap}>
-              <Feather name="log-out" size={20} color={LOGOUT_ICON_COLOR} />
+            <View style={[styles.logoutIconWrap, { backgroundColor: logoutIconBg }]}>
+              <Feather name="log-out" size={20} color={logoutIconColor} />
             </View>
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={[styles.logoutText, { color: logoutTextColor }]}>Logout</Text>
           </Pressable>
         </Animated.View>
       </ScrollView>
@@ -165,7 +179,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BG,
   },
   scrollView: {
     flex: 1,
@@ -184,7 +197,6 @@ const styles = StyleSheet.create({
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: AVATAR_BG,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -192,13 +204,11 @@ const styles = StyleSheet.create({
     fontFamily: FONT_SERIF,
     fontSize: 36,
     fontWeight: "700",
-    color: INITIALS_COLOR,
   },
   userName: {
     fontFamily: FONT_SERIF,
     fontSize: 22,
     fontWeight: "700",
-    color: NAME_COLOR,
     textAlign: "center",
     marginTop: GAP_AVATAR_TO_NAME,
     paddingHorizontal: 16,
@@ -207,7 +217,6 @@ const styles = StyleSheet.create({
     fontFamily: FONT_SERIF,
     fontSize: 16,
     fontWeight: "400",
-    color: PHONE_COLOR,
     textAlign: "center",
     marginTop: GAP_NAME_TO_PHONE,
     paddingHorizontal: 16,
@@ -223,9 +232,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     height: LOGOUT_CARD_HEIGHT,
     borderRadius: LOGOUT_CARD_HEIGHT / 2,
-    backgroundColor: BG,
     borderWidth: 1,
-    borderColor: LOGOUT_BORDER,
     paddingLeft: 12,
   },
   logoutCardPressed: {
@@ -235,7 +242,6 @@ const styles = StyleSheet.create({
     width: LOGOUT_ICON_SIZE,
     height: LOGOUT_ICON_SIZE,
     borderRadius: LOGOUT_ICON_SIZE / 2,
-    backgroundColor: LOGOUT_ICON_BG,
     alignItems: "center",
     justifyContent: "center",
     marginRight: LOGOUT_ICON_TEXT_GAP,
@@ -244,6 +250,5 @@ const styles = StyleSheet.create({
     fontFamily: FONT_SERIF,
     fontSize: 18,
     fontWeight: "500",
-    color: LOGOUT_TEXT_COLOR,
   },
 });

@@ -28,6 +28,7 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
+import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing } from "@/constants/theme";
 import { createTicket } from "@/apis";
 import { UnauthorizedError } from "@/api/requestClient";
@@ -74,6 +75,8 @@ function PurposeGridCard({
   onPress,
   selected,
   delay,
+  isDark,
+  theme,
 }: {
   displayTitle: string;
   iconKey: string;
@@ -81,11 +84,43 @@ function PurposeGridCard({
   onPress: () => void;
   selected: boolean;
   delay: number;
+  isDark?: boolean;
+  theme?: {
+    backgroundDefault: string;
+    border: string;
+    text: string;
+    textSecondary: string;
+    primary: string;
+  };
 }) {
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
+
+  const cardBg =
+    isDark && theme
+      ? selected
+        ? theme.backgroundDefault
+        : theme.backgroundDefault
+      : undefined;
+  const cardBorder = isDark && theme ? theme.border : undefined;
+  const iconWrapBg =
+    isDark && theme
+      ? selected
+        ? theme.primary
+        : theme.backgroundDefault
+      : undefined;
+  const iconColor =
+    isDark && theme
+      ? selected
+        ? "#FFF"
+        : theme.primary
+      : selected
+        ? "#FFF"
+        : D.brandRed;
+  const labelColor =
+    isDark && theme ? (selected ? theme.text : theme.textSecondary) : undefined;
 
   return (
     <Animated.View
@@ -101,7 +136,15 @@ function PurposeGridCard({
           onPressOut={() => {
             scale.value = withSpring(1, { damping: 18, stiffness: 220 });
           }}
-          style={[styles.gridCard, selected && styles.gridCardSelected]}
+          style={[
+            styles.gridCard,
+            selected && styles.gridCardSelected,
+            isDark &&
+              cardBg !== undefined && {
+                backgroundColor: cardBg,
+                borderColor: cardBorder,
+              },
+          ]}
         >
           {selected && (
             <Animated.View
@@ -115,13 +158,15 @@ function PurposeGridCard({
             style={[
               styles.gridCardIconWrap,
               selected && styles.gridCardIconWrapSelected,
+              isDark &&
+                iconWrapBg !== undefined && { backgroundColor: iconWrapBg },
             ]}
           >
             <AppIcon
               name={iconKey || "circle"}
               library={iconLibrary}
               size={20}
-              color={selected ? "#FFF" : D.brandRed}
+              color={iconColor}
             />
           </View>
           <ThemedText
@@ -131,6 +176,7 @@ function PurposeGridCard({
               selected
                 ? styles.gridCardLabelSelected
                 : styles.gridCardLabelDefault,
+              isDark && labelColor !== undefined && { color: labelColor },
             ]}
             numberOfLines={2}
           >
@@ -149,6 +195,7 @@ export default function SettlementPurposeScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useUser();
   const { accessToken, clearAuth } = useAuth();
+  const { theme, isDark } = useTheme();
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
@@ -248,7 +295,13 @@ export default function SettlementPurposeScreen() {
     !purposeConfig;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        isDark && { backgroundColor: theme.backgroundRoot },
+      ]}
+      edges={["bottom"]}
+    >
       <ScrollView
         style={styles.flex}
         contentContainerStyle={[
@@ -259,7 +312,13 @@ export default function SettlementPurposeScreen() {
       >
         <Animated.View
           entering={FadeInDown.delay(0).springify()}
-          style={styles.userCard}
+          style={[
+            styles.userCard,
+            isDark && {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+            },
+          ]}
         >
           <View style={styles.avatar}>
             <Feather name="user" size={18} color="#FFF" />
@@ -357,6 +416,8 @@ export default function SettlementPurposeScreen() {
                 delay={80 + i * 45}
                 onPress={() => handleCardPress(item.key)}
                 selected={selectedItem === item.key}
+                isDark={isDark}
+                theme={theme}
               />
             ))}
           </View>
@@ -367,6 +428,7 @@ export default function SettlementPurposeScreen() {
         style={[
           styles.bottomBar,
           { paddingBottom: insets.bottom + Spacing.sm },
+          isDark && { backgroundColor: theme.backgroundDefault },
         ]}
       >
         <Pressable
@@ -374,7 +436,12 @@ export default function SettlementPurposeScreen() {
           disabled={isCtaDisabled}
           style={({ pressed }) => [
             styles.ctaButton,
-            !selectedItem && styles.ctaButtonInactive,
+            isDark && {
+              backgroundColor: isCtaDisabled
+                ? theme.backgroundTertiary
+                : theme.primary,
+            },
+            !selectedItem && !isDark && styles.ctaButtonInactive,
             pressed &&
               selectedItem &&
               !submitMutation.isPending &&
@@ -382,17 +449,30 @@ export default function SettlementPurposeScreen() {
           ]}
         >
           {submitMutation.isPending ? (
-            <ActivityIndicator size="small" color="#FFF" />
+            <ActivityIndicator
+              size="small"
+              color={isDark ? theme.onPrimary : "#FFF"}
+            />
           ) : (
             <View style={styles.ctaInner}>
-              <ThemedText type="label" style={styles.ctaText}>
+              <ThemedText
+                type="label"
+                style={[
+                  styles.ctaText,
+                  isDark && {
+                    color: isCtaDisabled
+                      ? theme.textSecondary
+                      : theme.onPrimary,
+                  },
+                ]}
+              >
                 {selectedItem ? "Confirm & Generate Token" : "Select a Purpose"}
               </ThemedText>
               {selectedItem && (
                 <Feather
                   name="arrow-right"
                   size={17}
-                  color="#FFF"
+                  color={isDark ? theme.onPrimary : "#FFF"}
                   style={{ marginLeft: 8 }}
                 />
               )}

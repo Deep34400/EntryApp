@@ -11,11 +11,13 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
+import { useTheme } from "@/hooks/useTheme";
 
 const SHIMMER_BG = "#E8EBEC";
 const SHIMMER_HIGHLIGHT = "#F2F3F5";
 
 export function ShimmerBox({ style }: { style?: ViewStyle }) {
+  const { theme, isDark } = useTheme();
   const opacity = useSharedValue(0.4);
   useEffect(() => {
     opacity.value = withRepeat(
@@ -26,9 +28,10 @@ export function ShimmerBox({ style }: { style?: ViewStyle }) {
   }, [opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const bgColor = isDark ? theme.backgroundTertiary : SHIMMER_BG;
 
   return (
-    <Animated.View style={[styles.box, style, animatedStyle]} />
+    <Animated.View style={[styles.box, { backgroundColor: bgColor }, style, animatedStyle]} />
   );
 }
 
@@ -41,10 +44,13 @@ const styles = StyleSheet.create({
 
 /** Grid of shimmer cards matching purpose grid (2 columns). */
 export function PurposeGridShimmer() {
+  const { theme, isDark } = useTheme();
+  const cardBg = isDark ? theme.backgroundDefault : "#FFFFFF";
+  const cardBorder = isDark ? theme.border : "#E8EBEC";
   return (
     <View style={gridStyles.grid}>
       {Array.from({ length: 6 }).map((_, i) => (
-        <View key={i} style={gridStyles.cardWrap}>
+        <View key={i} style={[gridStyles.cardWrap, isDark && { backgroundColor: cardBg, borderColor: cardBorder }]}>
           <ShimmerBox style={gridStyles.icon} />
           <ShimmerBox style={gridStyles.label} />
         </View>
@@ -85,15 +91,19 @@ const gridStyles = StyleSheet.create({
 
 /** Shimmer for ticket list cards (matches TicketCard layout). */
 export function TicketListShimmer({ count = 5 }: { count?: number }) {
+  const { theme, isDark } = useTheme();
+  const cardBg = isDark ? theme.backgroundDefault : "#FFFFFF";
+  const cardBorder = isDark ? theme.border : "#E8EBEC";
+  const dividerColor = isDark ? theme.border : "#E8EBEC";
   return (
     <View style={listStyles.container}>
       {Array.from({ length: count }).map((_, i) => (
-        <View key={i} style={listStyles.card}>
+        <View key={i} style={[listStyles.card, isDark && { backgroundColor: cardBg, borderColor: cardBorder }]}>
           <View style={listStyles.cardTop}>
             <ShimmerBox style={listStyles.token} />
             <ShimmerBox style={listStyles.badge} />
           </View>
-          <View style={listStyles.divider} />
+          <View style={[listStyles.divider, isDark && { backgroundColor: dividerColor }]} />
           <View style={listStyles.driverRow}>
             <ShimmerBox style={listStyles.avatar} />
             <View style={listStyles.driverInfo}>

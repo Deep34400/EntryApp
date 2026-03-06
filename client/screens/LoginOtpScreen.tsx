@@ -59,7 +59,7 @@ export default function LoginOtpScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProp<RootStackParamList, "LoginOtp">>();
   const insets = useSafeAreaInsets();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const auth = useAuth();
   const { setUser: setUserContext } = useUser();
   const otpInputRef = useRef<TextInput>(null);
@@ -273,12 +273,16 @@ export default function LoginOtpScreen() {
   }
 
   if (step === "otp") {
+    const otpCardBg = isDark ? theme.backgroundDefault : loginTokens.cardBg;
+    const otpBoxBorder = isDark ? theme.border : loginTokens.otpBoxBorder;
+    const otpBoxBorderActive = isDark ? theme.primary : loginTokens.otpBoxBorderActive;
+    const otpTextColor = isDark ? theme.text : loginTokens.otpText;
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: loginTokens.cardBg }]}
+        style={[styles.container, { backgroundColor: otpCardBg }]}
         edges={["top"]}
       >
-        <BackArrow onPress={goBackToPhone} color={loginTokens.otpText} />
+        <BackArrow onPress={goBackToPhone} color={isDark ? theme.text : loginTokens.otpText} />
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboardView}
@@ -328,8 +332,9 @@ export default function LoginOtpScreen() {
                         marginRight: i < OTP_LENGTH - 1 ? otpLayout.gapSize : 0,
                         borderColor:
                           i === otp.length
-                            ? loginTokens.otpBoxBorderActive
-                            : loginTokens.otpBoxBorder,
+                            ? otpBoxBorderActive
+                            : otpBoxBorder,
+                        backgroundColor: isDark ? theme.backgroundSecondary : undefined,
                         borderWidth: i === otp.length ? 2 : 1,
                       },
                     ]}
@@ -339,7 +344,7 @@ export default function LoginOtpScreen() {
                       style={[
                         styles.otpBoxDigit,
                         {
-                          color: loginTokens.otpText,
+                          color: otpTextColor,
                           opacity: otp[i] ? 1 : 0.4,
                           fontSize: otpLayout.digitFontSize,
                         },
@@ -378,6 +383,22 @@ export default function LoginOtpScreen() {
   }
 
   // --- PHONE SCREEN (FIXED FOR PRODUCTION BUILD SCROLLING) ---
+  const whiteCardBg = isDark ? theme.backgroundDefault : "#FFFFFF";
+  const welcomeTitleColor = isDark ? theme.text : "#000";
+  const welcomeSubtitleColor = isDark ? theme.textSecondary : "#666";
+  const phoneInputWrapBg = isDark ? theme.backgroundSecondary : "#F9FAFB";
+  const phoneInputBorder = phoneFocused
+    ? (isDark ? theme.primary : loginTokens.headerRed)
+    : (isDark ? theme.border : "#E0E0E0");
+  const phonePrefixColor = isDark ? theme.text : "#333";
+  const phoneInputColor = isDark ? theme.text : "#000";
+  const placeholderColor = isDark ? theme.textSecondary : "#A2ACB1";
+  const sentOtpBtnBg = isPhoneValid
+    ? (isDark ? theme.primary : loginTokens.headerRed)
+    : (isDark ? theme.backgroundTertiary : "#D7D7D7");
+  const termsTextColor = isDark ? theme.textSecondary : "#999";
+  const termsLinkColor = isDark ? theme.link : "#17A589";
+
   return (
     <View
       style={[styles.container, { backgroundColor: loginTokens.headerRed }]}
@@ -388,7 +409,7 @@ export default function LoginOtpScreen() {
         </Animated.View>
       </View>
 
-      <View style={styles.whiteCard}>
+      <View style={[styles.whiteCard, { backgroundColor: whiteCardBg }]}>
         <KeyboardAvoidingView
           // Changed to height for Android Build stability
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -405,8 +426,8 @@ export default function LoginOtpScreen() {
           >
             <View style={{ width: "100%", alignItems: "center" }}>
               <View style={styles.welcomeBlock}>
-                <ThemedText style={styles.welcomeTitle}>Welcome</ThemedText>
-                <ThemedText style={styles.welcomeSubtitle}>
+                <ThemedText style={[styles.welcomeTitle, { color: welcomeTitleColor }]}>Welcome</ThemedText>
+                <ThemedText style={[styles.welcomeSubtitle, { color: welcomeSubtitleColor }]}>
                   Entry/ Exit Application
                 </ThemedText>
               </View>
@@ -415,17 +436,16 @@ export default function LoginOtpScreen() {
                 style={[
                   styles.phoneInputWrap,
                   {
-                    borderColor: phoneFocused
-                      ? loginTokens.headerRed
-                      : "#E0E0E0",
+                    borderColor: phoneInputBorder,
+                    backgroundColor: phoneInputWrapBg,
                   },
                 ]}
               >
-                <ThemedText style={styles.phonePrefix}>🇮🇳 +91</ThemedText>
+                <ThemedText style={[styles.phonePrefix, { color: phonePrefixColor }]}>🇮🇳 +91</ThemedText>
                 <TextInput
-                  style={styles.phoneInput}
+                  style={[styles.phoneInput, { color: phoneInputColor }]}
                   placeholder="Enter mobile number"
-                  placeholderTextColor="#A2ACB1"
+                  placeholderTextColor={placeholderColor}
                   value={phone}
                   onChangeText={(v) => setPhone(normalizePhoneInput(v))}
                   onFocus={() => {
@@ -447,23 +467,21 @@ export default function LoginOtpScreen() {
                 style={({ pressed }) => [
                   styles.sentOtpButton,
                   {
-                    backgroundColor: isPhoneValid
-                      ? loginTokens.headerRed
-                      : "#D7D7D7",
+                    backgroundColor: sentOtpBtnBg,
                     opacity: pressed ? 0.9 : 1,
                   },
                 ]}
               >
                 {loading ? (
-                  <ActivityIndicator color="#FFF" />
+                  <ActivityIndicator color={isDark ? theme.onPrimary : "#FFF"} />
                 ) : (
-                  <ThemedText style={styles.buttonText}>Sent OTP</ThemedText>
+                  <ThemedText style={[styles.buttonText, { color: isDark ? (!isPhoneValid ? theme.textSecondary : theme.onPrimary) : "#FFF" }]}>Sent OTP</ThemedText>
                 )}
               </Pressable>
             </View>
 
             <View style={styles.termsRow}>
-              <ThemedText style={styles.termsText}>
+              <ThemedText style={[styles.termsText, { color: termsTextColor }]}>
                 By continuing, I agree to the{" "}
               </ThemedText>
               <View
@@ -476,15 +494,15 @@ export default function LoginOtpScreen() {
                 <Pressable
                   onPress={() => Linking.openURL("https://example.com/terms")}
                 >
-                  <ThemedText style={styles.termsLink}>
+                  <ThemedText style={[styles.termsLink, { color: termsLinkColor }]}>
                     terms & conditions
                   </ThemedText>
                 </Pressable>
-                <ThemedText style={styles.termsText}> and </ThemedText>
+                <ThemedText style={[styles.termsText, { color: termsTextColor }]}> and </ThemedText>
                 <Pressable
                   onPress={() => Linking.openURL("https://example.com/privacy")}
                 >
-                  <ThemedText style={styles.termsLink}>
+                  <ThemedText style={[styles.termsLink, { color: termsLinkColor }]}>
                     privacy policy
                   </ThemedText>
                 </Pressable>
@@ -511,7 +529,6 @@ const styles = StyleSheet.create({
   hero: { alignItems: "center", justifyContent: "center" },
   whiteCard: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -32,
@@ -533,13 +550,11 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontWeight: "700",
     fontSize: 28,
-    color: "#000",
     textAlign: "center",
   },
   welcomeSubtitle: {
     fontWeight: "500",
     fontSize: 16,
-    color: "#666",
     marginTop: 4,
     textAlign: "center",
   },
@@ -551,16 +566,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderWidth: 1.5,
     borderRadius: 16,
-    backgroundColor: "#F9FAFB",
     marginBottom: 24,
   },
   phonePrefix: {
     fontWeight: "700",
     fontSize: 16,
-    color: "#333",
     marginRight: 10,
   },
-  phoneInput: { flex: 1, fontSize: 18, color: "#000" },
+  phoneInput: { flex: 1, fontSize: 18 },
   sentOtpButton: {
     width: "100%",
     height: 56,
@@ -579,8 +592,8 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     alignItems: "center",
   },
-  termsText: { fontSize: 12, color: "#999", textAlign: "center" },
-  termsLink: { color: "#17A589", fontWeight: "600", fontSize: 12 },
+  termsText: { fontSize: 12, textAlign: "center" },
+  termsLink: { fontWeight: "600", fontSize: 12 },
 
   otpContent: { width: "100%", paddingHorizontal: 16 },
   otpTitle: { fontSize: 28, fontWeight: "700", marginTop: 40 },

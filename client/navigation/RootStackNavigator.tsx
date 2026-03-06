@@ -210,9 +210,10 @@ export default function RootStackNavigator() {
         ...screenOptions,
         headerShadowVisible: false,
         headerStyle: {
+          ...(screenOptions.headerStyle as object),
           elevation: 0,
           shadowColor: "transparent",
-        } as Record<string, unknown>,
+        } as object,
         ...(SCREENS_WITH_BACK.includes(route.name as RootScreenName)
           ? {
               headerLeft: () =>

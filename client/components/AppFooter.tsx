@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/hooks/useTheme";
 import { canAccessScreen } from "@/permissions/rolePermissions";
 
 export type AppFooterTab = "Entry" | "Ticket" | "Account";
@@ -46,6 +47,10 @@ export function AppFooter({ activeTab }: AppFooterProps) {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { allowedRole } = useAuth();
+  const { theme, isDark } = useTheme();
+
+  const colorActive = isDark ? theme.tabIconSelected : COLOR_ACTIVE;
+  const colorInactive = isDark ? theme.tabIconDefault : COLOR_INACTIVE;
 
   const visibleTabs = useMemo(
     () => ALL_TABS.filter((tab) => canAccessScreen(tab.screen, allowedRole)),
@@ -76,12 +81,13 @@ export function AppFooter({ activeTab }: AppFooterProps) {
           paddingBottom: bottomInset,
           height: FOOTER_HEIGHT + bottomInset,
         },
+        isDark && { backgroundColor: theme.backgroundDefault, borderTopColor: theme.border },
       ]}
     >
       <View style={styles.tabRow}>
         {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id;
-          const color = isActive ? COLOR_ACTIVE : COLOR_INACTIVE;
+          const color = isActive ? colorActive : colorInactive;
 
           return (
             <Pressable

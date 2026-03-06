@@ -26,6 +26,10 @@ export function useScreenOptions({
     }),
 
     headerTintColor: theme.text,
+    // Explicit title color so header title is visible in dark mode (some stacks don't inherit headerTintColor for title)
+    headerTitleStyle: {
+      color: theme.text,
+    },
 
     headerStyle: {
       backgroundColor: isIOS && transparent

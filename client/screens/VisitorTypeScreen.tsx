@@ -48,6 +48,7 @@ import {
 } from "@/utils/validation";
 import { usePermissions } from "@/permissions/usePermissions";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/hooks/useTheme";
 import { getDriverDetails, type DriverDetails } from "@/apis/driver/driver.api";
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
@@ -85,16 +86,38 @@ function SegmentedPill({
   rightLabel,
   value,
   onSelect,
+  isDark,
+  theme,
 }: {
   leftLabel: string;
   rightLabel: string;
   value: "left" | "right";
   onSelect: (v: "left" | "right") => void;
+  isDark?: boolean;
+  theme?: {
+    backgroundSecondary: string;
+    text: string;
+    textSecondary: string;
+    primary: string;
+  };
 }) {
+  const trackBg = isDark && theme ? theme.backgroundSecondary : TOGGLE_TRACK;
+  const optionActiveBg = isDark && theme ? theme.backgroundSecondary : WHITE;
+  const labelInactiveColor =
+    isDark && theme ? theme.textSecondary : TOGGLE_TEXT_MUTED;
+  const labelActiveColor = isDark && theme ? theme.primary : RED;
   return (
-    <View style={[s.segmentedTrack, { height: TOGGLE_H }]}>
+    <View
+      style={[s.segmentedTrack, { height: TOGGLE_H, backgroundColor: trackBg }]}
+    >
       <Pressable
-        style={[s.segmentedOption, value === "left" && s.segmentedOptionActive]}
+        style={[
+          s.segmentedOption,
+          value === "left" && {
+            ...s.segmentedOptionActive,
+            backgroundColor: optionActiveBg,
+          },
+        ]}
         onPress={() => {
           if (value !== "left") {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -106,8 +129,8 @@ function SegmentedPill({
           style={[
             s.segmentedLabel,
             value === "left"
-              ? s.segmentedLabelActive
-              : s.segmentedLabelInactive,
+              ? { ...s.segmentedLabelActive, color: labelActiveColor }
+              : { ...s.segmentedLabelInactive, color: labelInactiveColor },
           ]}
         >
           {leftLabel}
@@ -116,7 +139,10 @@ function SegmentedPill({
       <Pressable
         style={[
           s.segmentedOption,
-          value === "right" && s.segmentedOptionActive,
+          value === "right" && {
+            ...s.segmentedOptionActive,
+            backgroundColor: optionActiveBg,
+          },
         ]}
         onPress={() => {
           if (value !== "right") {
@@ -129,8 +155,8 @@ function SegmentedPill({
           style={[
             s.segmentedLabel,
             value === "right"
-              ? s.segmentedLabelActive
-              : s.segmentedLabelInactive,
+              ? { ...s.segmentedLabelActive, color: labelActiveColor }
+              : { ...s.segmentedLabelInactive, color: labelInactiveColor },
           ]}
         >
           {rightLabel}
@@ -159,6 +185,7 @@ function FormInput({
   onFocused?: () => void;
   onBlurField?: (key: FocusedFieldKey) => void;
 }) {
+  const { theme, isDark } = useTheme();
   const handleFocus = useCallback(() => {
     onFocused?.();
     props.onFocus?.({} as any);
@@ -172,24 +199,38 @@ function FormInput({
     [fieldKey, onBlurField, props.onBlur],
   );
 
+  const labelColor = isDark ? theme.text : TEXT;
+  const rowBg = isDark ? theme.backgroundSecondary : "#FAFAFA";
+  const borderColor = isDark
+    ? isFocused
+      ? theme.primary
+      : theme.border
+    : isFocused
+      ? RED
+      : BORDER;
+  const prefixColor = isDark ? theme.textSecondary : MUTED;
+  const inputColor = isDark ? theme.text : TEXT;
+  const placeholderColor = isDark ? theme.textSecondary : MUTED;
+  const selectionColor = isDark ? theme.primary : RED;
+
   return (
     <View style={s.field}>
-      <Text style={s.label}>{label}</Text>
+      <Text style={[s.label, { color: labelColor }]}>{label}</Text>
       {prefix ? (
         <View
           style={[
             s.inputRow,
-            { height: INPUT_H },
-            isFocused && s.inputRowFocused,
+            { height: INPUT_H, backgroundColor: rowBg, borderColor },
+            isFocused && { borderColor },
           ]}
         >
-          <Text style={s.prefix}>{prefix}</Text>
+          <Text style={[s.prefix, { color: prefixColor }]}>{prefix}</Text>
           <TextInput
-            style={s.input}
-            placeholderTextColor={MUTED}
+            style={[s.input, { color: inputColor }]}
+            placeholderTextColor={placeholderColor}
             onFocus={handleFocus}
             onBlur={handleBlur}
-            selectionColor={RED}
+            selectionColor={selectionColor}
             {...props}
           />
         </View>
@@ -197,13 +238,18 @@ function FormInput({
         <TextInput
           style={[
             s.inputSingle,
-            { height: INPUT_H },
-            isFocused && s.inputSingleFocused,
+            {
+              height: INPUT_H,
+              backgroundColor: rowBg,
+              borderColor,
+              color: inputColor,
+            },
+            isFocused && { borderColor },
           ]}
-          placeholderTextColor={MUTED}
+          placeholderTextColor={placeholderColor}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          selectionColor={RED}
+          selectionColor={selectionColor}
           {...props}
         />
       )}
@@ -308,22 +354,56 @@ function VehicleField({
   });
   const isOpen = focused || open;
 
+  const { theme, isDark } = useTheme();
+  const labelColor = isDark ? theme.text : TEXT;
+  const rowBg = isDark ? theme.backgroundSecondary : "#FAFAFA";
+  const borderColor = isDark
+    ? isFocusedBorder
+      ? theme.primary
+      : theme.border
+    : isFocusedBorder
+      ? RED
+      : BORDER;
+  const inputColor = isDark ? theme.text : TEXT;
+  const placeholderColor = isDark ? theme.textSecondary : MUTED;
+  const selectionColor = isDark ? theme.primary : RED;
+  const clearCircleBg = isDark ? theme.backgroundTertiary : "#E0E4E6";
+  const clearXColor = isDark ? theme.textSecondary : MUTED;
+  const unifiedBoxBg = isDark ? theme.backgroundSecondary : "#FAFAFA";
+  const unifiedBoxBorder = isDark
+    ? isOpen
+      ? theme.primary
+      : theme.border
+    : isOpen
+      ? undefined
+      : BORDER;
+  const dropInnerBg = isDark ? theme.backgroundTertiary : "#F2F4F6";
+  const dropSeparatorColor = isDark ? theme.border : BORDER;
+  const dropRowSelBg = isDark ? theme.backgroundSecondary : RED_BG;
+  const dropRowRegColor = isDark ? theme.text : TEXT;
+  const dropRowModelColor = isDark ? theme.textSecondary : MUTED;
+  const dropTickColor = isDark ? theme.primary : RED;
+  const dropRemoveTxtColor = isDark ? theme.textSecondary : MUTED;
+  const dropRowDividerColor = isDark ? theme.border : "#DDE0E3";
+
   // ── MODE A: No vehicles loaded → plain input, fetch on blur ──────────────
   if (vehicles.length === 0) {
     return (
       <View style={s.field}>
-        <Text style={s.label}>Vehicle Number (optional)</Text>
+        <Text style={[s.label, { color: labelColor }]}>
+          Vehicle Number (optional)
+        </Text>
         <View
           style={[
             s.inputRow,
-            { height: INPUT_H },
-            isFocusedBorder && s.inputRowFocused,
+            { height: INPUT_H, backgroundColor: rowBg, borderColor },
+            isFocusedBorder && { borderColor },
           ]}
         >
           <TextInput
-            style={s.input}
+            style={[s.input, { color: inputColor }]}
             placeholder="e.g. HR55AB3849"
-            placeholderTextColor={MUTED}
+            placeholderTextColor={placeholderColor}
             value={query}
             onChangeText={(text) => {
               const u = text.toUpperCase();
@@ -348,12 +428,12 @@ function VehicleField({
             autoCapitalize="characters"
             autoCorrect={false}
             returnKeyType="done"
-            selectionColor={RED}
+            selectionColor={selectionColor}
           />
           {query.length > 0 && (
             <Pressable onPress={handleClear} hitSlop={10}>
-              <View style={s.clearCircle}>
-                <Text style={s.clearX}>✕</Text>
+              <View style={[s.clearCircle, { backgroundColor: clearCircleBg }]}>
+                <Text style={[s.clearX, { color: clearXColor }]}>✕</Text>
               </View>
             </Pressable>
           )}
@@ -365,10 +445,23 @@ function VehicleField({
   // ── MODE B: Vehicles loaded → dropdown picker only, no free-type fetch ───
   return (
     <View style={s.vehicleWrapper}>
-      <Text style={s.label}>Vehicle Number (optional)</Text>
+      <Text style={[s.label, { color: labelColor }]}>
+        Vehicle Number (optional)
+      </Text>
       <View
         style={[
           s.unifiedBox,
+          {
+            backgroundColor: unifiedBoxBg,
+            borderColor:
+              isOpen || isFocusedBorder
+                ? isDark
+                  ? theme.primary
+                  : RED
+                : isDark
+                  ? theme.border
+                  : BORDER,
+          },
           isOpen && s.unifiedBoxOpen,
           isFocusedBorder && s.unifiedBoxFocused,
         ]}
@@ -387,7 +480,10 @@ function VehicleField({
           style={[s.vehicleInputRow, { height: INPUT_H }]}
         >
           <Text
-            style={[s.vehicleSearchInput, !selectedReg && { color: MUTED }]}
+            style={[
+              s.vehicleSearchInput,
+              { color: selectedReg ? dropRowRegColor : placeholderColor },
+            ]}
             numberOfLines={1}
           >
             {selectedReg || "Select vehicle…"}
@@ -401,20 +497,37 @@ function VehicleField({
               }}
               hitSlop={10}
             >
-              <View style={s.clearCircle}>
-                <Text style={s.clearX}>✕</Text>
+              <View style={[s.clearCircle, { backgroundColor: clearCircleBg }]}>
+                <Text style={[s.clearX, { color: clearXColor }]}>✕</Text>
               </View>
             </Pressable>
           ) : (
-            <Text style={[s.chevron, isOpen && s.chevronUp]}>▼</Text>
+            <Text
+              style={[
+                s.chevron,
+                { color: placeholderColor },
+                isOpen && s.chevronUp,
+              ]}
+            >
+              ▼
+            </Text>
           )}
         </Pressable>
 
         {open && (
           <Animated.View
-            style={[s.dropInner, { maxHeight: listH, opacity: listAlpha }]}
+            style={[
+              s.dropInner,
+              {
+                maxHeight: listH,
+                opacity: listAlpha,
+                backgroundColor: dropInnerBg,
+              },
+            ]}
           >
-            <View style={s.dropSeparator} />
+            <View
+              style={[s.dropSeparator, { backgroundColor: dropSeparatorColor }]}
+            />
             <ScrollView
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
@@ -429,27 +542,55 @@ function VehicleField({
                       onPress={() => pick(v.regNumber)}
                       style={({ pressed }) => [
                         s.dropRow,
-                        sel && s.dropRowSel,
+                        sel && {
+                          ...s.dropRowSel,
+                          backgroundColor: dropRowSelBg,
+                          borderLeftColor: isDark ? theme.primary : RED,
+                        },
                         pressed && { opacity: 0.6 },
                       ]}
                     >
-                      <Text style={[s.dropRowReg, sel && s.dropRowRegSel]}>
+                      <Text
+                        style={[
+                          s.dropRowReg,
+                          { color: dropRowRegColor },
+                          sel && { color: dropTickColor, fontWeight: "700" },
+                        ]}
+                      >
                         {v.regNumber}
                       </Text>
                       {v.modelName ? (
-                        <Text style={s.dropRowModel}>{v.modelName}</Text>
+                        <Text
+                          style={[s.dropRowModel, { color: dropRowModelColor }]}
+                        >
+                          {v.modelName}
+                        </Text>
                       ) : null}
-                      {sel && <Text style={s.dropTick}>✓</Text>}
+                      {sel && (
+                        <Text style={[s.dropTick, { color: dropTickColor }]}>
+                          ✓
+                        </Text>
+                      )}
                     </Pressable>
                     {idx < vehicles.length - 1 && (
-                      <View style={s.dropRowDivider} />
+                      <View
+                        style={[
+                          s.dropRowDivider,
+                          { backgroundColor: dropRowDividerColor },
+                        ]}
+                      />
                     )}
                   </React.Fragment>
                 );
               })}
               {selectedReg.length > 0 && (
                 <>
-                  <View style={s.dropSectionDivider} />
+                  <View
+                    style={[
+                      s.dropSectionDivider,
+                      { backgroundColor: dropSeparatorColor },
+                    ]}
+                  />
                   <Pressable
                     onPress={() => {
                       handleClear();
@@ -460,7 +601,11 @@ function VehicleField({
                       pressed && { opacity: 0.55 },
                     ]}
                   >
-                    <Text style={s.dropRemoveTxt}>✕ Remove vehicle</Text>
+                    <Text
+                      style={[s.dropRemoveTxt, { color: dropRemoveTxtColor }]}
+                    >
+                      ✕ Remove vehicle
+                    </Text>
                   </Pressable>
                 </>
               )}
@@ -479,6 +624,7 @@ export default function VisitorTypeScreen() {
   const footerTotalHeight = useFooterTotalHeight();
   const { canCreateEntry } = usePermissions();
   const { accessToken } = useAuth();
+  const { theme, isDark } = useTheme();
 
   const [visitorType, setVisitorType] = useState<"dp" | "staff">("dp");
   const [kbVisible, setKbVisible] = useState(false);
@@ -689,8 +835,25 @@ export default function VisitorTypeScreen() {
     ? kbHeight + NEXT_BTN_HEIGHT + 16
     : footerTotalHeight;
 
+  const titleColor = isDark ? theme.text : TEXT;
+  const loadingTxtColor = isDark ? theme.textSecondary : MUTED;
+  const hintColor = isDark ? theme.textSecondary : MUTED;
+  const nextBtnBg = isDark
+    ? isValid
+      ? theme.primary
+      : theme.backgroundTertiary
+    : undefined;
+  const nextTxtColor = isDark
+    ? isValid
+      ? theme.onPrimary
+      : theme.textSecondary
+    : undefined;
+  const refreshTint = isDark ? theme.primary : RED;
+
   return (
-    <View style={s.container}>
+    <View
+      style={[s.container, isDark && { backgroundColor: theme.backgroundRoot }]}
+    >
       <ScrollView
         ref={scrollRef}
         style={s.scrollView}
@@ -709,8 +872,8 @@ export default function VisitorTypeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={RED}
-            colors={[RED]}
+            tintColor={refreshTint}
+            colors={[refreshTint]}
           />
         }
       >
@@ -728,7 +891,9 @@ export default function VisitorTypeScreen() {
           </View>
         )}
 
-        <Text style={[s.title, IS_COMPACT && s.titleCompact]}>
+        <Text
+          style={[s.title, IS_COMPACT && s.titleCompact, { color: titleColor }]}
+        >
           Create Visitor Entry
         </Text>
 
@@ -740,6 +905,8 @@ export default function VisitorTypeScreen() {
                 rightLabel="Staff"
                 value={visitorType === "dp" ? "left" : "right"}
                 onSelect={(v) => setVisitorType(v === "left" ? "dp" : "staff")}
+                isDark={isDark}
+                theme={theme}
               />
             </View>
 
@@ -769,7 +936,9 @@ export default function VisitorTypeScreen() {
                   onBlurField={handleBlurField}
                 />
                 {loading && visitorType === "dp" && (
-                  <Text style={s.loadingTxt}>Looking up driver…</Text>
+                  <Text style={[s.loadingTxt, { color: loadingTxtColor }]}>
+                    Looking up driver…
+                  </Text>
                 )}
 
                 <View style={{ height: GAP }} />
@@ -819,11 +988,12 @@ export default function VisitorTypeScreen() {
                   disabled={!isValid}
                   style={({ pressed }) => [
                     s.nextBtn,
+                    isDark && { backgroundColor: nextBtnBg },
                     !isValid && s.nextOff,
                     pressed && isValid && s.nextPressed,
                   ]}
                 >
-                  <Text style={[s.nextTxt, !isValid && s.nextTxtOff]}>
+                  <Text style={[s.nextTxt, isDark && { color: nextTxtColor }]}>
                     Next
                   </Text>
                 </Pressable>
@@ -831,7 +1001,7 @@ export default function VisitorTypeScreen() {
             </View>
           </>
         ) : (
-          <Text style={s.hint}>
+          <Text style={[s.hint, { color: hintColor }]}>
             Use the menu below to view tickets or open your profile.
           </Text>
         )}
