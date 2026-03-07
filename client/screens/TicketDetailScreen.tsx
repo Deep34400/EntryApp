@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Pressable,
   Platform,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
@@ -172,6 +173,14 @@ export default function TicketDetailScreen() {
     closeMutation.mutate();
   };
 
+  // ✅ Call handler for Staff only
+  const handleCall = () => {
+    if (ticket?.phone) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Linking.openURL(`tel:${ticket.phone}`);
+    }
+  };
+
   const backArrowColor = isDark ? theme.text : "#161B1D";
   const screenBg = isDark ? theme.backgroundRoot : undefined;
   const cardBg = isDark ? theme.backgroundDefault : undefined;
@@ -197,7 +206,12 @@ export default function TicketDetailScreen() {
   // When closeMutation is pending, ticket is still available — don't show full loader
   if (isLoading && !ticket) {
     return (
-      <View style={[styles.screen, isDark && screenBg && { backgroundColor: screenBg }]}>
+      <View
+        style={[
+          styles.screen,
+          isDark && screenBg && { backgroundColor: screenBg },
+        ]}
+      >
         <View
           style={{
             paddingTop: insets.top,
@@ -209,8 +223,18 @@ export default function TicketDetailScreen() {
           <BackArrow color={backArrowColor} />
         </View>
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={isDark ? theme.primary : "#B31D38"} />
-          <Text style={[styles.loadingText, isDark && loadingTextColor && { color: loadingTextColor }]}>Loading ticket…</Text>
+          <ActivityIndicator
+            size="large"
+            color={isDark ? theme.primary : "#B31D38"}
+          />
+          <Text
+            style={[
+              styles.loadingText,
+              isDark && loadingTextColor && { color: loadingTextColor },
+            ]}
+          >
+            Loading ticket…
+          </Text>
         </View>
       </View>
     );
@@ -219,7 +243,12 @@ export default function TicketDetailScreen() {
   // Ticket not found (after loading finished)
   if (!ticket) {
     return (
-      <View style={[styles.screen, isDark && screenBg && { backgroundColor: screenBg }]}>
+      <View
+        style={[
+          styles.screen,
+          isDark && screenBg && { backgroundColor: screenBg },
+        ]}
+      >
         <View
           style={{
             paddingTop: insets.top,
@@ -232,8 +261,20 @@ export default function TicketDetailScreen() {
         </View>
         <View style={styles.centered}>
           <Feather name="alert-circle" size={48} color={errorIconColor} />
-          <Text style={[styles.errorTitle, isDark && errorTitleColor && { color: errorTitleColor }]}>Ticket not found</Text>
-          <Text style={[styles.errorSubtitle, isDark && errorSubtitleColor && { color: errorSubtitleColor }]}>
+          <Text
+            style={[
+              styles.errorTitle,
+              isDark && errorTitleColor && { color: errorTitleColor },
+            ]}
+          >
+            Ticket not found
+          </Text>
+          <Text
+            style={[
+              styles.errorSubtitle,
+              isDark && errorSubtitleColor && { color: errorSubtitleColor },
+            ]}
+          >
             The ticket may have been removed.
           </Text>
         </View>
@@ -246,7 +287,12 @@ export default function TicketDetailScreen() {
     : insets.bottom + CLOSE_BUTTON_HEIGHT + 40;
 
   return (
-    <View style={[styles.screen, isDark && screenBg && { backgroundColor: screenBg }]}>
+    <View
+      style={[
+        styles.screen,
+        isDark && screenBg && { backgroundColor: screenBg },
+      ]}
+    >
       <View
         style={{
           paddingTop: insets.top,
@@ -273,11 +319,31 @@ export default function TicketDetailScreen() {
           />
         }
       >
-        <View style={[styles.card, isDark && cardBg && { backgroundColor: cardBg, borderColor: cardBorder }]}>
+        <View
+          style={[
+            styles.card,
+            isDark &&
+              cardBg && { backgroundColor: cardBg, borderColor: cardBorder },
+          ]}
+        >
           <View style={styles.tokenCardTopRow}>
             <View style={styles.tokenCardLeft}>
-              <Text style={[styles.tokenLabel, isDark && tokenLabelColor && { color: tokenLabelColor }]}>Token</Text>
-              <Text style={[styles.tokenValue, isDark && tokenValueColor && { color: tokenValueColor }]}>#{ticket.token_no}</Text>
+              <Text
+                style={[
+                  styles.tokenLabel,
+                  isDark && tokenLabelColor && { color: tokenLabelColor },
+                ]}
+              >
+                Token
+              </Text>
+              <Text
+                style={[
+                  styles.tokenValue,
+                  isDark && tokenValueColor && { color: tokenValueColor },
+                ]}
+              >
+                #{ticket.token_no}
+              </Text>
             </View>
             {!closed ? (
               <View style={styles.timeBadge}>
@@ -290,49 +356,153 @@ export default function TicketDetailScreen() {
               </View>
             )}
           </View>
-          <View style={[styles.divider, isDark && dividerColor && { backgroundColor: dividerColor }]} />
+          <View
+            style={[
+              styles.divider,
+              isDark && dividerColor && { backgroundColor: dividerColor },
+            ]}
+          />
           <View style={styles.entryTimeRow}>
-            <Text style={[styles.entryTimeLabel, isDark && entryTimeLabelColor && { color: entryTimeLabelColor }]}>
+            <Text
+              style={[
+                styles.entryTimeLabel,
+                isDark && entryTimeLabelColor && { color: entryTimeLabelColor },
+              ]}
+            >
               {isStaff ? "Out Time" : "Entry Time"}
             </Text>
-            <Text style={[styles.entryTimeValue, isDark && entryTimeValueColor && { color: entryTimeValueColor }]}>
+            <Text
+              style={[
+                styles.entryTimeValue,
+                isDark && entryTimeValueColor && { color: entryTimeValueColor },
+              ]}
+            >
               {formatDateTime(ticket.entry_time)}
             </Text>
           </View>
           {closed && (
             <View style={[styles.entryTimeRow, { marginTop: 12 }]}>
-              <Text style={[styles.entryTimeLabel, isDark && entryTimeLabelColor && { color: entryTimeLabelColor }]}>Exit Time</Text>
-              <Text style={[styles.entryTimeValue, isDark && entryTimeValueColor && { color: entryTimeValueColor }]}>
+              <Text
+                style={[
+                  styles.entryTimeLabel,
+                  isDark &&
+                    entryTimeLabelColor && { color: entryTimeLabelColor },
+                ]}
+              >
+                Exit Time
+              </Text>
+              <Text
+                style={[
+                  styles.entryTimeValue,
+                  isDark &&
+                    entryTimeValueColor && { color: entryTimeValueColor },
+                ]}
+              >
                 {ticket.exit_time ? formatDateTime(ticket.exit_time) : "—"}
               </Text>
             </View>
           )}
         </View>
 
-        <View style={[styles.card, isDark && cardBg && { backgroundColor: cardBg, borderColor: cardBorder }]}>
+        {/* Driver / Person Card */}
+        <View
+          style={[
+            styles.card,
+            isDark &&
+              cardBg && { backgroundColor: cardBg, borderColor: cardBorder },
+          ]}
+        >
           <View style={styles.driverRow}>
-            <View style={[styles.avatarPlaceholder, isDark && avatarBg && { backgroundColor: avatarBg }]}>
-              <Text style={[styles.avatarLetter, isDark && avatarLetterColor && { color: avatarLetterColor }]}>
+            <View
+              style={[
+                styles.avatarPlaceholder,
+                isDark && avatarBg && { backgroundColor: avatarBg },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.avatarLetter,
+                  isDark && avatarLetterColor && { color: avatarLetterColor },
+                ]}
+              >
                 {ticket.name?.trim()
                   ? ticket.name.trim().charAt(0).toUpperCase()
                   : "?"}
               </Text>
             </View>
             <View style={styles.driverInfo}>
-              <Text style={[styles.driverName, isDark && driverNameColor && { color: driverNameColor }]}>{ticket.name ?? "—"}</Text>
-              <Text style={[styles.driverRole, isDark && driverRoleColor && { color: driverRoleColor }]}>
+              <Text
+                style={[
+                  styles.driverName,
+                  isDark && driverNameColor && { color: driverNameColor },
+                ]}
+              >
+                {ticket.name ?? "—"}
+              </Text>
+              <Text
+                style={[
+                  styles.driverRole,
+                  isDark && driverRoleColor && { color: driverRoleColor },
+                ]}
+              >
                 {getEntryTypeDisplayLabel(ticket.type)}
               </Text>
             </View>
           </View>
+
+          {/* ✅ Call button — ONLY for Staff, hidden for Driver Partner */}
+          {isStaff && ticket.phone && (
+            <Pressable
+              onPress={handleCall}
+              style={({ pressed }) => [
+                styles.callButton,
+                pressed && styles.callButtonPressed,
+              ]}
+            >
+              <Feather name="phone" size={16} color="#B31D38" />
+              <Text style={styles.callButtonText}>Call</Text>
+            </Pressable>
+          )}
         </View>
 
-        <View style={[styles.card, isDark && cardBg && { backgroundColor: cardBg, borderColor: cardBorder }]}>
-          <Text style={[styles.assignmentTitle, isDark && assignmentTitleColor && { color: assignmentTitleColor }]}>Assignment</Text>
-          <View style={[styles.divider, isDark && dividerColor && { backgroundColor: dividerColor }]} />
+        <View
+          style={[
+            styles.card,
+            isDark &&
+              cardBg && { backgroundColor: cardBg, borderColor: cardBorder },
+          ]}
+        >
+          <Text
+            style={[
+              styles.assignmentTitle,
+              isDark && assignmentTitleColor && { color: assignmentTitleColor },
+            ]}
+          >
+            Assignment
+          </Text>
+          <View
+            style={[
+              styles.divider,
+              isDark && dividerColor && { backgroundColor: dividerColor },
+            ]}
+          />
           <View style={styles.assignmentRow}>
-            <Text style={[styles.assignmentLabel, isDark && assignmentLabelColor && { color: assignmentLabelColor }]}>Ticket</Text>
-            <Text style={[styles.assignmentValue, isDark && assignmentValueColor && { color: assignmentValueColor }]}>
+            <Text
+              style={[
+                styles.assignmentLabel,
+                isDark &&
+                  assignmentLabelColor && { color: assignmentLabelColor },
+              ]}
+            >
+              Ticket
+            </Text>
+            <Text
+              style={[
+                styles.assignmentValue,
+                isDark &&
+                  assignmentValueColor && { color: assignmentValueColor },
+              ]}
+            >
               {getCategoryLabel({
                 purpose: ticket.purpose,
                 reason: ticket.reason,
@@ -341,13 +511,47 @@ export default function TicketDetailScreen() {
               }) || "—"}
             </Text>
           </View>
+
+          {/* ✅ Agent row — hidden for Staff */}
+          {!isStaff && (
+            <View style={styles.assignmentRow}>
+              <Text
+                style={[
+                  styles.assignmentLabel,
+                  isDark &&
+                    assignmentLabelColor && { color: assignmentLabelColor },
+                ]}
+              >
+                Agent
+              </Text>
+              <Text
+                style={[
+                  styles.assignmentValue,
+                  isDark &&
+                    assignmentValueColor && { color: assignmentValueColor },
+                ]}
+              >
+                {ticket.assignee ?? "—"}
+              </Text>
+            </View>
+          )}
           <View style={styles.assignmentRow}>
-            <Text style={[styles.assignmentLabel, isDark && assignmentLabelColor && { color: assignmentLabelColor }]}>Agent</Text>
-            <Text style={[styles.assignmentValue, isDark && assignmentValueColor && { color: assignmentValueColor }]}>{ticket.assignee ?? "—"}</Text>
-          </View>
-          <View style={styles.assignmentRow}>
-            <Text style={[styles.assignmentLabel, isDark && assignmentLabelColor && { color: assignmentLabelColor }]}>Desk/Location</Text>
-            <Text style={[styles.assignmentValue, isDark && assignmentValueColor && { color: assignmentValueColor }]}>
+            <Text
+              style={[
+                styles.assignmentLabel,
+                isDark &&
+                  assignmentLabelColor && { color: assignmentLabelColor },
+              ]}
+            >
+              Desk/Location
+            </Text>
+            <Text
+              style={[
+                styles.assignmentValue,
+                isDark &&
+                  assignmentValueColor && { color: assignmentValueColor },
+              ]}
+            >
               {ticket.desk_location ?? "—"}
             </Text>
           </View>
@@ -550,6 +754,29 @@ const styles = StyleSheet.create({
     fontFamily: FONT_POPPINS,
     fontSize: 13,
     color: "#3F4C52",
+  },
+  // ✅ New styles for Call button
+  callButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 14,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: "#B31D38",
+    backgroundColor: "transparent",
+  },
+  callButtonPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.98 }],
+  },
+  callButtonText: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#B31D38",
   },
   assignmentTitle: {
     fontFamily: FONT_POPPINS,
