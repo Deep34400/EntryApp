@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { Suspense, useEffect } from "react";
 import { Platform, StyleSheet } from "react-native";
 import {
   NavigationContainer,
@@ -23,6 +23,24 @@ import { SessionExpiredHandler } from "@/components/SessionExpiredHandler";
 import { ServerUnavailableProvider } from "@/contexts/ServerUnavailableContext";
 
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
+
+// ─── In-app network logger for debugging API calls only (method, URL, status, headers, body, response time). ───
+// Control via .env: EXPO_PUBLIC_ENABLE_NETWORK_LOGGER="true" | "false". Only runs on native (iOS/Android), not web.
+const networkLoggerEnv =
+  typeof process !== "undefined"
+    ? process.env?.EXPO_PUBLIC_ENABLE_NETWORK_LOGGER?.toLowerCase?.().trim()
+    : undefined;
+const isNetworkLoggerEnabled =
+  Platform.OS !== "web" &&
+  networkLoggerEnv !== "false" &&
+  (__DEV__ || networkLoggerEnv === "true");
+
+// Lazy-loaded so the logger bundle is not loaded when disabled or on web; no performance impact when disabled.
+const NetworkLoggerLazy = isNetworkLoggerEnabled
+  ? React.lazy(() =>
+      import("@/components/NetworkLoggerDev").then((m) => ({ default: m.default }))
+    )
+  : null;
 
 function StatusBarStyle() {
   const { theme, isDark } = useTheme();
@@ -60,6 +78,13 @@ function AppRoot() {
 }
 
 export default function App() {
+  // Preload the network logger chunk in dev/test so startNetworkLogging() runs early and captures all API calls.
+  useEffect(() => {
+    if (isNetworkLoggerEnabled) {
+      import("@/components/NetworkLoggerDev");
+    }
+  }, []);
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
@@ -69,6 +94,11 @@ export default function App() {
               <UserProvider>
                 <SafeAreaProvider>
                   <AppRoot />
+                  {isNetworkLoggerEnabled && NetworkLoggerLazy && (
+                    <Suspense fallback={null}>
+                      <NetworkLoggerLazy />
+                    </Suspense>
+                  )}
                 </SafeAreaProvider>
               </UserProvider>
             </ServerUnavailableProvider>
