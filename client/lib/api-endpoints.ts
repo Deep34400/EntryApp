@@ -13,7 +13,7 @@ export const IDENTITY_PATH = "/api/v1/identity";
 /** POST /api/v1/users/login/otp — send OTP to phone. Headers: device-id, app-type, app-version, Authorization: Bearer <guestToken>. Body: { phoneNo } */
 export const LOGIN_OTP_PATH = "/api/v1/users/login/otp";
 
-/** POST /api/v1/users/login/otp/verify — verify OTP. Same headers. Body: { phoneNo, otp }. Returns user, accessToken, refreshToken, identity. */
+/** POST /api/v1/users/login/otp/verify — verify OTP. Same headers. Body: { phoneNo, otp }. Returns data: { user, accessToken, refreshToken, driverDID, isNewUser, chatWootCredentials }. */
 export const LOGIN_OTP_VERIFY_PATH = "/api/v1/users/login/otp/verify";
 
 /** POST /api/v1/users/login/refresh — get new access token. Header only: Authorization: Bearer <refresh_token>. No body. Returns { accessToken, refreshToken }. */

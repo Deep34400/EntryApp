@@ -66,7 +66,7 @@ export type RootStackParamList = {
     purpose?: string;
   };
   ExitConfirmation: { token: string };
-  TicketList: { filter: "open" | "closed" };
+  TicketList: { filter?: "open" | "closed"; refreshFromToken?: boolean };
   TicketDetail: { ticketId: string };
   Profile: undefined;
 };

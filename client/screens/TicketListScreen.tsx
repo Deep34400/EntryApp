@@ -23,7 +23,7 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useNavigation, useFocusEffect, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 
@@ -44,17 +44,16 @@ export type { TicketListItem } from "@/types/ticket";
 
 type TabId = "Delayed" | "Open" | "Closed";
 
-// ── Search filter types ───────────────────────────────────────────────────────
-type FilterType = "all" | "token" | "name" | "vehicle";
+type FilterType = "all" | "token" | "name" | "vehicle" | "phone";
 
-const FILTER_OPTIONS: { id: FilterType; icon: string; label: string }[] = [
-  { id: "all", icon: "🔍", label: "All" },
-  { id: "token", icon: "🎫", label: "Token #" },
-  { id: "name", icon: "👤", label: "Name" },
-  { id: "vehicle", icon: "🚗", label: "Vehicle" },
+const FILTER_OPTIONS: { id: FilterType; label: string; icon: string }[] = [
+  { id: "all", label: "All", icon: "🔍" },
+  { id: "phone", label: "Phone", icon: "📞" },
+  { id: "vehicle", label: "Vehicle", icon: "🚗" },
+  { id: "token", label: "Token #", icon: "🎫" },
+  { id: "name", label: "Name", icon: "👤" },
 ];
 
-// ── Date range filter ─────────────────────────────────────────────────────────
 interface DateRange {
   startDate: Date;
   endDate: Date;
@@ -117,10 +116,6 @@ function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
 
-function formatTimeDisplay(h: number, m: number, ap: "AM" | "PM"): string {
-  return `${pad2(h === 0 ? 12 : h > 12 ? h - 12 : h)}:${pad2(m)} ${ap}`;
-}
-
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   "TicketList"
@@ -129,7 +124,7 @@ type NavigationProp = NativeStackNavigationProp<
 const FONT_POPPINS = "Poppins";
 const primaryRed = DesignTokens.login.headerRed;
 const PAGE_SIZE = 50;
-const STALE_TIME_MS = 10_000;
+const STALE_TIME_MS = 5 * 60 * 1000;
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS_LONG = [
   "January",
@@ -146,7 +141,6 @@ const MONTHS_LONG = [
   "December",
 ];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function formatWaitingLabel(entryTime?: string | null): string {
   const mins = getWaitingMinutes(entryTime);
   if (mins == null) return "—";
@@ -154,6 +148,14 @@ function formatWaitingLabel(entryTime?: string | null): string {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+function maskPhone(phone?: string | null): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 4) return null;
+  const last4 = digits.slice(-4);
+  return `xxxxxx${last4}`;
 }
 
 function applySearch(
@@ -166,18 +168,24 @@ function applySearch(
   const q = query.trim().toLowerCase();
   if (q) {
     result = result.filter((item) => {
+      const nameStr = String(item.name ?? "");
+      const tokenStr = String(item.token_no ?? "");
+      const regStr = String(item.regNumber ?? "");
+      const phoneStr = String(item.phone ?? "");
       switch (filterType) {
         case "token":
-          return String(item.token_no).toLowerCase().includes(q);
+          return tokenStr.toLowerCase().includes(q);
         case "name":
-          return (item.name ?? "").toLowerCase().includes(q);
+          return nameStr.toLowerCase().includes(q);
         case "vehicle":
-          return (item.regNumber ?? "").toLowerCase().includes(q);
+          return regStr.toLowerCase().includes(q);
+        case "phone":
+          return phoneStr.replace(/\D/g, "").includes(q.replace(/\D/g, ""));
         default:
           return (
-            String(item.token_no).toLowerCase().includes(q) ||
-            (item.name ?? "").toLowerCase().includes(q) ||
-            (item.regNumber ?? "").toLowerCase().includes(q)
+            tokenStr.toLowerCase().includes(q) ||
+            regStr.toLowerCase().includes(q) ||
+            phoneStr.replace(/\D/g, "").includes(q.replace(/\D/g, ""))
           );
       }
     });
@@ -198,9 +206,7 @@ function applySearch(
   return result;
 }
 
-// ── Compact inline TimeField ──────────────────────────────────────────────────
-// Renders as: [label]  [HH] : [MM]  [AM|PM]
-// All editable via keyboard – no chevrons, matches the Figma design exactly.
+// ── TimeField ─────────────────────────────────────────────────────────────────
 function TimeField({
   label,
   h24,
@@ -231,13 +237,11 @@ function TimeField({
   const d = from24(h24);
   const displayHour = d.hour === 0 ? 12 : d.hour;
   const ampm = d.ampm;
-
   const [hourText, setHourText] = useState(pad2(displayHour));
   const [minText, setMinText] = useState(pad2(min));
   const hourRef = useRef<TextInput>(null);
   const minRef = useRef<TextInput>(null);
 
-  // Sync external h24/min → local text when not focused
   React.useEffect(() => {
     setHourText(pad2(displayHour));
   }, [h24]);
@@ -252,7 +256,6 @@ function TimeField({
     setH24(ampm === "AM" ? (v === 12 ? 0 : v) : v === 12 ? 12 : v + 12);
     setHourText(pad2(v));
   }
-
   function commitMin(text: string) {
     let v = parseInt(text, 10);
     if (isNaN(v) || v < 0) v = 0;
@@ -260,7 +263,6 @@ function TimeField({
     setMin(v);
     setMinText(pad2(v));
   }
-
   function toggleAmPm() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (ampm === "AM") {
@@ -292,9 +294,7 @@ function TimeField({
       ]}
     >
       <Text style={[tfStyles.pillLabel, { color: pillSubColor }]}>{label}</Text>
-
       <View style={tfStyles.timeInputRow}>
-        {/* Hour */}
         <TextInput
           ref={hourRef}
           style={[tfStyles.timeSegInput, { color: pillTextColor }]}
@@ -318,10 +318,7 @@ function TimeField({
           returnKeyType="next"
           onSubmitEditing={() => minRef.current?.focus()}
         />
-
         <Text style={[tfStyles.colon, { color: pillTextColor }]}>:</Text>
-
-        {/* Minute */}
         <TextInput
           ref={minRef}
           style={[tfStyles.timeSegInput, { color: pillTextColor }]}
@@ -341,8 +338,6 @@ function TimeField({
           selectTextOnFocus
           returnKeyType="done"
         />
-
-        {/* AM / PM toggle */}
         <TouchableOpacity
           onPress={toggleAmPm}
           style={[
@@ -376,11 +371,7 @@ const tfStyles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  timeInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-  },
+  timeInputRow: { flexDirection: "row", alignItems: "center", gap: 2 },
   timeSegInput: {
     fontFamily: FONT_POPPINS,
     fontSize: 20,
@@ -410,7 +401,7 @@ const tfStyles = StyleSheet.create({
   },
 });
 
-// ── Calendar Modal ────────────────────────────────────────────────────────────
+// ── DateTimeModal ─────────────────────────────────────────────────────────────
 function DateTimeModal({
   visible,
   initial,
@@ -433,7 +424,6 @@ function DateTimeModal({
   const [startDate, setStartDate] = useState(new Date(initial.startDate));
   const [endDate, setEndDate] = useState(new Date(initial.endDate));
   const [selectingEnd, setSelectingEnd] = useState(false);
-
   const [startH24, setStartH24] = useState(() =>
     to24(initial.startHour, initial.startAmPm),
   );
@@ -445,22 +435,19 @@ function DateTimeModal({
   const [activeTimeField, setActiveTimeField] = useState<
     "start" | "end" | null
   >(null);
-
-  // ── Track keyboard visibility so we can auto-scroll to time pickers ──
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   React.useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", () => {
       setKeyboardVisible(true);
-      // Small delay so layout settles, then scroll to bottom to show time pickers
       setTimeout(() => {
         scrollRef.current?.scrollToEnd({ animated: true });
       }, 120);
     });
-    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
-      setKeyboardVisible(false);
-    });
+    const hideSub = Keyboard.addListener("keyboardDidHide", () =>
+      setKeyboardVisible(false),
+    );
     return () => {
       showSub.remove();
       hideSub.remove();
@@ -475,10 +462,15 @@ function DateTimeModal({
 
   const daysInMonth = new Date(calMonth.year, calMonth.month + 1, 0).getDate();
   const firstDay = new Date(calMonth.year, calMonth.month, 1).getDay();
-  const cells: (number | null)[] = [
+  const rawCells: (number | null)[] = [
     ...Array(firstDay).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
+  const remainder = rawCells.length % 7;
+  const cells: (number | null)[] =
+    remainder === 0
+      ? rawCells
+      : [...rawCells, ...Array(7 - remainder).fill(null)];
 
   function isSameDay(a: Date, b: Date) {
     return (
@@ -498,51 +490,37 @@ function DateTimeModal({
     return isSameDay(new Date(calMonth.year, calMonth.month, day), endDate);
   }
 
-  // Today midnight — used to block all future dates
   const todayMidnight = useMemo(() => {
     const t = new Date();
     t.setHours(0, 0, 0, 0);
     return t;
   }, []);
-
   function isFutureDay(day: number): boolean {
     const d = new Date(calMonth.year, calMonth.month, day);
     d.setHours(0, 0, 0, 0);
     return d > todayMidnight;
   }
-
-  // Is the calendar already showing the current month? If yes, block "next ›"
-  const isOnCurrentOrFutureMonth = useMemo(() => {
-    return (
+  const isOnCurrentOrFutureMonth = useMemo(
+    () =>
       calMonth.year > todayMidnight.getFullYear() ||
       (calMonth.year === todayMidnight.getFullYear() &&
-        calMonth.month >= todayMidnight.getMonth())
-    );
-  }, [calMonth, todayMidnight]);
+        calMonth.month >= todayMidnight.getMonth()),
+    [calMonth, todayMidnight],
+  );
 
-  // ── FIX: Only disable future dates. Same-day selection (from == to) is allowed. ──
-  function isDisabled(day: number): boolean {
-    if (isFutureDay(day)) return true;
-    return false;
-  }
-
-  // ── FIX: Allow tapping the same day for both from and to dates. ──
   function onDayPress(day: number) {
-    if (isDisabled(day)) return;
+    if (isFutureDay(day)) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const d = new Date(calMonth.year, calMonth.month, day);
     if (!selectingEnd) {
       setStartDate(d);
-      // If new start is after current end, reset end to same day
       if (d > endDate) setEndDate(d);
       setSelectingEnd(true);
     } else {
       if (d < startDate) {
-        // Tapped before start → swap: new start = tapped, new end = old start
         setEndDate(startDate);
         setStartDate(d);
       } else {
-        // Same day OR any day after start → all allowed
         setEndDate(d);
       }
       setSelectingEnd(false);
@@ -585,7 +563,7 @@ function DateTimeModal({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={() => {
         Keyboard.dismiss();
         onClose();
@@ -596,14 +574,14 @@ function DateTimeModal({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={0}
       >
-        {/* Tap outside to dismiss keyboard */}
         <Pressable
           style={tmStyles.overlayTap}
-          onPress={() => Keyboard.dismiss()}
+          onPress={() => {
+            Keyboard.dismiss();
+            onClose();
+          }}
         />
-
         <View style={[tmStyles.sheet, { backgroundColor: bg }]}>
-          {/* ── Fixed header (always visible) ── */}
           <View style={tmStyles.sheetHeader}>
             <Text style={[tmStyles.sheetTitle, { color: textColor }]}>
               Date & Time Range
@@ -619,14 +597,12 @@ function DateTimeModal({
             </TouchableOpacity>
           </View>
 
-          {/* ── Scrollable body — calendar collapses, time pickers scroll into view ── */}
           <ScrollView
             ref={scrollRef}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={tmStyles.scrollContent}
           >
-            {/* Date pills */}
             <View style={tmStyles.datePills}>
               <Pressable
                 onPress={() => {
@@ -676,10 +652,8 @@ function DateTimeModal({
               </Pressable>
             </View>
 
-            {/* Calendar — hidden when keyboard is open to save space */}
             {!keyboardVisible && (
               <>
-                {/* Month navigator */}
                 <View style={tmStyles.monthNav}>
                   <TouchableOpacity onPress={prevMonth} style={tmStyles.navBtn}>
                     <Text style={[tmStyles.navArrow, { color: textColor }]}>
@@ -711,8 +685,6 @@ function DateTimeModal({
                     </Text>
                   </TouchableOpacity>
                 </View>
-
-                {/* Day headers */}
                 <View style={tmStyles.dayHeaders}>
                   {DAYS.map((d) => (
                     <Text
@@ -723,45 +695,36 @@ function DateTimeModal({
                     </Text>
                   ))}
                 </View>
-
-                {/* Calendar grid */}
                 <View style={tmStyles.calGrid}>
                   {cells.map((day, i) => {
                     if (!day)
                       return <View key={`e${i}`} style={tmStyles.calCell} />;
-                    const start = isStart(day);
-                    const end = isEnd(day);
-                    const range = inRange(day);
+                    const start = isStart(day),
+                      end = isEnd(day),
+                      range = inRange(day);
                     const future = isFutureDay(day);
-                    const disabled = isDisabled(day);
                     const today = isSameDay(
                       new Date(calMonth.year, calMonth.month, day),
                       new Date(),
                     );
-                    // Both start and end on same day — show single red circle
-                    const sameDay = start && end;
-
                     return (
                       <TouchableOpacity
                         key={day}
                         onPress={() => onDayPress(day)}
-                        disabled={disabled}
-                        activeOpacity={disabled ? 1 : 0.7}
+                        disabled={future}
+                        activeOpacity={future ? 1 : 0.7}
                         style={[
                           tmStyles.calCell,
-                          // Range highlight
                           range &&
                             !future && {
                               backgroundColor: isDark
                                 ? "rgba(211,54,54,0.15)"
                                 : "#FBEBEB",
                             },
-                          // Active selected endpoint (red circle)
                           (start || end) && {
                             backgroundColor: primaryRed,
                             borderRadius: 20,
                           },
-                          // Future day — faded
                           future && { opacity: 0.28 },
                         ]}
                       >
@@ -799,7 +762,6 @@ function DateTimeModal({
               </>
             )}
 
-            {/* When keyboard visible, show a compact "tap to pick dates" hint */}
             {keyboardVisible && (
               <Pressable
                 onPress={() => Keyboard.dismiss()}
@@ -816,12 +778,9 @@ function DateTimeModal({
               </Pressable>
             )}
 
-            {/* Divider */}
             <View
               style={[tmStyles.timeDivider, { backgroundColor: borderC }]}
             />
-
-            {/* Time pickers */}
             <View style={tmStyles.timeRow}>
               <TimeField
                 label="Start"
@@ -852,25 +811,35 @@ function DateTimeModal({
                 inputBg={inputBg}
               />
             </View>
-
-            {/* Actions */}
-            <View style={tmStyles.actionRow}>
-              <TouchableOpacity
-                onPress={() => {
-                  Keyboard.dismiss();
-                  onClose();
-                }}
-                style={[tmStyles.cancelBtn, { borderColor: borderC }]}
-              >
-                <Text style={[tmStyles.cancelTxt, { color: textColor }]}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleApply} style={tmStyles.applyBtn}>
-                <Text style={tmStyles.applyTxt}>Apply</Text>
-              </TouchableOpacity>
-            </View>
           </ScrollView>
+
+          <View
+            style={[
+              tmStyles.actionRow,
+              {
+                paddingHorizontal: 20,
+                paddingTop: 12,
+                paddingBottom: 20,
+                borderTopWidth: 1,
+                borderTopColor: borderC,
+              },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                Keyboard.dismiss();
+                onClose();
+              }}
+              style={[tmStyles.cancelBtn, { borderColor: borderC }]}
+            >
+              <Text style={[tmStyles.cancelTxt, { color: textColor }]}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleApply} style={tmStyles.applyBtn}>
+              <Text style={tmStyles.applyTxt}>Apply</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -881,33 +850,23 @@ const tmStyles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
   },
-  overlayTap: {
-    flex: 1,
-  },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    maxHeight: "92%",
-  },
+  overlayTap: { ...StyleSheet.absoluteFillObject },
+  sheet: { width: "100%", borderRadius: 20, paddingTop: 20, maxHeight: "88%" },
   sheetHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
     paddingHorizontal: 20,
   },
   sheetTitle: { fontFamily: FONT_POPPINS, fontSize: 16, fontWeight: "700" },
   closeX: { fontFamily: FONT_POPPINS, fontSize: 18, fontWeight: "600" },
-
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-  },
-
-  datePills: { flexDirection: "row", gap: 10, marginBottom: 16 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 4 },
+  datePills: { flexDirection: "row", gap: 10, marginBottom: 10 },
   datePill: {
     flex: 1,
     paddingVertical: 10,
@@ -916,18 +875,16 @@ const tmStyles = StyleSheet.create({
     alignItems: "center",
   },
   datePillTxt: { fontFamily: FONT_POPPINS, fontSize: 13, fontWeight: "600" },
-
   monthNav: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 4,
   },
   navBtn: { padding: 6 },
   navArrow: { fontFamily: FONT_POPPINS, fontSize: 22, fontWeight: "600" },
   monthLabel: { fontFamily: FONT_POPPINS, fontSize: 15, fontWeight: "600" },
-
-  dayHeaders: { flexDirection: "row", marginBottom: 4 },
+  dayHeaders: { flexDirection: "row", marginBottom: 2 },
   dayHeader: {
     flex: 1,
     textAlign: "center",
@@ -935,16 +892,15 @@ const tmStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "500",
   },
-
   calGrid: { flexDirection: "row", flexWrap: "wrap" },
   calCell: {
     width: "14.28%",
-    aspectRatio: 1,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
+    marginVertical: 1,
   },
-  calDayTxt: { fontFamily: FONT_POPPINS, fontSize: 13 },
-
+  calDayTxt: { fontFamily: FONT_POPPINS, fontSize: 13, textAlign: "center" },
   calCollapsedHint: {
     borderWidth: 1,
     borderRadius: 10,
@@ -958,11 +914,8 @@ const tmStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
   },
-
-  timeDivider: { height: 1, marginVertical: 14 },
-
-  timeRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
-
+  timeDivider: { height: 1, marginVertical: 10 },
+  timeRow: { flexDirection: "row", gap: 12, marginBottom: 4 },
   actionRow: { flexDirection: "row", gap: 12 },
   cancelBtn: {
     flex: 1,
@@ -1029,6 +982,7 @@ function TicketCard({
 
   const driverName = item.name ?? "—";
   const role = getEntryTypeDisplayLabel(item.type);
+  const maskedPhone = maskPhone(item.phone);
 
   return (
     <View style={styles.cardWrapper}>
@@ -1073,12 +1027,14 @@ function TicketCard({
               </Text>
             </View>
           </View>
+
           <View
             style={[
               styles.divider,
               isDark && theme && { backgroundColor: cardBorder },
             ]}
           />
+
           <View style={styles.driverRow}>
             <View
               style={[
@@ -1107,31 +1063,6 @@ function TicketCard({
               >
                 {driverName}
               </Text>
-              {!!item.regNumber && (
-                <View
-                  style={[
-                    styles.regInlineWrap,
-                    {
-                      backgroundColor:
-                        isDark && theme ? "rgba(255,255,255,0.07)" : "#F1F5F9",
-                      borderColor: isDark && theme ? theme.border : "#CBD5E1",
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.regInline,
-                      {
-                        color:
-                          isDark && theme ? theme.textSecondary : "#475569",
-                      },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {item.regNumber.toUpperCase()}
-                  </Text>
-                </View>
-              )}
               <Text
                 style={[
                   styles.driverRole,
@@ -1142,7 +1073,38 @@ function TicketCard({
                 {role}
               </Text>
             </View>
+            <View style={styles.driverRightInfo}>
+              {maskedPhone ? (
+                <View style={styles.phoneRow}>
+                  <Text style={styles.phoneIcon}>📞</Text>
+                  <Text
+                    style={[
+                      styles.phoneText,
+                      isDark && theme && { color: driverNameColor },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {maskedPhone}
+                  </Text>
+                </View>
+              ) : null}
+              {!!item.regNumber && (
+                <View style={styles.phoneRow}>
+                  <Text style={styles.phoneIcon}>🚗</Text>
+                  <Text
+                    style={[
+                      styles.regText,
+                      isDark && theme && { color: driverRoleColor },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {item.regNumber.toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
+
           <Pressable
             onPress={(e) => {
               e.stopPropagation();
@@ -1163,8 +1125,11 @@ function TicketCard({
 }
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
+type TicketListRoute = RouteProp<RootStackParamList, "TicketList">;
+
 export default function TicketListScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<TicketListRoute>();
   const insets = useSafeAreaInsets();
   const auth = useAuth();
   const { theme, isDark } = useTheme();
@@ -1174,32 +1139,19 @@ export default function TicketListScreen() {
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [dateRange, setDateRange] = useState<DateRange>(makeTodayRange);
   const [showCalModal, setShowCalModal] = useState(false);
-  // Increment to force-remount DateTimeModal with fresh state each open
   const [modalKey, setModalKey] = useState(0);
 
-  // ── Reset ALL filters when screen loses focus (user navigates away) ──────
-  useFocusEffect(
-    useCallback(() => {
-      // runs on focus — nothing to do on enter
-      return () => {
-        // runs when screen goes out of focus (back navigation etc.)
-        setSearchQuery("");
-        setFilterType("all");
-        setDateRange(makeTodayRange());
-      };
-    }, []),
-  );
-
-  // ── Reset all filters manually (e.g. "Reset" button) ────────────────────
-  const resetAllFilters = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSearchQuery("");
-    setFilterType("all");
-    setDateRange(makeTodayRange());
-  }, []);
-
-  const hasActiveFilters =
-    searchQuery.trim().length > 0 || filterType !== "all" || dateRange.active;
+  // ✅ ROOT FIX — Ref se track karo ki kaunsa tab fetch ho chuka hai.
+  // Ref kabhi component re-render trigger nahi karta.
+  // Search type karo, chip badlo, date range lagao — ref nahi badlega → enabled nahi badlega → NO API CALL.
+  // Sirf 2 cases mein API call hogi:
+  //   1. Pehli baar tab switch karo (data nahi hai)
+  //   2. Pull-to-refresh karo (ref manually reset hoga)
+  const hasFetchedRef = useRef<Record<TabId, boolean>>({
+    Open: false,
+    Delayed: false,
+    Closed: false,
+  });
 
   const handleTabSwitch = (tab: TabId) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1217,7 +1169,6 @@ export default function TicketListScreen() {
 
   const openCalModal = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Bump key → DateTimeModal remounts with fresh internal state (not last applied values)
     setModalKey((k) => k + 1);
     setShowCalModal(true);
   }, []);
@@ -1231,39 +1182,58 @@ export default function TicketListScreen() {
     queryKey: ["ticket-counts"],
     queryFn: () => getTicketCounts(auth.accessToken),
     staleTime: STALE_TIME_MS,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const openQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "open"],
-    queryFn: ({ pageParam }) =>
-      getTicketList("open", auth.accessToken, pageParam, PAGE_SIZE),
+    queryFn: ({ pageParam }) => {
+      hasFetchedRef.current.Open = true; // mark as fetched
+      return getTicketList("open", auth.accessToken, pageParam, PAGE_SIZE);
+    },
     initialPageParam: 1,
     getNextPageParam: (p) =>
       p.page * p.limit < p.total ? p.page + 1 : undefined,
     staleTime: STALE_TIME_MS,
-    enabled: activeTab === "Open",
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    // ✅ Only fetch when: this tab is active AND data has never been fetched yet
+    enabled: activeTab === "Open" && !hasFetchedRef.current.Open,
   });
 
   const delayedQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "delayed"],
-    queryFn: ({ pageParam }) =>
-      getTicketList("delayed", auth.accessToken, pageParam, PAGE_SIZE),
+    queryFn: ({ pageParam }) => {
+      hasFetchedRef.current.Delayed = true;
+      return getTicketList("delayed", auth.accessToken, pageParam, PAGE_SIZE);
+    },
     initialPageParam: 1,
     getNextPageParam: (p) =>
       p.page * p.limit < p.total ? p.page + 1 : undefined,
     staleTime: STALE_TIME_MS,
-    enabled: activeTab === "Delayed",
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    enabled: activeTab === "Delayed" && !hasFetchedRef.current.Delayed,
   });
 
   const closedQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "closed"],
-    queryFn: ({ pageParam }) =>
-      getTicketList("closed", auth.accessToken, pageParam, PAGE_SIZE),
+    queryFn: ({ pageParam }) => {
+      hasFetchedRef.current.Closed = true;
+      return getTicketList("closed", auth.accessToken, pageParam, PAGE_SIZE);
+    },
     initialPageParam: 1,
     getNextPageParam: (p) =>
       p.page * p.limit < p.total ? p.page + 1 : undefined,
     staleTime: STALE_TIME_MS,
-    enabled: activeTab === "Closed",
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    enabled: activeTab === "Closed" && !hasFetchedRef.current.Closed,
   });
 
   const activeQuery = useMemo(() => {
@@ -1274,10 +1244,37 @@ export default function TicketListScreen() {
 
   const isLoading = loadingCounts || activeQuery.isLoading;
   const isRefetching = refetchingCounts || activeQuery.isRefetching;
-  const refetch = () => {
+
+  // ✅ Pull-to-refresh: pehle ref reset karo, phir refetch — warna enabled=false rahega
+  const refetch = useCallback(() => {
+    hasFetchedRef.current[activeTab] = false;
     refetchCounts();
     activeQuery.refetch();
-  };
+  }, [activeTab, refetchCounts, activeQuery]);
+
+  // Refs so useFocusEffect doesn't depend on query objects (they change every refetch → infinite loop)
+  const refetchCountsRef = useRef(refetchCounts);
+  const openQueryRef = useRef(openQuery);
+  refetchCountsRef.current = refetchCounts;
+  openQueryRef.current = openQuery;
+
+  // When coming from TokenDisplay after generating a token, refetch so new ticket and count show immediately
+  useFocusEffect(
+    useCallback(() => {
+      const refreshFromToken = route.params?.refreshFromToken;
+      if (refreshFromToken) {
+        hasFetchedRef.current.Open = false;
+        refetchCountsRef.current();
+        openQueryRef.current.refetch();
+        navigation.setParams({ refreshFromToken: undefined });
+      }
+      return () => {
+        setSearchQuery("");
+        setFilterType("all");
+        setDateRange(makeTodayRange());
+      };
+    }, [route.params?.refreshFromToken, navigation]),
+  );
 
   const { currentList, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useMemo(
@@ -1311,7 +1308,6 @@ export default function TicketListScreen() {
   ];
 
   const footerTotalHeight = useFooterTotalHeight();
-  const listContentPaddingBottom = footerTotalHeight;
   const showShimmer = isLoading || isRefetching;
 
   const screenBg = isDark ? theme.backgroundRoot : DesignTokens.login.cardBg;
@@ -1343,7 +1339,9 @@ export default function TicketListScreen() {
         ? "Enter driver name…"
         : filterType === "vehicle"
           ? "Enter vehicle reg. no…"
-          : "Search by token, name, vehicle…";
+          : filterType === "phone"
+            ? "Enter phone number…"
+            : "Search by, vehicle, phone token…";
 
   const dateBadgeLabel = dateRange.active
     ? `${formatDisplayDate(dateRange.startDate)} – ${formatDisplayDate(dateRange.endDate)}`
@@ -1358,22 +1356,13 @@ export default function TicketListScreen() {
           isDark && { backgroundColor: headerBg },
         ]}
       >
+        {/* Header — Reset button removed as requested */}
         <View style={styles.headerTitleRow}>
           <Text
             style={[styles.headerTitle, isDark && { color: headerTitleColor }]}
           >
             Tickets
           </Text>
-          {/* Reset All — only visible when any filter is active */}
-          {hasActiveFilters && (
-            <TouchableOpacity
-              onPress={resetAllFilters}
-              style={[styles.resetBtn, { borderColor: primaryRed }]}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Text style={styles.resetBtnTxt}>✕ Reset</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         <View style={styles.searchRow}>
@@ -1396,6 +1385,7 @@ export default function TicketListScreen() {
               clearButtonMode="while-editing"
               autoCorrect={false}
               autoCapitalize="none"
+              keyboardType={filterType === "phone" ? "phone-pad" : "default"}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity
@@ -1426,7 +1416,7 @@ export default function TicketListScreen() {
             <Text style={styles.calBtnIcon}>🗓️</Text>
           </TouchableOpacity>
 
-          {searchQuery.length > 0 && (
+          {(dateRange.active || searchQuery.length > 0) && (
             <View style={styles.resultBadge}>
               <Text style={styles.resultBadgeText}>
                 {filteredList.length}
@@ -1453,7 +1443,15 @@ export default function TicketListScreen() {
           </View>
         )}
 
-        <View style={styles.filterChipRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterChipScroll}
+          contentContainerStyle={styles.filterChipRow}
+          decelerationRate="fast"
+          snapToAlignment="start"
+          keyboardShouldPersistTaps="handled"
+        >
           {FILTER_OPTIONS.map((opt) => {
             const isActive = filterType === opt.id;
             const labelColor = isActive
@@ -1462,8 +1460,10 @@ export default function TicketListScreen() {
                 ? theme.text
                 : DesignTokens.login.otpText;
             return (
-              <Pressable
+              <TouchableOpacity
                 key={opt.id}
+                activeOpacity={0.7}
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setFilterType(opt.id);
@@ -1482,10 +1482,10 @@ export default function TicketListScreen() {
                 <Text style={[styles.chipLabel, { color: labelColor }]}>
                   {opt.label}
                 </Text>
-              </Pressable>
+              </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
 
         <View style={styles.tabBar}>
           {tabs.map((tab) => {
@@ -1535,7 +1535,7 @@ export default function TicketListScreen() {
           )}
           contentContainerStyle={[
             styles.listContent,
-            { paddingBottom: listContentPaddingBottom },
+            { paddingBottom: footerTotalHeight },
           ]}
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
@@ -1602,7 +1602,6 @@ export default function TicketListScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: DesignTokens.login.cardBg },
   list: { flex: 1 },
-
   headerSection: {
     paddingHorizontal: Layout.horizontalScreenPadding,
     paddingBottom: 0,
@@ -1629,20 +1628,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: DesignTokens.login.otpText,
   },
-
-  resetBtn: {
-    borderWidth: 1.5,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  resetBtnTxt: {
-    fontFamily: FONT_POPPINS,
-    fontSize: 12,
-    fontWeight: "700",
-    color: primaryRed,
-  },
-
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1668,7 +1653,6 @@ const styles = StyleSheet.create({
   },
   clearBtn: { padding: 2 },
   clearBtnText: { fontSize: 13, fontWeight: "600" },
-
   calBtn: {
     width: 50,
     height: 50,
@@ -1678,7 +1662,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   calBtnIcon: { fontSize: 20 },
-
   resultBadge: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -1693,7 +1676,6 @@ const styles = StyleSheet.create({
     color: "#147D6A",
     textAlign: "center",
   },
-
   activeDateBadgeRow: { marginBottom: Spacing.sm },
   activeDateBadge: {
     flexDirection: "row",
@@ -1720,26 +1702,29 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: primaryRed,
   },
-
+  filterChipScroll: {
+    marginBottom: Spacing.sm,
+    marginHorizontal: -Layout.horizontalScreenPadding,
+  },
   filterChipRow: {
     flexDirection: "row",
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 2,
+    paddingLeft: Layout.horizontalScreenPadding,
+    paddingRight: 32,
   },
   filterChip: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 5,
-    paddingHorizontal: 6,
-    paddingVertical: 9,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 50,
     borderWidth: 1.5,
   },
-  chipIcon: { fontSize: 14 },
-  chipLabel: { fontFamily: FONT_POPPINS, fontSize: 12, fontWeight: "600" },
-
+  chipIcon: { fontSize: 13 },
+  chipLabel: { fontFamily: FONT_POPPINS, fontSize: 13, fontWeight: "600" },
   tabBar: {
     flexDirection: "row",
     minHeight: Layout.minTouchTarget,
@@ -1750,7 +1735,6 @@ const styles = StyleSheet.create({
   tabLabel: { fontFamily: FONT_POPPINS, fontSize: 14 },
   tabLabelActive: { color: primaryRed, fontWeight: "600" },
   tabLabelInactive: { color: DesignTokens.login.otpText, fontWeight: "400" },
-
   listContent: {
     flexGrow: 1,
     paddingTop: Spacing.lg,
@@ -1775,7 +1759,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: DesignTokens.login.termsText,
   },
-
   cardWrapper: { marginBottom: Spacing.lg, width: "100%" },
   card: {
     backgroundColor: DesignTokens.login.cardBg,
@@ -1833,6 +1816,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8EBEC",
     justifyContent: "center",
     alignItems: "center",
+    flexShrink: 0,
   },
   avatarLetter: {
     fontFamily: FONT_POPPINS,
@@ -1847,26 +1831,35 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: DesignTokens.login.otpText,
   },
-  regInlineWrap: {
-    alignSelf: "flex-start",
-    marginTop: 4,
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  regInline: {
-    fontFamily: FONT_POPPINS,
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 1.4,
-  },
   driverRole: {
     fontFamily: FONT_POPPINS,
     fontSize: 12,
     fontWeight: "400",
     color: DesignTokens.login.termsText,
     marginTop: 2,
+  },
+  driverRightInfo: {
+    alignItems: "flex-end",
+    justifyContent: "center",
+    gap: 5,
+    flexShrink: 0,
+    maxWidth: 140,
+  },
+  phoneRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  phoneIcon: { fontSize: 11 },
+  phoneText: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 13,
+    fontWeight: "600",
+    color: DesignTokens.login.otpText,
+    letterSpacing: 0.5,
+  },
+  regText: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 13,
+    fontWeight: "400",
+    color: DesignTokens.login.termsText,
+    letterSpacing: 0.5,
   },
   viewDetailBtn: {
     minHeight: Layout.minTouchTarget,

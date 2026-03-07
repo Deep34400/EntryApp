@@ -60,10 +60,12 @@ export function normalizeTicketListItem(item: Record<string, unknown>): TicketLi
   const type = item.type ?? item.entry_type;
   const category = item.category ?? item.category_name;
   const subCategory = item.subCategory ?? item.sub_category;
+  const nameRaw =
+    item.name ?? item.driver_name ?? item.driverName ?? item.customer_name;
   return {
     id,
     token_no: String(tokenNo ?? ""),
-    name: item.name != null ? String(item.name) : undefined,
+    name: nameRaw != null ? String(nameRaw) : undefined,
     purpose: item.purpose != null ? String(item.purpose) : undefined,
     reason: item.reason != null ? String(item.reason) : undefined,
     category: category != null ? String(category) : undefined,

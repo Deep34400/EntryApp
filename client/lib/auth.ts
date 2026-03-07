@@ -206,13 +206,15 @@ export async function sendOtp(phoneNo: string, guestToken: string): Promise<void
   }
 }
 
-/** Backend returns tokens + user with defaultRole / defaultHub (used app-wide). No roles / userRoles / hubs / userHubs. */
+/** Backend returns tokens + user (OTP verify: /api/v1/users/login/otp/verify). */
 export type VerifyOtpResponseData = {
   user: {
     id: string;
     name: string;
     userType?: string;
     status?: string;
+    phoneNo?: string;
+    email?: string;
     userContacts?: Array<{ phoneNo: string; isPrimary?: boolean }>;
     defaultRole?: { id: string; name: string };
     defaultHub?: { id: string; name: string };

@@ -4,13 +4,38 @@
  * Identity runs ONLY in one guarded useEffect (no identity in logout, refresh, requestClient, or retry handler).
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { fetchIdentity, refreshToken, type VerifyOtpResponseData } from "@/lib/auth";
-import { loadAuth, saveAuth, clearAuth, defaultStored, type StoredAuth, type DefaultRoleOrHub } from "@/lib/storage";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  fetchIdentity,
+  refreshToken,
+  type VerifyOtpResponseData,
+} from "@/lib/auth";
+import {
+  loadAuth,
+  saveAuth,
+  clearAuth,
+  defaultStored,
+  type StoredAuth,
+  type DefaultRoleOrHub,
+} from "@/lib/storage";
 import { setHubId } from "@/lib/hub-bridge";
-import { ServerUnavailableError, isServerUnavailableError } from "@/lib/server-unavailable";
+import {
+  ServerUnavailableError,
+  isServerUnavailableError,
+} from "@/lib/server-unavailable";
 
-export type AuthStatus = "loading" | "guest" | "authenticated" | "unauthenticated";
+export type AuthStatus =
+  | "loading"
+  | "guest"
+  | "authenticated"
+  | "unauthenticated";
 
 const ALLOWED_ROLES = ["guard", "hub_manager"] as const;
 export type AllowedRole = (typeof ALLOWED_ROLES)[number];
@@ -57,7 +82,7 @@ export function getRoleAndHubFromVerifyData(data: VerifyOtpResponseData): {
 } {
   return {
     allowedRole: getAllowedRole(data.user.defaultRole?.name),
-    hasHub: !!(data.user.defaultHub?.id?.trim()),
+    hasHub: !!data.user.defaultHub?.id?.trim(),
   };
 }
 
@@ -153,7 +178,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus("unauthenticated");
     identityStartedRef.current = false;
     await clearAuth(stored.identityId);
-    setStored({ ...defaultStored, guestToken: "", identityId: stored.identityId });
+    setStored({
+      ...defaultStored,
+      guestToken: "",
+      identityId: stored.identityId,
+    });
     // Do NOT call fetchIdentity here. Identity runs only in the single guarded useEffect.
   }, [stored.identityId]);
 
@@ -165,7 +194,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus("unauthenticated");
     identityStartedRef.current = false;
     await clearAuth(stored.identityId);
-    setStored({ ...defaultStored, guestToken: "", identityId: stored.identityId });
+    setStored({
+      ...defaultStored,
+      guestToken: "",
+      identityId: stored.identityId,
+    });
   }, [stored.identityId]);
 
   const handleUnauthorized = useCallback(() => {
@@ -195,7 +228,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await saveAuth(next);
         return tokens.accessToken;
       } catch (e) {
-        if (e instanceof ServerUnavailableError || isServerUnavailableError(e)) throw e;
+        if (e instanceof ServerUnavailableError || isServerUnavailableError(e))
+          throw e;
         return null;
       } finally {
         refreshInFlightRef.current = null;
@@ -233,7 +267,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         identityStartedRef.current = false;
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Identity: ONLY place that runs fetchIdentity for initial guest. Never in logout/refresh/requestClient.
@@ -256,21 +292,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
       .then((data) => {
         if (cancelled || !data?.guestToken || !data?.id) return;
-        const next: StoredAuth = { ...defaultStored, guestToken: data.guestToken, identityId: data.id };
+        const next: StoredAuth = {
+          ...defaultStored,
+          guestToken: data.guestToken,
+          identityId: data.id,
+        };
         setStored(next);
         saveAuth(next);
         setStatus("guest");
       })
       .catch((e) => {
         if (cancelled) return;
-        if (e instanceof ServerUnavailableError || isServerUnavailableError(e)) {
+        if (
+          e instanceof ServerUnavailableError ||
+          isServerUnavailableError(e)
+        ) {
           identityStartedRef.current = false;
         } else {
           setAuthError("Failed to prepare login");
         }
       });
-    return () => { cancelled = true; };
-  }, [isRestored, stored.accessToken, stored.refreshToken, stored.guestToken, stored.tokenVersion, retryIdentityKey]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isRestored,
+    stored.accessToken,
+    stored.refreshToken,
+    stored.guestToken,
+    stored.tokenVersion,
+    retryIdentityKey,
+  ]);
 
   const retryGuestIdentity = useCallback(() => {
     const hasAccess = !!stored.accessToken?.trim();
@@ -282,7 +334,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const ensureGuestToken = useCallback(async () => {
     setAuthError(null);
-    const hasAuth = !!(stored.accessToken?.trim() && stored.refreshToken?.trim());
+    const hasAuth = !!(
+      stored.accessToken?.trim() && stored.refreshToken?.trim()
+    );
     try {
       const data = await fetchIdentity(
         hasAuth
@@ -298,22 +352,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               accessToken: undefined,
               refreshToken: undefined,
               tokenVersion: stored.tokenVersion ?? 1,
-            }
+            },
       );
       if (!data?.guestToken || !data?.id) {
         setStatus("guest");
         return;
       }
       if (hasAuth) persist({ ...stored, identityId: data.id });
-      else persist({ ...stored, guestToken: data.guestToken, identityId: data.id });
+      else
+        persist({
+          ...stored,
+          guestToken: data.guestToken,
+          identityId: data.id,
+        });
       setStatus("guest");
     } catch (e) {
-      if (e instanceof ServerUnavailableError || isServerUnavailableError(e)) return;
+      if (e instanceof ServerUnavailableError || isServerUnavailableError(e))
+        return;
       if (isTokenVersionMismatch(e)) {
         logout();
         return;
       }
-      setAuthError(e instanceof Error ? e.message : "Failed to get guest token");
+      setAuthError(
+        e instanceof Error ? e.message : "Failed to get guest token",
+      );
       setStatus("guest");
     }
   }, [stored, persist, logout]);
@@ -321,29 +383,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setTokensAfterVerify = useCallback(
     async (data: VerifyOtpResponseData): Promise<void> => {
       const primaryPhone =
-        data.user.userContacts?.find((c) => c.isPrimary)?.phoneNo ||
-        data.user.userContacts?.[0]?.phoneNo ||
-        data.user.name;
+        data.user.phoneNo && String(data.user.phoneNo).trim();
       const user: AuthUser = {
         id: data.user.id,
-        name: data.user.name?.trim() || primaryPhone,
-        phone: primaryPhone,
+        name: data.user.name?.trim() ?? "",
+        phone: primaryPhone ?? "",
         userType: data.user.userType,
       };
-      const defaultRole =
-        data.user.defaultRole?.id?.trim()
-          ? {
-              id: data.user.defaultRole.id.trim(),
-              name: (data.user.defaultRole.name ?? "").trim() || data.user.defaultRole.id.trim(),
-            }
-          : null;
-      const defaultHub =
-        data.user.defaultHub?.id?.trim()
-          ? {
-              id: data.user.defaultHub.id.trim(),
-              name: (data.user.defaultHub.name ?? "").trim() || data.user.defaultHub.id.trim(),
-            }
-          : null;
+      const defaultRole = data.user.defaultRole?.id?.trim()
+        ? {
+            id: data.user.defaultRole.id.trim(),
+            name:
+              (data.user.defaultRole.name ?? "").trim() ||
+              data.user.defaultRole.id.trim(),
+          }
+        : null;
+      const defaultHub = data.user.defaultHub?.id?.trim()
+        ? {
+            id: data.user.defaultHub.id.trim(),
+            name:
+              (data.user.defaultHub.name ?? "").trim() ||
+              data.user.defaultHub.id.trim(),
+          }
+        : null;
       const next: StoredAuth = {
         ...stored,
         guestToken: "",
@@ -359,14 +421,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setHubId(defaultHub?.id ?? null);
       setStatus("authenticated");
     },
-    [stored, persist]
+    [stored, persist],
   );
 
   const setAccessToken = useCallback(
     (accessToken: string) => {
       persist({ ...stored, accessToken: accessToken.trim() });
     },
-    [stored, persist]
+    [stored, persist],
   );
 
   const allowedRole = getAllowedRole(stored.defaultRole?.name);
@@ -385,7 +447,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     defaultHub: stored.defaultHub ?? null,
     allowedRole,
     hasValidRole: allowedRole != null,
-    hasHub: !!(stored.defaultHub?.id?.trim()),
+    hasHub: !!stored.defaultHub?.id?.trim(),
     ensureGuestToken,
     setTokensAfterVerify,
     setAccessToken,

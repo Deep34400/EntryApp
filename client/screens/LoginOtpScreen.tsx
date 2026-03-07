@@ -166,6 +166,7 @@ export default function LoginOtpScreen() {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           await auth.setTokensAfterVerify(data);
           const primaryPhone =
+            (data.user.phoneNo && String(data.user.phoneNo).trim()) ||
             data.user.userContacts?.find((c) => c.isPrimary)?.phoneNo ||
             data.user.userContacts?.[0]?.phoneNo ||
             data.user.name;

@@ -220,7 +220,7 @@ export default function TokenDisplayScreen() {
 
         <Pressable
           onPress={() =>
-            navigation.navigate("TicketList", { filter: "open" })
+            navigation.navigate("TicketList", { filter: "open", refreshFromToken: true })
           }
           style={({ pressed }) => [
             styles.trackBtn,

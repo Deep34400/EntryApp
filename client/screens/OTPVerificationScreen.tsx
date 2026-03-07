@@ -95,6 +95,7 @@ export default function OTPVerificationScreen() {
         if (data) {
           await auth.setTokensAfterVerify(data);
           const primaryPhone =
+            (data.user.phoneNo && String(data.user.phoneNo).trim()) ||
             data.user.userContacts?.find((c) => c.isPrimary)?.phoneNo ||
             data.user.userContacts?.[0]?.phoneNo ||
             data.user.name;
