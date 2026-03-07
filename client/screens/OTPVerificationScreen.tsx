@@ -23,7 +23,7 @@ import LatestLogo from "../../assets/images/latestLogo.svg";
 import { useAuth, getRoleAndHubFromVerifyData } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { sendOtp, verifyOtp } from "@/lib/auth";
+import { AuthError, sendOtp, verifyOtp } from "@/lib/auth";
 
 const OTP_SESSION_EXPIRED_MSG = "Your session expired. Please request OTP again.";
 
@@ -113,9 +113,18 @@ export default function OTPVerificationScreen() {
           }
         }
       } catch (_e) {
-        // OTP/login error → logout + identity; no retry, no refresh. Hard stop.
-        auth.logout();
-        navigation.replace("LoginOtp", { message: OTP_SESSION_EXPIRED_MSG });
+        const status = (_e as AuthError)?.statusCode;
+        if (status === 401 || status === 403) {
+          auth.logout();
+          navigation.replace("LoginOtp", { message: OTP_SESSION_EXPIRED_MSG });
+        } else if ((status ?? 0) >= 500) {
+          return;
+        } else {
+          setOtpDigits(Array(OTP_LENGTH).fill(""));
+          verifyTriggeredRef.current = false;
+          setError((_e as AuthError)?.message || "Incorrect OTP, please try again.");
+        }
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } finally {
         setLoading(false);
       }
@@ -181,8 +190,16 @@ export default function OTPVerificationScreen() {
       await sendOtp(phone, auth.guestToken);
       setResendSec(RESEND_COOLDOWN_SEC);
     } catch (_e) {
-      auth.logout();
-      navigation.replace("LoginOtp", { message: OTP_SESSION_EXPIRED_MSG });
+      const status = (_e as AuthError)?.statusCode;
+      if (status === 401 || status === 403) {
+        auth.logout();
+        navigation.replace("LoginOtp", { message: OTP_SESSION_EXPIRED_MSG });
+      } else if ((status ?? 0) >= 500) {
+        return;
+      } else {
+        setError((_e as AuthError)?.message || "Something went wrong. Please try again.");
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setResendLoading(false);
     }

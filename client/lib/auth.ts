@@ -110,7 +110,10 @@ function parseAuthError(text: string, statusCode: number): AuthError {
     const data = JSON.parse(text) as Record<string, unknown>;
     errorCode = typeof data.errorCode === "string" ? data.errorCode : undefined;
     if (!errorCode && typeof data.code === "string") errorCode = data.code;
-    const m = data.message ?? data.error;
+    // Backend shape: { success: false, data: { message: "...", code: 400, errorCode: "INVALID_OTP" } }
+    const dataObj = data.data as Record<string, unknown> | undefined;
+    if (dataObj && typeof dataObj.errorCode === "string" && !errorCode) errorCode = dataObj.errorCode;
+    const m = data.message ?? data.error ?? dataObj?.message ?? dataObj?.error;
     if (typeof m === "string" && m.trim()) message = m;
     else if (Array.isArray(m)) message = m.map(String).join(" ");
     else if (m && typeof m === "object" && typeof (m as { message?: unknown }).message === "string")

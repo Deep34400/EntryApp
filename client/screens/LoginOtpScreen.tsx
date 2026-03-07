@@ -31,7 +31,7 @@ import { DesignTokens } from "@/constants/designTokens";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { sendOtp, verifyOtp } from "@/lib/auth";
+import { AuthError, sendOtp, verifyOtp } from "@/lib/auth";
 import {
   normalizePhoneInput,
   isPhoneValid as checkPhoneValid,
@@ -176,9 +176,20 @@ export default function LoginOtpScreen() {
           });
         }
       } catch (_e) {
-        auth.logout();
-        setStep("phone");
-        setError(SESSION_EXPIRED_MSG);
+        const status = (_e as AuthError)?.statusCode;
+        if (status === 401 || status === 403) {
+          auth.logout();
+          setStep("phone");
+          setError(SESSION_EXPIRED_MSG);
+        } else if ((status ?? 0) >= 500) {
+          return;
+        } else {
+          setOtp("");
+          verifyTriggeredRef.current = false;
+          setError(
+            (_e as AuthError)?.message || "Incorrect OTP, please try again.",
+          );
+        }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } finally {
         setLoading(false);
@@ -207,8 +218,18 @@ export default function LoginOtpScreen() {
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (_e) {
-      auth.logout();
-      setError(SESSION_EXPIRED_MSG);
+      const status = (_e as AuthError)?.statusCode;
+      if (status === 401 || status === 403) {
+        auth.logout();
+        setError(SESSION_EXPIRED_MSG);
+      } else if ((status ?? 0) >= 500) {
+        return;
+      } else {
+        setError(
+          (_e as AuthError)?.message ||
+            "Something went wrong. Please try again.",
+        );
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -226,8 +247,18 @@ export default function LoginOtpScreen() {
       setOtp("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (_e) {
-      auth.logout();
-      setError(SESSION_EXPIRED_MSG);
+      const status = (_e as AuthError)?.statusCode;
+      if (status === 401 || status === 403) {
+        auth.logout();
+        setError(SESSION_EXPIRED_MSG);
+      } else if ((status ?? 0) >= 500) {
+        return;
+      } else {
+        setError(
+          (_e as AuthError)?.message ||
+            "Something went wrong. Please try again.",
+        );
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -276,14 +307,19 @@ export default function LoginOtpScreen() {
   if (step === "otp") {
     const otpCardBg = isDark ? theme.backgroundDefault : loginTokens.cardBg;
     const otpBoxBorder = isDark ? theme.border : loginTokens.otpBoxBorder;
-    const otpBoxBorderActive = isDark ? theme.primary : loginTokens.otpBoxBorderActive;
+    const otpBoxBorderActive = isDark
+      ? theme.primary
+      : loginTokens.otpBoxBorderActive;
     const otpTextColor = isDark ? theme.text : loginTokens.otpText;
     return (
       <SafeAreaView
         style={[styles.container, { backgroundColor: otpCardBg }]}
         edges={["top"]}
       >
-        <BackArrow onPress={goBackToPhone} color={isDark ? theme.text : loginTokens.otpText} />
+        <BackArrow
+          onPress={goBackToPhone}
+          color={isDark ? theme.text : loginTokens.otpText}
+        />
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboardView}
@@ -332,10 +368,10 @@ export default function LoginOtpScreen() {
                         height: otpLayout.boxSize,
                         marginRight: i < OTP_LENGTH - 1 ? otpLayout.gapSize : 0,
                         borderColor:
-                          i === otp.length
-                            ? otpBoxBorderActive
-                            : otpBoxBorder,
-                        backgroundColor: isDark ? theme.backgroundSecondary : undefined,
+                          i === otp.length ? otpBoxBorderActive : otpBoxBorder,
+                        backgroundColor: isDark
+                          ? theme.backgroundSecondary
+                          : undefined,
                         borderWidth: i === otp.length ? 2 : 1,
                       },
                     ]}
@@ -356,6 +392,16 @@ export default function LoginOtpScreen() {
                   </View>
                 ))}
               </Pressable>
+              {error ? (
+                <View style={styles.otpErrorWrap}>
+                  <ThemedText
+                    type="body"
+                    style={[styles.otpErrorText, { color: theme.error }]}
+                  >
+                    {error}
+                  </ThemedText>
+                </View>
+              ) : null}
               <View style={styles.resendRowOtp}>
                 <ThemedText type="body">Didn't receive the code? </ThemedText>
                 {resendCooldown > 0 ? (
@@ -389,14 +435,22 @@ export default function LoginOtpScreen() {
   const welcomeSubtitleColor = isDark ? theme.textSecondary : "#666";
   const phoneInputWrapBg = isDark ? theme.backgroundSecondary : "#F9FAFB";
   const phoneInputBorder = phoneFocused
-    ? (isDark ? theme.primary : loginTokens.headerRed)
-    : (isDark ? theme.border : "#E0E0E0");
+    ? isDark
+      ? theme.primary
+      : loginTokens.headerRed
+    : isDark
+      ? theme.border
+      : "#E0E0E0";
   const phonePrefixColor = isDark ? theme.text : "#333";
   const phoneInputColor = isDark ? theme.text : "#000";
   const placeholderColor = isDark ? theme.textSecondary : "#A2ACB1";
   const sentOtpBtnBg = isPhoneValid
-    ? (isDark ? theme.primary : loginTokens.headerRed)
-    : (isDark ? theme.backgroundTertiary : "#D7D7D7");
+    ? isDark
+      ? theme.primary
+      : loginTokens.headerRed
+    : isDark
+      ? theme.backgroundTertiary
+      : "#D7D7D7";
   const termsTextColor = isDark ? theme.textSecondary : "#999";
   const termsLinkColor = isDark ? theme.link : "#17A589";
 
@@ -427,8 +481,17 @@ export default function LoginOtpScreen() {
           >
             <View style={{ width: "100%", alignItems: "center" }}>
               <View style={styles.welcomeBlock}>
-                <ThemedText style={[styles.welcomeTitle, { color: welcomeTitleColor }]}>Welcome</ThemedText>
-                <ThemedText style={[styles.welcomeSubtitle, { color: welcomeSubtitleColor }]}>
+                <ThemedText
+                  style={[styles.welcomeTitle, { color: welcomeTitleColor }]}
+                >
+                  Welcome
+                </ThemedText>
+                <ThemedText
+                  style={[
+                    styles.welcomeSubtitle,
+                    { color: welcomeSubtitleColor },
+                  ]}
+                >
                   Entry/ Exit Application
                 </ThemedText>
               </View>
@@ -442,7 +505,11 @@ export default function LoginOtpScreen() {
                   },
                 ]}
               >
-                <ThemedText style={[styles.phonePrefix, { color: phonePrefixColor }]}>🇮🇳 +91</ThemedText>
+                <ThemedText
+                  style={[styles.phonePrefix, { color: phonePrefixColor }]}
+                >
+                  🇮🇳 +91
+                </ThemedText>
                 <TextInput
                   style={[styles.phoneInput, { color: phoneInputColor }]}
                   placeholder="Enter mobile number"
@@ -474,9 +541,24 @@ export default function LoginOtpScreen() {
                 ]}
               >
                 {loading ? (
-                  <ActivityIndicator color={isDark ? theme.onPrimary : "#FFF"} />
+                  <ActivityIndicator
+                    color={isDark ? theme.onPrimary : "#FFF"}
+                  />
                 ) : (
-                  <ThemedText style={[styles.buttonText, { color: isDark ? (!isPhoneValid ? theme.textSecondary : theme.onPrimary) : "#FFF" }]}>Sent OTP</ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.buttonText,
+                      {
+                        color: isDark
+                          ? !isPhoneValid
+                            ? theme.textSecondary
+                            : theme.onPrimary
+                          : "#FFF",
+                      },
+                    ]}
+                  >
+                    Sent OTP
+                  </ThemedText>
                 )}
               </Pressable>
             </View>
@@ -493,17 +575,32 @@ export default function LoginOtpScreen() {
                 }}
               >
                 <Pressable
-                  onPress={() => Linking.openURL("https://example.com/terms")}
+                  onPress={() =>
+                    Linking.openURL(
+                      "https://www.carrum.co.in/terms-of-agreement",
+                    )
+                  }
                 >
-                  <ThemedText style={[styles.termsLink, { color: termsLinkColor }]}>
+                  <ThemedText
+                    style={[styles.termsLink, { color: termsLinkColor }]}
+                  >
                     terms & conditions
                   </ThemedText>
                 </Pressable>
-                <ThemedText style={[styles.termsText, { color: termsTextColor }]}> and </ThemedText>
-                <Pressable
-                  onPress={() => Linking.openURL("https://example.com/privacy")}
+                <ThemedText
+                  style={[styles.termsText, { color: termsTextColor }]}
                 >
-                  <ThemedText style={[styles.termsLink, { color: termsLinkColor }]}>
+                  {" "}
+                  and{" "}
+                </ThemedText>
+                <Pressable
+                  onPress={() =>
+                    Linking.openURL("https://www.carrum.co.in/privacy-policy")
+                  }
+                >
+                  <ThemedText
+                    style={[styles.termsLink, { color: termsLinkColor }]}
+                  >
                     privacy policy
                   </ThemedText>
                 </Pressable>
@@ -603,5 +700,7 @@ const styles = StyleSheet.create({
   otpHiddenInput: { position: "absolute", opacity: 0, width: "100%" },
   otpBox: { borderRadius: 8, alignItems: "center", justifyContent: "center" },
   otpBoxDigit: { fontWeight: "600" },
+  otpErrorWrap: { marginTop: Spacing.md, marginBottom: Spacing.xs },
+  otpErrorText: { fontWeight: "500", textAlign: "center" },
   resendRowOtp: { flexDirection: "row", marginTop: 24 },
 });
