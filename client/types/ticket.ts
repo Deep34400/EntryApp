@@ -45,6 +45,7 @@ export interface TicketDetailResult {
   purpose?: string;
   category?: string;
   subCategory?: string;
+  regNumber?: string;
   /** From GET API (type or entry_type): new_dp | old_dp | non_dp — display as "Driver Partner" / "Staff" */
   type?: string;
 }

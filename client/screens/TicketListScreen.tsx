@@ -23,7 +23,12 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation, useFocusEffect, useRoute, RouteProp } from "@react-navigation/native";
+import {
+  useNavigation,
+  useFocusEffect,
+  useRoute,
+  RouteProp,
+} from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 
@@ -44,10 +49,9 @@ export type { TicketListItem } from "@/types/ticket";
 
 type TabId = "Delayed" | "Open" | "Closed";
 
-type FilterType = "all" | "token" | "name" | "vehicle" | "phone";
+type FilterType = "token" | "name" | "vehicle" | "phone";
 
 const FILTER_OPTIONS: { id: FilterType; label: string; icon: string }[] = [
-  { id: "all", label: "All", icon: "🔍" },
   { id: "phone", label: "Phone", icon: "📞" },
   { id: "vehicle", label: "Vehicle", icon: "🚗" },
   { id: "token", label: "Token #", icon: "🎫" },
@@ -123,7 +127,7 @@ type NavigationProp = NativeStackNavigationProp<
 
 const FONT_POPPINS = "Poppins";
 const primaryRed = DesignTokens.login.headerRed;
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 1000;
 const STALE_TIME_MS = 5 * 60 * 1000;
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS_LONG = [
@@ -153,8 +157,8 @@ function formatWaitingLabel(entryTime?: string | null): string {
 function maskPhone(phone?: string | null): string | null {
   if (!phone) return null;
   const digits = phone.replace(/\D/g, "");
-  if (digits.length < 4) return null;
-  const last4 = digits.slice(-4);
+  if (digits.length < 5) return null;
+  const last4 = digits.slice(-5);
   return `xxxxxx${last4}`;
 }
 
@@ -182,11 +186,7 @@ function applySearch(
         case "phone":
           return phoneStr.replace(/\D/g, "").includes(q.replace(/\D/g, ""));
         default:
-          return (
-            tokenStr.toLowerCase().includes(q) ||
-            regStr.toLowerCase().includes(q) ||
-            phoneStr.replace(/\D/g, "").includes(q.replace(/\D/g, ""))
-          );
+          return false;
       }
     });
   }
@@ -1136,17 +1136,11 @@ export default function TicketListScreen() {
 
   const [activeTab, setActiveTab] = useState<TabId>("Open");
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<FilterType>("all");
+  const [filterType, setFilterType] = useState<FilterType>("phone");
   const [dateRange, setDateRange] = useState<DateRange>(makeTodayRange);
   const [showCalModal, setShowCalModal] = useState(false);
   const [modalKey, setModalKey] = useState(0);
 
-  // ✅ ROOT FIX — Ref se track karo ki kaunsa tab fetch ho chuka hai.
-  // Ref kabhi component re-render trigger nahi karta.
-  // Search type karo, chip badlo, date range lagao — ref nahi badlega → enabled nahi badlega → NO API CALL.
-  // Sirf 2 cases mein API call hogi:
-  //   1. Pehli baar tab switch karo (data nahi hai)
-  //   2. Pull-to-refresh karo (ref manually reset hoga)
   const hasFetchedRef = useRef<Record<TabId, boolean>>({
     Open: false,
     Delayed: false,
@@ -1160,7 +1154,6 @@ export default function TicketListScreen() {
 
   const clearSearch = useCallback(() => {
     setSearchQuery("");
-    setFilterType("all");
   }, []);
 
   const clearDateFilter = useCallback(() => {
@@ -1190,7 +1183,7 @@ export default function TicketListScreen() {
   const openQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "open"],
     queryFn: ({ pageParam }) => {
-      hasFetchedRef.current.Open = true; // mark as fetched
+      hasFetchedRef.current.Open = true;
       return getTicketList("open", auth.accessToken, pageParam, PAGE_SIZE);
     },
     initialPageParam: 1,
@@ -1200,7 +1193,6 @@ export default function TicketListScreen() {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    // ✅ Only fetch when: this tab is active AND data has never been fetched yet
     enabled: activeTab === "Open" && !hasFetchedRef.current.Open,
   });
 
@@ -1245,20 +1237,17 @@ export default function TicketListScreen() {
   const isLoading = loadingCounts || activeQuery.isLoading;
   const isRefetching = refetchingCounts || activeQuery.isRefetching;
 
-  // ✅ Pull-to-refresh: pehle ref reset karo, phir refetch — warna enabled=false rahega
   const refetch = useCallback(() => {
     hasFetchedRef.current[activeTab] = false;
     refetchCounts();
     activeQuery.refetch();
   }, [activeTab, refetchCounts, activeQuery]);
 
-  // Refs so useFocusEffect doesn't depend on query objects (they change every refetch → infinite loop)
   const refetchCountsRef = useRef(refetchCounts);
   const openQueryRef = useRef(openQuery);
   refetchCountsRef.current = refetchCounts;
   openQueryRef.current = openQuery;
 
-  // When coming from TokenDisplay after generating a token, refetch so new ticket and count show immediately
   useFocusEffect(
     useCallback(() => {
       const refreshFromToken = route.params?.refreshFromToken;
@@ -1270,7 +1259,7 @@ export default function TicketListScreen() {
       }
       return () => {
         setSearchQuery("");
-        setFilterType("all");
+        setFilterType("phone");
         setDateRange(makeTodayRange());
       };
     }, [route.params?.refreshFromToken, navigation]),
@@ -1339,9 +1328,7 @@ export default function TicketListScreen() {
         ? "Enter driver name…"
         : filterType === "vehicle"
           ? "Enter vehicle reg. no…"
-          : filterType === "phone"
-            ? "Enter phone number…"
-            : "Search by, vehicle, phone token…";
+          : "Enter phone number…";
 
   const dateBadgeLabel = dateRange.active
     ? `${formatDisplayDate(dateRange.startDate)} – ${formatDisplayDate(dateRange.endDate)}`
@@ -1356,7 +1343,6 @@ export default function TicketListScreen() {
           isDark && { backgroundColor: headerBg },
         ]}
       >
-        {/* Header — Reset button removed as requested */}
         <View style={styles.headerTitleRow}>
           <Text
             style={[styles.headerTitle, isDark && { color: headerTitleColor }]}

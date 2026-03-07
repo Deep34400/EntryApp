@@ -75,7 +75,17 @@ function listItemToDetailResult(item: TicketListItem): TicketDetailResult {
     category: item.category,
     subCategory: item.subCategory,
     type: item.type,
+    regNumber: item.regNumber,
   };
+}
+
+/** Mask phone like TicketListScreen: last 5 digits visible, rest as xxxxxx */
+function maskPhone(phone?: string | null): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 5) return null;
+  const last5 = digits.slice(-5);
+  return `xxxxxx${last5}`;
 }
 
 const FONT_POPPINS = "Poppins";
@@ -168,6 +178,7 @@ export default function TicketDetailScreen() {
   const closed = isClosed(ticket);
   const waitingHours = formatWaitingHoursDecimal(ticket?.entry_time);
   const isStaff = getEntryTypeDisplayLabel(ticket?.type) === "Staff";
+  const maskedPhone = ticket ? maskPhone(ticket.phone) : null;
 
   const handleCloseTicket = () => {
     closeMutation.mutate();
@@ -404,7 +415,7 @@ export default function TicketDetailScreen() {
           )}
         </View>
 
-        {/* Driver / Person Card */}
+        {/* Driver / Person Card — layout like TicketListScreen: avatar, name/role, masked phone + reg */}
         <View
           style={[
             styles.card,
@@ -447,6 +458,36 @@ export default function TicketDetailScreen() {
               >
                 {getEntryTypeDisplayLabel(ticket.type)}
               </Text>
+            </View>
+            <View style={styles.driverRightInfo}>
+              {maskedPhone ? (
+                <View style={styles.phoneRow}>
+                  <Text style={styles.phoneIcon}>📞</Text>
+                  <Text
+                    style={[
+                      styles.phoneText,
+                      isDark && driverNameColor && { color: driverNameColor },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {maskedPhone}
+                  </Text>
+                </View>
+              ) : null}
+              {ticket.regNumber?.trim() ? (
+                <View style={styles.phoneRow}>
+                  <Text style={styles.phoneIcon}>🚗</Text>
+                  <Text
+                    style={[
+                      styles.regText,
+                      isDark && driverRoleColor && { color: driverRoleColor },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {ticket.regNumber.trim().toUpperCase()}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
 
@@ -743,6 +784,37 @@ const styles = StyleSheet.create({
   },
   driverInfo: {
     flex: 1,
+    minWidth: 0,
+    justifyContent: "center",
+  },
+  driverRightInfo: {
+    alignItems: "flex-end",
+    justifyContent: "center",
+    gap: 5,
+    flexShrink: 0,
+    maxWidth: 140,
+  },
+  phoneRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  phoneIcon: {
+    fontSize: 11,
+  },
+  phoneText: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#161B1D",
+    letterSpacing: 0.5,
+  },
+  regText: {
+    fontFamily: FONT_POPPINS,
+    fontSize: 13,
+    fontWeight: "400",
+    color: "#3F4C52",
+    letterSpacing: 0.5,
   },
   driverName: {
     fontFamily: FONT_POPPINS,

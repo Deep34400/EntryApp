@@ -13,7 +13,7 @@ import {
 import type { TicketListItem, TicketDetailResult } from "@/types/ticket";
 import { normalizeTicketListItem } from "@/types/ticket";
 
-const DEFAULT_PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 1000;
 
 export type TicketCounts = { open: number; closed: number; delayed: number };
 
@@ -96,6 +96,7 @@ export async function getTicketById(
     const type = d.type ?? d.entry_type;
     const category = d.category ?? d.category_name;
     const subCategory = d.subCategory ?? d.sub_category;
+    const regNumber = d.regNumber ?? d.reg_number ?? d.vehicle;
     return {
       id: String(d.id ?? ""),
       token_no: String(tokenNo ?? ""),
@@ -115,6 +116,7 @@ export async function getTicketById(
       assignee: assignee != null ? String(assignee) : undefined,
       desk_location: deskLocation != null ? String(deskLocation) : undefined,
       type: type != null ? String(type) : undefined,
+      regNumber: regNumber != null ? String(regNumber) : undefined,
     };
   } catch {
     return null;
