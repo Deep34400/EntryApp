@@ -1242,68 +1242,58 @@ export default function TicketListScreen() {
   const refetchCountsRef = useRef(refetchCounts);
   refetchCountsRef.current = refetchCounts;
 
+  // In production/native builds, route params can update AFTER focus. useFocusEffect
+  // may run with stale params and skip the refetch. Reacting to params in useEffect
+  // ensures we refetch whenever the navigator passes refreshFromToken/closedFromTab.
+  const refreshFromToken = route.params?.refreshFromToken;
+  const closedFromTab = route.params?.closedFromTab as TabId | undefined;
+
+  useEffect(() => {
+    if (!refreshFromToken) return;
+
+    refetchCountsRef.current();
+
+    if (closedFromTab) {
+      setActiveTab(closedFromTab);
+      const sourceKey =
+        closedFromTab === "Open"
+          ? ["ticket-list", "open"]
+          : ["ticket-list", "delayed"];
+      queryClient.refetchQueries({ queryKey: sourceKey, exact: true });
+      queryClient.refetchQueries({
+        queryKey: ["ticket-list", "closed"],
+        exact: true,
+      });
+    } else {
+      const tab = activeTabRef.current;
+      const key =
+        tab === "Open"
+          ? ["ticket-list", "open"]
+          : tab === "Delayed"
+            ? ["ticket-list", "delayed"]
+            : ["ticket-list", "closed"];
+      queryClient.refetchQueries({ queryKey: key, exact: true });
+    }
+
+    navigation.setParams({
+      refreshFromToken: undefined,
+      closedFromTab: undefined,
+    });
+  }, [
+    refreshFromToken,
+    closedFromTab,
+    navigation,
+    queryClient,
+  ]);
+
   useFocusEffect(
     useCallback(() => {
-      const refreshFromToken = route.params?.refreshFromToken;
-      const closedFromTab = route.params?.closedFromTab as TabId | undefined;
-
-      if (refreshFromToken) {
-        // Always refresh counts
-        refetchCountsRef.current();
-
-        if (closedFromTab) {
-          // Ticket was just closed from "Open" or "Delayed" tab.
-          // Rules:
-          //   1. Refresh the source tab → ticket disappears from it
-          //   2. Refresh Closed list in background → ticket appears there when user goes to it
-          //   3. User STAYS on the tab they were on (no tab switch)
-          //
-          // Restore active tab from params: when navigating back, the screen may remount
-          // and state resets to "Open", so we must set the tab the user was on.
-          setActiveTab(closedFromTab);
-
-          // Use queryClient.refetchQueries — it bypasses the `enabled` gate so
-          // background tabs (currently not active) also get refreshed immediately.
-          const sourceKey =
-            closedFromTab === "Open"
-              ? ["ticket-list", "open"]
-              : ["ticket-list", "delayed"];
-
-          queryClient.refetchQueries({ queryKey: sourceKey, exact: true });
-          queryClient.refetchQueries({
-            queryKey: ["ticket-list", "closed"],
-            exact: true,
-          });
-        } else {
-          // Normal refresh (new ticket created from Entry screen etc.)
-          // Only refresh whatever tab the user is currently on
-          const tab = activeTabRef.current;
-          const key =
-            tab === "Open"
-              ? ["ticket-list", "open"]
-              : tab === "Delayed"
-                ? ["ticket-list", "delayed"]
-                : ["ticket-list", "closed"];
-          queryClient.refetchQueries({ queryKey: key, exact: true });
-        }
-
-        navigation.setParams({
-          refreshFromToken: undefined,
-          closedFromTab: undefined,
-        });
-      }
-
       return () => {
         setSearchQuery("");
         setFilterType("phone");
         setDateRange(makeTodayRange());
       };
-    }, [
-      route.params?.refreshFromToken,
-      route.params?.closedFromTab,
-      navigation,
-      queryClient,
-    ]),
+    }, []),
   );
 
   const { currentList, fetchNextPage, hasNextPage, isFetchingNextPage } =
