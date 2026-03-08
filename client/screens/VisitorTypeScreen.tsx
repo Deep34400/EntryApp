@@ -74,6 +74,11 @@ const TOGGLE_H = IS_COMPACT ? 46 : 52;
 const INPUT_PAD_H = IS_COMPACT ? 12 : 14;
 const INPUT_FONT_SIZE = IS_COMPACT ? 14 : 15;
 
+// ─── Dark mode toggle hardcoded colors ───────────────────────────────────────
+const DARK_TRACK_BG = "#252A2D";
+const DARK_ACTIVE_PILL_BG = "#3A4145";
+const DARK_ACTIVE_PILL_BORDER = "rgba(255,255,255,0.13)";
+
 type NavProp = NativeStackNavigationProp<RootStackParamList, "VisitorType">;
 type Vehicle = { regNumber: string; modelName?: string };
 const EMPTY: EntryFormData = { phone: "", name: "", vehicle_reg_number: "" };
@@ -101,22 +106,30 @@ function SegmentedPill({
     primary: string;
   };
 }) {
-  const trackBg = isDark && theme ? theme.backgroundSecondary : TOGGLE_TRACK;
-  const optionActiveBg = isDark && theme ? theme.backgroundSecondary : WHITE;
-  const labelInactiveColor =
-    isDark && theme ? theme.textSecondary : TOGGLE_TEXT_MUTED;
-  const labelActiveColor = isDark && theme ? theme.primary : RED;
+  // ── FIX: hardcoded dark values so active pill is always visually distinct ──
+  const trackBg = isDark ? DARK_TRACK_BG : TOGGLE_TRACK;
+  const optionActiveBg = isDark ? DARK_ACTIVE_PILL_BG : WHITE;
+  const labelInactiveColor = isDark
+    ? (theme?.textSecondary ?? "#7A8A91")
+    : TOGGLE_TEXT_MUTED;
+  const labelActiveColor = isDark ? (theme?.primary ?? RED) : RED;
+
   return (
     <View
       style={[s.segmentedTrack, { height: TOGGLE_H, backgroundColor: trackBg }]}
     >
+      {/* LEFT option */}
       <Pressable
         style={[
           s.segmentedOption,
-          value === "left" && {
-            ...s.segmentedOptionActive,
-            backgroundColor: optionActiveBg,
-          },
+          value === "left" && [
+            s.segmentedOptionActive,
+            {
+              backgroundColor: optionActiveBg,
+              borderWidth: 1,
+              borderColor: isDark ? DARK_ACTIVE_PILL_BORDER : "transparent",
+            },
+          ],
         ]}
         onPress={() => {
           if (value !== "left") {
@@ -136,13 +149,19 @@ function SegmentedPill({
           {leftLabel}
         </Text>
       </Pressable>
+
+      {/* RIGHT option */}
       <Pressable
         style={[
           s.segmentedOption,
-          value === "right" && {
-            ...s.segmentedOptionActive,
-            backgroundColor: optionActiveBg,
-          },
+          value === "right" && [
+            s.segmentedOptionActive,
+            {
+              backgroundColor: optionActiveBg,
+              borderWidth: 1,
+              borderColor: isDark ? DARK_ACTIVE_PILL_BORDER : "transparent",
+            },
+          ],
         ]}
         onPress={() => {
           if (value !== "right") {
@@ -258,20 +277,6 @@ function FormInput({
 }
 
 // ─── VehicleField ─────────────────────────────────────────────────────────────
-/**
- * Two modes:
- *
- * A) NO vehicles (vehicles.length === 0):
- *    Plain text input. User types reg number manually.
- *    On blur → triggers fetchByReg in parent.
- *    ✕ clears WITHOUT triggering fetch.
- *
- * B) HAS vehicles (vehicles.length > 0):
- *    Dropdown picker showing the driver's registered vehicles.
- *    User can ONLY pick from the list — no free-type that triggers API.
- *    ✕ clears selection WITHOUT triggering fetch.
- *    "Remove vehicle" in dropdown also clears without fetch.
- */
 function VehicleField({
   vehicles,
   selectedReg,
@@ -296,7 +301,6 @@ function VehicleField({
   const [query, setQuery] = useState(selectedReg ?? "");
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
-  // Suppress blur→fetch when ✕ was pressed
   const clearPressedRef = useRef(false);
   const heightAnim = useRef(new Animated.Value(0)).current;
   const inputRef = useRef<TextInput>(null);
@@ -335,7 +339,6 @@ function VehicleField({
     [onSelect, closeDrop],
   );
 
-  // ✕ pressed — clear without triggering fetch
   const handleClear = useCallback(() => {
     clearPressedRef.current = true;
     setQuery("");
@@ -370,13 +373,6 @@ function VehicleField({
   const clearCircleBg = isDark ? theme.backgroundTertiary : "#E0E4E6";
   const clearXColor = isDark ? theme.textSecondary : MUTED;
   const unifiedBoxBg = isDark ? theme.backgroundSecondary : "#FAFAFA";
-  const unifiedBoxBorder = isDark
-    ? isOpen
-      ? theme.primary
-      : theme.border
-    : isOpen
-      ? undefined
-      : BORDER;
   const dropInnerBg = isDark ? theme.backgroundTertiary : "#F2F4F6";
   const dropSeparatorColor = isDark ? theme.border : BORDER;
   const dropRowSelBg = isDark ? theme.backgroundSecondary : RED_BG;
@@ -386,7 +382,7 @@ function VehicleField({
   const dropRemoveTxtColor = isDark ? theme.textSecondary : MUTED;
   const dropRowDividerColor = isDark ? theme.border : "#DDE0E3";
 
-  // ── MODE A: No vehicles loaded → plain input, fetch on blur ──────────────
+  // ── MODE A: No vehicles loaded → plain input ─────────────────────────────
   if (vehicles.length === 0) {
     return (
       <View style={s.field}>
@@ -417,13 +413,12 @@ function VehicleField({
             onBlur={() => {
               setFocused(false);
               if (clearPressedRef.current) {
-                // ✕ was pressed — skip fetch
                 clearPressedRef.current = false;
                 onBlurField?.();
                 return;
               }
               onBlurField?.();
-              onBlur?.(); // → triggers fetchByReg in parent
+              onBlur?.();
             }}
             autoCapitalize="characters"
             autoCorrect={false}
@@ -442,7 +437,7 @@ function VehicleField({
     );
   }
 
-  // ── MODE B: Vehicles loaded → dropdown picker only, no free-type fetch ───
+  // ── MODE B: Vehicles loaded → dropdown picker ────────────────────────────
   return (
     <View style={s.vehicleWrapper}>
       <Text style={[s.label, { color: labelColor }]}>
@@ -635,8 +630,6 @@ export default function VisitorTypeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [focusedField, setFocusedField] = useState<FocusedFieldKey>(null);
 
-  // Track the last phone/reg for which we successfully fetched a driver.
-  // This prevents re-fetching when the user just switches focus.
   const lastFetchedPhone = useRef<string>("");
   const lastFetchedReg = useRef<string>("");
 
@@ -704,7 +697,6 @@ export default function VisitorTypeScreen() {
     setFocusedField((prev) => (prev === key ? null : prev));
   }, []);
 
-  /** When switching between Driver Partner and Staff, clear all inputs and driver data. */
   const handleVisitorTypeChange = useCallback(
     (v: "left" | "right") => {
       const newType = v === "left" ? "dp" : "staff";
@@ -739,7 +731,6 @@ export default function VisitorTypeScreen() {
     if (key === "phone") {
       const normalized = normalizePhoneInput(val);
       setForm((p) => ({ ...p, phone: normalized }));
-      // If user is typing a new phone, clear previous driver data
       if (!val.trim()) {
         setDriver(null);
         lastFetchedPhone.current = "";
@@ -750,16 +741,10 @@ export default function VisitorTypeScreen() {
     }
   };
 
-  /**
-   * Fetch by phone on blur.
-   * Guard: skip if already fetched for this exact phone number.
-   */
   const fetchByPhone = useCallback(async () => {
     if (visitorType !== "dp" || !accessToken) return;
     const phone = form.phone.trim();
     if (!isPhoneValid(phone)) return;
-
-    // Skip if we already fetched this phone (e.g., after reg-fetch filled it)
     if (lastFetchedPhone.current === phone) return;
 
     setLoading(true);
@@ -771,8 +756,6 @@ export default function VisitorTypeScreen() {
       const d = await getDriverDetails({ phoneNo: phone, accessToken });
       if (d) {
         setDriver(d);
-        // Auto-fill name
-        // Auto-select vehicle if exactly one is assigned
         const autoVehicle =
           d.vehicles?.length === 1 ? d.vehicles[0].regNumber : "";
         setForm((p) => ({
@@ -788,21 +771,12 @@ export default function VisitorTypeScreen() {
     }
   }, [visitorType, accessToken, form.phone]);
 
-  /**
-   * Fetch by reg number on VehicleField blur.
-   * Guard: skip if:
-   *   - reg is empty or too short
-   *   - reg already exists in current driver's vehicle list (selected from dropdown)
-   *   - already fetched this exact reg
-   */
   const fetchByReg = useCallback(async () => {
     if (visitorType !== "dp" || !accessToken) return;
     const reg = (form.vehicle_reg_number ?? "").trim().toUpperCase();
 
     if (reg.length < 2) return;
-    // Skip if this reg is already in the loaded vehicle list (just selected from dropdown)
     if (vehicles.some((v) => v.regNumber === reg)) return;
-    // Skip duplicate fetch
     if (lastFetchedReg.current === reg) return;
 
     setLoading(true);
@@ -815,7 +789,6 @@ export default function VisitorTypeScreen() {
       if (d) {
         setDriver(d);
         const normalizedPhone = normalizePhoneInput(d.phone);
-        // Mark phone as already "fetched" so phone-blur won't re-trigger
         lastFetchedPhone.current = normalizedPhone;
         setForm((p) => ({
           ...p,
@@ -983,7 +956,6 @@ export default function VisitorTypeScreen() {
                   }
                   onClear={() => {
                     setForm((p) => ({ ...p, vehicle_reg_number: "" }));
-                    // Reset reg fetch guard so user can type a new reg
                     lastFetchedReg.current = "";
                   }}
                   onCustomChange={(v) => set("vehicle_reg_number", v)}

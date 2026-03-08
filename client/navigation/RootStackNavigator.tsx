@@ -66,8 +66,17 @@ export type RootStackParamList = {
     purpose?: string;
   };
   ExitConfirmation: { token: string };
-  TicketList: { filter?: "open" | "closed"; refreshFromToken?: boolean };
-  TicketDetail: { ticketId: string };
+  TicketList: {
+    filter?: "open" | "closed";
+    refreshFromToken?: boolean;
+    // Which tab the ticket was closed from — tells TicketListScreen which lists to refresh
+    closedFromTab?: "Open" | "Delayed";
+  };
+  TicketDetail: {
+    ticketId: string;
+    // Which tab the user was on when they opened this ticket — passed back on close
+    fromTab: "Open" | "Delayed" | "Closed";
+  };
   Profile: undefined;
 };
 
@@ -200,7 +209,6 @@ export default function RootStackNavigator() {
     return "VisitorType";
   }, [isAuthenticated, hasValidRole, hasHub]);
 
-  /** Key by allowed screens so when the list changes (e.g. TicketList removed for guard), the stack remounts and clears stale route state. */
   const navigatorKey = allowedScreens.join(",");
 
   return (

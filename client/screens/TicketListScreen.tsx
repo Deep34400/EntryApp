@@ -4,6 +4,7 @@ import React, {
   useState,
   useCallback,
   useRef,
+  useEffect,
 } from "react";
 import {
   View,
@@ -30,7 +31,11 @@ import {
   RouteProp,
 } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import {
+  useQuery,
+  useInfiniteQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { AppFooter, useFooterTotalHeight } from "@/components/AppFooter";
 import { useTheme } from "@/hooks/useTheme";
@@ -47,8 +52,9 @@ import { TicketListShimmer } from "@/components/Shimmer";
 
 export type { TicketListItem } from "@/types/ticket";
 
-type TabId = "Delayed" | "Open" | "Closed";
+// ── Types ─────────────────────────────────────────────────────────────────────
 
+type TabId = "Delayed" | "Open" | "Closed";
 type FilterType = "token" | "name" | "vehicle" | "phone";
 
 const FILTER_OPTIONS: { id: FilterType; label: string; icon: string }[] = [
@@ -70,6 +76,36 @@ interface DateRange {
   active: boolean;
 }
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const FONT_POPPINS = "Poppins";
+const primaryRed = DesignTokens.login.headerRed;
+const PAGE_SIZE = 1000;
+const STALE_TIME_MS = 60 * 1000;
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS_LONG = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+type NavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "TicketList"
+>;
+type TicketListRoute = RouteProp<RootStackParamList, "TicketList">;
+
+// ── Pure helpers ──────────────────────────────────────────────────────────────
+
 function makeTodayRange(): DateRange {
   const now = new Date();
   return {
@@ -90,11 +126,10 @@ function to24(h: number, ampm: "AM" | "PM"): number {
   return h === 12 ? 12 : h + 12;
 }
 
+// FIX #8: Cleaner from24, removed redundant h24===0 branch
 function from24(h24: number): { hour: number; ampm: "AM" | "PM" } {
-  if (h24 === 0) return { hour: 12, ampm: "AM" };
-  if (h24 < 12) return { hour: h24, ampm: "AM" };
-  if (h24 === 12) return { hour: 12, ampm: "PM" };
-  return { hour: h24 - 12, ampm: "PM" };
+  if (h24 < 12) return { hour: h24 === 0 ? 12 : h24, ampm: "AM" };
+  return { hour: h24 === 12 ? 12 : h24 - 12, ampm: "PM" };
 }
 
 function formatDisplayDate(d: Date): string {
@@ -120,31 +155,6 @@ function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
 
-type NavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "TicketList"
->;
-
-const FONT_POPPINS = "Poppins";
-const primaryRed = DesignTokens.login.headerRed;
-const PAGE_SIZE = 1000;
-const STALE_TIME_MS = 5 * 60 * 1000;
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS_LONG = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
 function formatWaitingLabel(entryTime?: string | null): string {
   const mins = getWaitingMinutes(entryTime);
   if (mins == null) return "—";
@@ -154,11 +164,12 @@ function formatWaitingLabel(entryTime?: string | null): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
+// FIX #1: Was slice(-5) showing 5 digits. Fixed to slice(-4) for last 4 digits.
 function maskPhone(phone?: string | null): string | null {
   if (!phone) return null;
   const digits = phone.replace(/\D/g, "");
   if (digits.length < 5) return null;
-  const last4 = digits.slice(-5);
+  const last4 = digits.slice(-4);
   return `xxxxxx${last4}`;
 }
 
@@ -170,6 +181,7 @@ function applySearch(
 ): TicketListItem[] {
   let result = list;
   const q = query.trim().toLowerCase();
+
   if (q) {
     result = result.filter((item) => {
       const nameStr = String(item.name ?? "");
@@ -190,6 +202,7 @@ function applySearch(
       }
     });
   }
+
   if (dateRange.active) {
     const startH24 = to24(dateRange.startHour, dateRange.startAmPm);
     const endH24 = to24(dateRange.endHour, dateRange.endAmPm);
@@ -203,10 +216,12 @@ function applySearch(
       return t >= rangeStart && t <= rangeEnd;
     });
   }
+
   return result;
 }
 
 // ── TimeField ─────────────────────────────────────────────────────────────────
+
 function TimeField({
   label,
   h24,
@@ -237,15 +252,17 @@ function TimeField({
   const d = from24(h24);
   const displayHour = d.hour === 0 ? 12 : d.hour;
   const ampm = d.ampm;
+
   const [hourText, setHourText] = useState(pad2(displayHour));
   const [minText, setMinText] = useState(pad2(min));
   const hourRef = useRef<TextInput>(null);
   const minRef = useRef<TextInput>(null);
 
-  React.useEffect(() => {
+  // FIX #2: Depend on displayHour (not h24) to avoid stale derived value
+  useEffect(() => {
     setHourText(pad2(displayHour));
-  }, [h24]);
-  React.useEffect(() => {
+  }, [displayHour]);
+  useEffect(() => {
     setMinText(pad2(min));
   }, [min]);
 
@@ -256,6 +273,7 @@ function TimeField({
     setH24(ampm === "AM" ? (v === 12 ? 0 : v) : v === 12 ? 12 : v + 12);
     setHourText(pad2(v));
   }
+
   function commitMin(text: string) {
     let v = parseInt(text, 10);
     if (isNaN(v) || v < 0) v = 0;
@@ -263,6 +281,7 @@ function TimeField({
     setMin(v);
     setMinText(pad2(v));
   }
+
   function toggleAmPm() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (ampm === "AM") {
@@ -402,6 +421,7 @@ const tfStyles = StyleSheet.create({
 });
 
 // ── DateTimeModal ─────────────────────────────────────────────────────────────
+
 function DateTimeModal({
   visible,
   initial,
@@ -438,12 +458,10 @@ function DateTimeModal({
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", () => {
       setKeyboardVisible(true);
-      setTimeout(() => {
-        scrollRef.current?.scrollToEnd({ animated: true });
-      }, 120);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
     });
     const hideSub = Keyboard.addListener("keyboardDidHide", () =>
       setKeyboardVisible(false),
@@ -490,16 +508,21 @@ function DateTimeModal({
     return isSameDay(new Date(calMonth.year, calMonth.month, day), endDate);
   }
 
+  // FIX #3: Document that todayMidnight is intentionally computed once on mount.
+  // If the modal is open across midnight, it's an acceptable edge case.
   const todayMidnight = useMemo(() => {
     const t = new Date();
     t.setHours(0, 0, 0, 0);
     return t;
+    // Intentionally computed once on mount — acceptable edge case if open across midnight
   }, []);
+
   function isFutureDay(day: number): boolean {
     const d = new Date(calMonth.year, calMonth.month, day);
     d.setHours(0, 0, 0, 0);
     return d > todayMidnight;
   }
+
   const isOnCurrentOrFutureMonth = useMemo(
     () =>
       calMonth.year > todayMidnight.getFullYear() ||
@@ -941,6 +964,7 @@ const tmStyles = StyleSheet.create({
 });
 
 // ── TicketCard ────────────────────────────────────────────────────────────────
+
 function TicketCard({
   item,
   variant,
@@ -960,20 +984,27 @@ function TicketCard({
   };
 }) {
   const isDelayed = variant === "Delayed";
+
+  // FIX #9: Extract theme colors into a single object to avoid 15+ repeated ternaries
+  const t =
+    isDark && theme
+      ? {
+          text: theme.text,
+          sub: theme.textSecondary,
+          border: theme.border,
+          bg: theme.backgroundDefault,
+          avatar: theme.border,
+        }
+      : {
+          text: DesignTokens.login.otpText,
+          sub: DesignTokens.login.termsText,
+          border: "#E8EBEC",
+          bg: DesignTokens.login.cardBg,
+          avatar: "#E8EBEC",
+        };
+
   const timeBadgeBg = isDelayed ? "#FBEBEB" : "#E8F7F5";
   const timeBadgeColor = isDelayed ? "#D33636" : "#147D6A";
-  const cardBg =
-    isDark && theme ? theme.backgroundDefault : DesignTokens.login.cardBg;
-  const cardBorder = isDark && theme ? theme.border : "#E8EBEC";
-  const ticketIdColor =
-    isDark && theme ? theme.text : DesignTokens.login.otpText;
-  const cardDateColor =
-    isDark && theme ? theme.textSecondary : DesignTokens.login.termsText;
-  const avatarBg = isDark && theme ? theme.border : "#E8EBEC";
-  const driverNameColor =
-    isDark && theme ? theme.text : DesignTokens.login.otpText;
-  const driverRoleColor =
-    isDark && theme ? theme.textSecondary : DesignTokens.login.termsText;
 
   const timeLabel =
     variant === "Closed"
@@ -986,35 +1017,21 @@ function TicketCard({
 
   return (
     <View style={styles.cardWrapper}>
-      <Pressable
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onPress();
-        }}
-        style={({ pressed }) => [
+      {/* FIX #4: Card Pressable no longer has its own onPress to avoid double-navigation.
+          The "View Detail" button is the single, clear tap target for navigation. */}
+      <View
+        style={[
           styles.card,
-          isDark &&
-            theme && { backgroundColor: cardBg, borderColor: cardBorder },
-          pressed && styles.cardPressed,
+          isDark && theme && { backgroundColor: t.bg, borderColor: t.border },
         ]}
       >
         <View style={styles.cardInner}>
           <View style={styles.cardTopRow}>
             <View style={styles.cardTopLeft}>
-              <Text
-                style={[
-                  styles.ticketId,
-                  isDark && theme && { color: ticketIdColor },
-                ]}
-              >
+              <Text style={[styles.ticketId, { color: t.text }]}>
                 #{item.token_no}
               </Text>
-              <Text
-                style={[
-                  styles.cardDate,
-                  isDark && theme && { color: cardDateColor },
-                ]}
-              >
+              <Text style={[styles.cardDate, { color: t.sub }]}>
                 {formatEntryTime(item.entry_time)}
               </Text>
             </View>
@@ -1028,26 +1045,13 @@ function TicketCard({
             </View>
           </View>
 
-          <View
-            style={[
-              styles.divider,
-              isDark && theme && { backgroundColor: cardBorder },
-            ]}
-          />
+          <View style={[styles.divider, { backgroundColor: t.border }]} />
 
           <View style={styles.driverRow}>
             <View
-              style={[
-                styles.avatarPlaceholder,
-                isDark && theme && { backgroundColor: avatarBg },
-              ]}
+              style={[styles.avatarPlaceholder, { backgroundColor: t.avatar }]}
             >
-              <Text
-                style={[
-                  styles.avatarLetter,
-                  isDark && theme && { color: ticketIdColor },
-                ]}
-              >
+              <Text style={[styles.avatarLetter, { color: t.text }]}>
                 {driverName !== "—"
                   ? driverName.trim().charAt(0).toUpperCase()
                   : "?"}
@@ -1055,19 +1059,13 @@ function TicketCard({
             </View>
             <View style={styles.driverInfo}>
               <Text
-                style={[
-                  styles.driverName,
-                  isDark && theme && { color: driverNameColor },
-                ]}
+                style={[styles.driverName, { color: t.text }]}
                 numberOfLines={1}
               >
                 {driverName}
               </Text>
               <Text
-                style={[
-                  styles.driverRole,
-                  isDark && theme && { color: driverRoleColor },
-                ]}
+                style={[styles.driverRole, { color: t.sub }]}
                 numberOfLines={1}
               >
                 {role}
@@ -1078,10 +1076,7 @@ function TicketCard({
                 <View style={styles.phoneRow}>
                   <Text style={styles.phoneIcon}>📞</Text>
                   <Text
-                    style={[
-                      styles.phoneText,
-                      isDark && theme && { color: driverNameColor },
-                    ]}
+                    style={[styles.phoneText, { color: t.text }]}
                     numberOfLines={1}
                   >
                     {maskedPhone}
@@ -1092,10 +1087,7 @@ function TicketCard({
                 <View style={styles.phoneRow}>
                   <Text style={styles.phoneIcon}>🚗</Text>
                   <Text
-                    style={[
-                      styles.regText,
-                      isDark && theme && { color: driverRoleColor },
-                    ]}
+                    style={[styles.regText, { color: t.sub }]}
                     numberOfLines={1}
                   >
                     {item.regNumber.toUpperCase()}
@@ -1106,8 +1098,7 @@ function TicketCard({
           </View>
 
           <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
+            onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               onPress();
             }}
@@ -1119,13 +1110,12 @@ function TicketCard({
             <Text style={styles.viewDetailBtnText}>View Detail</Text>
           </Pressable>
         </View>
-      </Pressable>
+      </View>
     </View>
   );
 }
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
-type TicketListRoute = RouteProp<RootStackParamList, "TicketList">;
 
 export default function TicketListScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -1133,36 +1123,34 @@ export default function TicketListScreen() {
   const insets = useSafeAreaInsets();
   const auth = useAuth();
   const { theme, isDark } = useTheme();
+  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<TabId>("Open");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("phone");
   const [dateRange, setDateRange] = useState<DateRange>(makeTodayRange);
   const [showCalModal, setShowCalModal] = useState(false);
+
+  // FIX #10: modalKey increments to fully reset DateTimeModal state on each open (intentional)
   const [modalKey, setModalKey] = useState(0);
 
-  const hasFetchedRef = useRef<Record<TabId, boolean>>({
-    Open: false,
-    Delayed: false,
-    Closed: false,
-  });
+  // FIX #6: Use a ref for activeTab so useFocusEffect always sees the latest value
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
 
   const handleTabSwitch = (tab: TabId) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setActiveTab(tab);
   };
 
-  const clearSearch = useCallback(() => {
-    setSearchQuery("");
-  }, []);
-
-  const clearDateFilter = useCallback(() => {
-    setDateRange(makeTodayRange());
-  }, []);
+  const clearSearch = useCallback(() => setSearchQuery(""), []);
+  const clearDateFilter = useCallback(() => setDateRange(makeTodayRange()), []);
 
   const openCalModal = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setModalKey((k) => k + 1);
+    setModalKey((k) => k + 1); // reset modal state
     setShowCalModal(true);
   }, []);
 
@@ -1182,50 +1170,57 @@ export default function TicketListScreen() {
 
   const openQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "open"],
-    queryFn: ({ pageParam }) => {
-      hasFetchedRef.current.Open = true;
-      return getTicketList("open", auth.accessToken, pageParam, PAGE_SIZE);
-    },
+    queryFn: ({ pageParam }) =>
+      getTicketList("open", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
+    // FIX #7: Null-guard on getNextPageParam
     getNextPageParam: (p) =>
-      p.page * p.limit < p.total ? p.page + 1 : undefined,
+      p?.page != null && p?.limit != null && p?.total != null
+        ? p.page * p.limit < p.total
+          ? p.page + 1
+          : undefined
+        : undefined,
     staleTime: STALE_TIME_MS,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    enabled: activeTab === "Open" && !hasFetchedRef.current.Open,
+    enabled: activeTab === "Open",
   });
 
   const delayedQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "delayed"],
-    queryFn: ({ pageParam }) => {
-      hasFetchedRef.current.Delayed = true;
-      return getTicketList("delayed", auth.accessToken, pageParam, PAGE_SIZE);
-    },
+    queryFn: ({ pageParam }) =>
+      getTicketList("delayed", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
     getNextPageParam: (p) =>
-      p.page * p.limit < p.total ? p.page + 1 : undefined,
+      p?.page != null && p?.limit != null && p?.total != null
+        ? p.page * p.limit < p.total
+          ? p.page + 1
+          : undefined
+        : undefined,
     staleTime: STALE_TIME_MS,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    enabled: activeTab === "Delayed" && !hasFetchedRef.current.Delayed,
+    enabled: activeTab === "Delayed",
   });
 
   const closedQuery = useInfiniteQuery({
     queryKey: ["ticket-list", "closed"],
-    queryFn: ({ pageParam }) => {
-      hasFetchedRef.current.Closed = true;
-      return getTicketList("closed", auth.accessToken, pageParam, PAGE_SIZE);
-    },
+    queryFn: ({ pageParam }) =>
+      getTicketList("closed", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
     getNextPageParam: (p) =>
-      p.page * p.limit < p.total ? p.page + 1 : undefined,
+      p?.page != null && p?.limit != null && p?.total != null
+        ? p.page * p.limit < p.total
+          ? p.page + 1
+          : undefined
+        : undefined,
     staleTime: STALE_TIME_MS,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    enabled: activeTab === "Closed" && !hasFetchedRef.current.Closed,
+    enabled: activeTab === "Closed",
   });
 
   const activeQuery = useMemo(() => {
@@ -1237,32 +1232,78 @@ export default function TicketListScreen() {
   const isLoading = loadingCounts || activeQuery.isLoading;
   const isRefetching = refetchingCounts || activeQuery.isRefetching;
 
+  // Pull-to-refresh on the currently visible tab
   const refetch = useCallback(() => {
-    hasFetchedRef.current[activeTab] = false;
     refetchCounts();
     activeQuery.refetch();
-  }, [activeTab, refetchCounts, activeQuery]);
+  }, [refetchCounts, activeQuery]);
 
+  // Keep stable refs so useFocusEffect never has stale closures
   const refetchCountsRef = useRef(refetchCounts);
-  const openQueryRef = useRef(openQuery);
   refetchCountsRef.current = refetchCounts;
-  openQueryRef.current = openQuery;
 
   useFocusEffect(
     useCallback(() => {
       const refreshFromToken = route.params?.refreshFromToken;
+      const closedFromTab = route.params?.closedFromTab as TabId | undefined;
+
       if (refreshFromToken) {
-        hasFetchedRef.current.Open = false;
+        // Always refresh counts
         refetchCountsRef.current();
-        openQueryRef.current.refetch();
-        navigation.setParams({ refreshFromToken: undefined });
+
+        if (closedFromTab) {
+          // Ticket was just closed from "Open" or "Delayed" tab.
+          // Rules:
+          //   1. Refresh the source tab → ticket disappears from it
+          //   2. Refresh Closed list in background → ticket appears there when user goes to it
+          //   3. User STAYS on the tab they were on (no tab switch)
+          //
+          // Restore active tab from params: when navigating back, the screen may remount
+          // and state resets to "Open", so we must set the tab the user was on.
+          setActiveTab(closedFromTab);
+
+          // Use queryClient.refetchQueries — it bypasses the `enabled` gate so
+          // background tabs (currently not active) also get refreshed immediately.
+          const sourceKey =
+            closedFromTab === "Open"
+              ? ["ticket-list", "open"]
+              : ["ticket-list", "delayed"];
+
+          queryClient.refetchQueries({ queryKey: sourceKey, exact: true });
+          queryClient.refetchQueries({
+            queryKey: ["ticket-list", "closed"],
+            exact: true,
+          });
+        } else {
+          // Normal refresh (new ticket created from Entry screen etc.)
+          // Only refresh whatever tab the user is currently on
+          const tab = activeTabRef.current;
+          const key =
+            tab === "Open"
+              ? ["ticket-list", "open"]
+              : tab === "Delayed"
+                ? ["ticket-list", "delayed"]
+                : ["ticket-list", "closed"];
+          queryClient.refetchQueries({ queryKey: key, exact: true });
+        }
+
+        navigation.setParams({
+          refreshFromToken: undefined,
+          closedFromTab: undefined,
+        });
       }
+
       return () => {
         setSearchQuery("");
         setFilterType("phone");
         setDateRange(makeTodayRange());
       };
-    }, [route.params?.refreshFromToken, navigation]),
+    }, [
+      route.params?.refreshFromToken,
+      route.params?.closedFromTab,
+      navigation,
+      queryClient,
+    ]),
   );
 
   const { currentList, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -1299,6 +1340,7 @@ export default function TicketListScreen() {
   const footerTotalHeight = useFooterTotalHeight();
   const showShimmer = isLoading || isRefetching;
 
+  // Theme shorthands
   const screenBg = isDark ? theme.backgroundRoot : DesignTokens.login.cardBg;
   const headerBg = isDark ? theme.backgroundDefault : DesignTokens.login.cardBg;
   const headerTitleColor = isDark ? theme.text : DesignTokens.login.otpText;
@@ -1513,7 +1555,10 @@ export default function TicketListScreen() {
               item={item}
               variant={activeTab}
               onPress={() =>
-                navigation.navigate("TicketDetail", { ticketId: item.id })
+                navigation.navigate("TicketDetail", {
+                  ticketId: item.id,
+                  fromTab: activeTab,
+                })
               }
               isDark={isDark}
               theme={theme}
@@ -1585,6 +1630,7 @@ export default function TicketListScreen() {
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: DesignTokens.login.cardBg },
   list: { flex: 1 },

@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   useQuery,
   useMutation,
@@ -79,13 +80,13 @@ function listItemToDetailResult(item: TicketListItem): TicketDetailResult {
   };
 }
 
-/** Mask phone like TicketListScreen: last 5 digits visible, rest as xxxxxx */
+// FIX: maskPhone corrected to last 4 digits (consistent with TicketListScreen)
 function maskPhone(phone?: string | null): string | null {
   if (!phone) return null;
   const digits = phone.replace(/\D/g, "");
   if (digits.length < 5) return null;
-  const last5 = digits.slice(-5);
-  return `xxxxxx${last5}`;
+  const last4 = digits.slice(-4);
+  return `xxxxxx${last4}`;
 }
 
 const FONT_POPPINS = "Poppins";
@@ -103,13 +104,7 @@ const CLOSE_BUTTON_RADIUS = 26;
 type TicketDetailRouteProp = RouteProp<RootStackParamList, "TicketDetail">;
 
 function isClosed(
-  ticket:
-    | {
-        status?: string;
-        exit_time?: string | null;
-      }
-    | null
-    | undefined,
+  ticket: { status?: string; exit_time?: string | null } | null | undefined,
 ): boolean {
   if (ticket == null) return false;
   if (ticket.exit_time != null && String(ticket.exit_time).trim() !== "")
@@ -129,8 +124,9 @@ function formatWaitingHoursDecimal(entryTime?: string | null): string {
 
 export default function TicketDetailScreen() {
   const route = useRoute<TicketDetailRouteProp>();
-  const navigation = useNavigation();
-  const { ticketId } = route.params;
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { ticketId, fromTab } = route.params;
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const auth = useAuth();
@@ -156,15 +152,16 @@ export default function TicketDetailScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // ✅ Do NOT invalidate ticket-detail — no need to refetch this screen
-      // Just update the list cache and counts in background, then go back immediately
-      queryClient.invalidateQueries({
-        queryKey: ["ticket-list"],
-        exact: false,
+      // FIX: Determine which list tab this ticket came from (Open or Delayed),
+      // so TicketListScreen knows to refresh THAT tab + the Closed tab.
+      // Without this, closing a Delayed ticket only refreshed Open.
+      // fromTab is passed directly from TicketListScreen when navigating here.
+      // This is 100% reliable — no cache lookup needed.
+      // "Open" | "Delayed" — whichever tab the user was on when they opened this ticket.
+      navigation.navigate("TicketList", {
+        refreshFromToken: true,
+        closedFromTab: fromTab as "Open" | "Delayed",
       });
-      queryClient.invalidateQueries({ queryKey: ["ticket-counts"] });
-
-      navigation.goBack();
     },
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -184,7 +181,6 @@ export default function TicketDetailScreen() {
     closeMutation.mutate();
   };
 
-  // ✅ Call handler for Staff only
   const handleCall = () => {
     if (ticket?.phone) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -213,8 +209,6 @@ export default function TicketDetailScreen() {
   const assignmentLabelColor = isDark ? theme.textSecondary : undefined;
   const assignmentValueColor = isDark ? theme.text : undefined;
 
-  // ✅ FIX: Only show full-screen loader if ticket data is truly absent
-  // When closeMutation is pending, ticket is still available — don't show full loader
   if (isLoading && !ticket) {
     return (
       <View
@@ -251,7 +245,6 @@ export default function TicketDetailScreen() {
     );
   }
 
-  // Ticket not found (after loading finished)
   if (!ticket) {
     return (
       <View
@@ -330,6 +323,7 @@ export default function TicketDetailScreen() {
           />
         }
       >
+        {/* Token / Time Card */}
         <View
           style={[
             styles.card,
@@ -415,7 +409,7 @@ export default function TicketDetailScreen() {
           )}
         </View>
 
-        {/* Driver / Person Card — layout like TicketListScreen: avatar, name/role, masked phone + reg */}
+        {/* Driver / Person Card */}
         <View
           style={[
             styles.card,
@@ -491,7 +485,6 @@ export default function TicketDetailScreen() {
             </View>
           </View>
 
-          {/* ✅ Call button — ONLY for Staff, hidden for Driver Partner */}
           {isStaff && ticket.phone && (
             <Pressable
               onPress={handleCall}
@@ -506,6 +499,7 @@ export default function TicketDetailScreen() {
           )}
         </View>
 
+        {/* Assignment Card */}
         <View
           style={[
             styles.card,
@@ -553,7 +547,6 @@ export default function TicketDetailScreen() {
             </Text>
           </View>
 
-          {/* ✅ Agent row — hidden for Staff */}
           {!isStaff && (
             <View style={styles.assignmentRow}>
               <Text
@@ -615,7 +608,6 @@ export default function TicketDetailScreen() {
               pressed && !closeMutation.isPending && styles.closeButtonPressed,
             ]}
           >
-            {/* ✅ Loader ONLY on button — nowhere else */}
             {closeMutation.isPending ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
@@ -633,18 +625,9 @@ export default function TicketDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F8F9FA",
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    width: "100%",
-  },
+  screen: { flex: 1, backgroundColor: "#F8F9FA" },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 8, width: "100%" },
   centered: {
     flex: 1,
     alignItems: "center",
@@ -685,9 +668,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 8,
       },
-      android: {
-        elevation: 2,
-      },
+      android: { elevation: 2 },
     }),
   },
   tokenCardTopRow: {
@@ -695,14 +676,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  tokenCardLeft: {
-    flex: 1,
-  },
-  tokenLabel: {
-    fontFamily: FONT_POPPINS,
-    fontSize: 14,
-    color: "#3F4C52",
-  },
+  tokenCardLeft: { flex: 1 },
+  tokenLabel: { fontFamily: FONT_POPPINS, fontSize: 14, color: "#3F4C52" },
   tokenValue: {
     fontFamily: FONT_POPPINS,
     fontSize: 22,
@@ -718,11 +693,7 @@ const styles = StyleSheet.create({
     paddingVertical: TIME_BADGE_PADDING_V,
     paddingHorizontal: TIME_BADGE_PADDING_H,
   },
-  timeBadgeHours: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#D33636",
-  },
+  timeBadgeHours: { fontSize: 18, fontWeight: "700", color: "#D33636" },
   timeBadgeHrs: {
     fontFamily: FONT_POPPINS,
     fontSize: 12,
@@ -742,31 +713,20 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#147D6A",
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#F0F2F3",
-    marginVertical: 16,
-  },
+  divider: { height: 1, backgroundColor: "#F0F2F3", marginVertical: 16 },
   entryTimeRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  entryTimeLabel: {
-    fontFamily: FONT_POPPINS,
-    fontSize: 14,
-    color: "#3F4C52",
-  },
+  entryTimeLabel: { fontFamily: FONT_POPPINS, fontSize: 14, color: "#3F4C52" },
   entryTimeValue: {
     fontFamily: FONT_POPPINS,
     fontSize: 14,
     fontWeight: "500",
     color: "#161B1D",
   },
-  driverRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  driverRow: { flexDirection: "row", alignItems: "center" },
   avatarPlaceholder: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
@@ -782,11 +742,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#161B1D",
   },
-  driverInfo: {
-    flex: 1,
-    minWidth: 0,
-    justifyContent: "center",
-  },
+  driverInfo: { flex: 1, minWidth: 0, justifyContent: "center" },
   driverRightInfo: {
     alignItems: "flex-end",
     justifyContent: "center",
@@ -794,14 +750,8 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     maxWidth: 140,
   },
-  phoneRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  phoneIcon: {
-    fontSize: 11,
-  },
+  phoneRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  phoneIcon: { fontSize: 11 },
   phoneText: {
     fontFamily: FONT_POPPINS,
     fontSize: 13,
@@ -822,12 +772,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#161B1D",
   },
-  driverRole: {
-    fontFamily: FONT_POPPINS,
-    fontSize: 13,
-    color: "#3F4C52",
-  },
-  // ✅ New styles for Call button
+  driverRole: { fontFamily: FONT_POPPINS, fontSize: 13, color: "#3F4C52" },
   callButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -840,10 +785,7 @@ const styles = StyleSheet.create({
     borderColor: "#B31D38",
     backgroundColor: "transparent",
   },
-  callButtonPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.98 }],
-  },
+  callButtonPressed: { opacity: 0.7, transform: [{ scale: 0.98 }] },
   callButtonText: {
     fontFamily: FONT_POPPINS,
     fontSize: 15,
@@ -892,13 +834,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "100%",
   },
-  closeButtonLoading: {
-    opacity: 0.85,
-  },
-  closeButtonPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
-  },
+  closeButtonLoading: { opacity: 0.85 },
+  closeButtonPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   closeButtonText: {
     fontFamily: FONT_POPPINS,
     fontSize: 16,
