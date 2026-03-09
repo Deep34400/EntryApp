@@ -971,6 +971,7 @@ function TicketCard({
   onPress,
   isDark,
   theme,
+  isAutoClosed,
 }: {
   item: TicketListItem;
   variant: "Delayed" | "Open" | "Closed";
@@ -982,6 +983,8 @@ function TicketCard({
     text: string;
     textSecondary: string;
   };
+  /** When true (Closed list only), show card with red border for auto-closed ticket. */
+  isAutoClosed?: boolean;
 }) {
   const isDelayed = variant === "Delayed";
 
@@ -1006,6 +1009,11 @@ function TicketCard({
   const timeBadgeBg = isDelayed ? "#FBEBEB" : "#E8F7F5";
   const timeBadgeColor = isDelayed ? "#D33636" : "#147D6A";
 
+  // Auto-closed tickets in Closed list: red border and light red tint
+  const isAutoClosedCard = variant === "Closed" && !!isAutoClosed;
+  const cardBorderColor = isAutoClosedCard ? primaryRed : t.border;
+  const cardBg = isAutoClosedCard ? "#FFF5F5" : t.bg;
+
   const timeLabel =
     variant === "Closed"
       ? formatDurationHours(item.entry_time, item.exit_time)
@@ -1022,7 +1030,12 @@ function TicketCard({
       <View
         style={[
           styles.card,
-          isDark && theme && { backgroundColor: t.bg, borderColor: t.border },
+          isDark && theme && !isAutoClosedCard && { backgroundColor: t.bg, borderColor: t.border },
+          isAutoClosedCard && {
+            backgroundColor: isDark ? "rgba(211,54,54,0.08)" : cardBg,
+            borderColor: cardBorderColor,
+            borderWidth: 1.5,
+          },
         ]}
       >
         <View style={styles.cardInner}>
@@ -1552,6 +1565,7 @@ export default function TicketListScreen() {
               }
               isDark={isDark}
               theme={theme}
+              isAutoClosed={item.isAutoClosed}
             />
           )}
           contentContainerStyle={[

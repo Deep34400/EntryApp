@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, CommonActions } from "@react-navigation/native";
+import { useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -68,6 +69,7 @@ function formatPhoneDisplay(phone: string): string {
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const footerTotalHeight = useFooterTotalHeight();
   const auth = useAuth();
@@ -101,6 +103,17 @@ export default function ProfileScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             clearUser();
             await auth.logoutToLoginScreen();
+            // Clear ticket cache after logout so new user never sees previous user's tickets
+            queryClient.removeQueries({
+              predicate: (query) => {
+                const key = query.queryKey[0];
+                return (
+                  key === "ticket-counts" ||
+                  key === "ticket-list" ||
+                  key === "ticket-detail"
+                );
+              },
+            });
             navigation.dispatch(
               CommonActions.reset({ index: 0, routes: [{ name: "LoginOtp" }] }),
             );
@@ -139,14 +152,25 @@ export default function ProfileScreen() {
           style={styles.profileSection}
         >
           <View style={[styles.avatarWrap, { backgroundColor: avatarBg }]}>
-            <Text style={[styles.avatarInitials, { color: avatarInitialsColor }]} numberOfLines={1}>
+            <Text
+              style={[styles.avatarInitials, { color: avatarInitialsColor }]}
+              numberOfLines={1}
+            >
               {initials}
             </Text>
           </View>
-          <Text style={[styles.userName, { color: nameColor }]} numberOfLines={2} ellipsizeMode="tail">
+          <Text
+            style={[styles.userName, { color: nameColor }]}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
             {displayName}
           </Text>
-          <Text style={[styles.userPhone, { color: phoneColor }]} numberOfLines={1} ellipsizeMode="tail">
+          <Text
+            style={[styles.userPhone, { color: phoneColor }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {phoneFormatted}
           </Text>
         </Animated.View>
@@ -163,10 +187,14 @@ export default function ProfileScreen() {
               pressed && styles.logoutCardPressed,
             ]}
           >
-            <View style={[styles.logoutIconWrap, { backgroundColor: logoutIconBg }]}>
+            <View
+              style={[styles.logoutIconWrap, { backgroundColor: logoutIconBg }]}
+            >
               <Feather name="log-out" size={20} color={logoutIconColor} />
             </View>
-            <Text style={[styles.logoutText, { color: logoutTextColor }]}>Logout</Text>
+            <Text style={[styles.logoutText, { color: logoutTextColor }]}>
+              Logout
+            </Text>
           </Pressable>
         </Animated.View>
       </ScrollView>

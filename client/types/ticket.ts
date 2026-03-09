@@ -24,6 +24,8 @@ export interface TicketListItem {
   phone?: string;
   /** From GET API: new_dp | old_dp | non_dp — display as "Driver Partner" or "Staff" */
   type?: string;
+  /** When true, ticket was auto-closed; show in Closed list with red border. */
+  isAutoClosed?: boolean;
 }
 
 /** Single ticket detail from GET by id. */
@@ -59,6 +61,8 @@ export function normalizeTicketListItem(item: Record<string, unknown>): TicketLi
   const exitTime = item.exitTime ?? item.exit_time;
   const regNumber = item.regNumber ?? item.reg_number ?? item.vehicle;
   const type = item.type ?? item.entry_type;
+  const isAutoClosed =
+    item.isAutoClosed === true || item.isAutoClosed === "true";
   const category = item.category ?? item.category_name;
   const subCategory = item.subCategory ?? item.sub_category;
   const nameRaw =
@@ -91,5 +95,6 @@ export function normalizeTicketListItem(item: Record<string, unknown>): TicketLi
     regNumber: regNumber != null ? String(regNumber) : undefined,
     phone: item.phone != null ? String(item.phone) : undefined,
     type: type != null ? String(type) : undefined,
+    isAutoClosed: !!isAutoClosed,
   };
 }

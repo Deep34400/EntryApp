@@ -115,11 +115,19 @@ function isClosed(
   );
 }
 
-function formatWaitingHoursDecimal(entryTime?: string | null): string {
-  const mins = getWaitingMinutes(entryTime);
-  if (mins == null) return "—";
-  const hours = mins / 60;
-  return hours >= 1 ? (Math.round(hours * 10) / 10).toFixed(1) : "0";
+// FIX: Now returns both hours and minutes (e.g. "1h 23m" instead of just "1.4")
+function formatWaitingTime(entryTime?: string | null): {
+  hours: string | null;
+  mins: string;
+} {
+  const totalMins = getWaitingMinutes(entryTime);
+  if (totalMins == null) return { hours: null, mins: "—" };
+  if (totalMins < 60) {
+    return { hours: null, mins: String(totalMins) };
+  }
+  const hours = Math.floor(totalMins / 60);
+  const remainingMins = totalMins % 60;
+  return { hours: String(hours), mins: String(remainingMins) };
 }
 
 export default function TicketDetailScreen() {
@@ -151,13 +159,6 @@ export default function TicketDetailScreen() {
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      // FIX: Determine which list tab this ticket came from (Open or Delayed),
-      // so TicketListScreen knows to refresh THAT tab + the Closed tab.
-      // Without this, closing a Delayed ticket only refreshed Open.
-      // fromTab is passed directly from TicketListScreen when navigating here.
-      // This is 100% reliable — no cache lookup needed.
-      // "Open" | "Delayed" — whichever tab the user was on when they opened this ticket.
       navigation.navigate("TicketList", {
         refreshFromToken: true,
         closedFromTab: fromTab as "Open" | "Delayed",
@@ -173,7 +174,7 @@ export default function TicketDetailScreen() {
   }, [navigation]);
 
   const closed = isClosed(ticket);
-  const waitingHours = formatWaitingHoursDecimal(ticket?.entry_time);
+  const waitingTime = formatWaitingTime(ticket?.entry_time); // FIX: use new function
   const isStaff = getEntryTypeDisplayLabel(ticket?.type) === "Staff";
   const maskedPhone = ticket ? maskPhone(ticket.phone) : null;
 
@@ -352,8 +353,16 @@ export default function TicketDetailScreen() {
             </View>
             {!closed ? (
               <View style={styles.timeBadge}>
-                <Text style={styles.timeBadgeHours}>{waitingHours}</Text>
-                <Text style={styles.timeBadgeHrs}>hrs</Text>
+                {waitingTime.hours !== null && (
+                  <>
+                    <Text style={styles.timeBadgeHours}>
+                      {waitingTime.hours}
+                    </Text>
+                    <Text style={styles.timeBadgeUnit}>h </Text>
+                  </>
+                )}
+                <Text style={styles.timeBadgeHours}>{waitingTime.mins}</Text>
+                <Text style={styles.timeBadgeUnit}>m</Text>
               </View>
             ) : (
               <View style={styles.closedBadge}>
@@ -694,7 +703,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: TIME_BADGE_PADDING_H,
   },
   timeBadgeHours: { fontSize: 18, fontWeight: "700", color: "#D33636" },
-  timeBadgeHrs: {
+  // FIX: renamed from timeBadgeHrs → timeBadgeUnit, used for both "h" and "m"
+  timeBadgeUnit: {
     fontFamily: FONT_POPPINS,
     fontSize: 12,
     fontWeight: "500",
