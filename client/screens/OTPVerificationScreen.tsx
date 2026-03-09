@@ -25,7 +25,8 @@ import { useUser } from "@/contexts/UserContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { AuthError, sendOtp, verifyOtp } from "@/lib/auth";
 
-const OTP_SESSION_EXPIRED_MSG = "Your session expired. Please request OTP again.";
+const OTP_SESSION_EXPIRED_MSG =
+  "Your session expired. Please request OTP again.";
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SEC = 30;
@@ -37,8 +38,14 @@ function maskPhone(phone: string): string {
   return `+91 ${d[0]}XXXXXX${d.slice(-3)}`;
 }
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, "OTPVerification">;
-type OTPVerificationRouteProp = RouteProp<RootStackParamList, "OTPVerification">;
+type NavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "OTPVerification"
+>;
+type OTPVerificationRouteProp = RouteProp<
+  RootStackParamList,
+  "OTPVerification"
+>;
 
 export default function OTPVerificationScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -57,7 +64,9 @@ export default function OTPVerificationScreen() {
   const phone = route.params?.phone ?? "";
   const masked = maskPhone(phone);
 
-  const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
+  const [otpDigits, setOtpDigits] = useState<string[]>(
+    Array(OTP_LENGTH).fill(""),
+  );
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +93,8 @@ export default function OTPVerificationScreen() {
   // Auto-verify when 6 digits entered (no button click required)
   useEffect(() => {
     const guestToken = auth.guestToken;
-    if (!isOtpComplete || !guestToken || loading || verifyTriggeredRef.current) return;
+    if (!isOtpComplete || !guestToken || loading || verifyTriggeredRef.current)
+      return;
     verifyTriggeredRef.current = true;
     (async () => {
       setError(null);
@@ -113,8 +123,12 @@ export default function OTPVerificationScreen() {
           }
         }
       } catch (_e) {
-        const status = (_e as AuthError)?.statusCode;
-        if (status === 401 || status === 403) {
+        const err = _e as AuthError;
+        const status = err?.statusCode;
+        if (status === 403) {
+          await auth.setAccessDenied(err?.message);
+          navigation.replace("LoginOtp");
+        } else if (status === 401) {
           auth.logout();
           navigation.replace("LoginOtp", { message: OTP_SESSION_EXPIRED_MSG });
         } else if ((status ?? 0) >= 500) {
@@ -122,14 +136,25 @@ export default function OTPVerificationScreen() {
         } else {
           setOtpDigits(Array(OTP_LENGTH).fill(""));
           verifyTriggeredRef.current = false;
-          setError((_e as AuthError)?.message || "Incorrect OTP, please try again.");
+          setError(
+            (_e as AuthError)?.message || "Incorrect OTP, please try again.",
+          );
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } finally {
         setLoading(false);
       }
     })();
-  }, [isOtpComplete, otpString, phone, auth.guestToken, loading, auth, setUserContext, navigation]);
+  }, [
+    isOtpComplete,
+    otpString,
+    phone,
+    auth.guestToken,
+    loading,
+    auth,
+    setUserContext,
+    navigation,
+  ]);
 
   // Resend countdown
   useEffect(() => {
@@ -190,14 +215,18 @@ export default function OTPVerificationScreen() {
       await sendOtp(phone, auth.guestToken);
       setResendSec(RESEND_COOLDOWN_SEC);
     } catch (_e) {
-      const status = (_e as AuthError)?.statusCode;
-      if (status === 401 || status === 403) {
+      const err = _e as AuthError;
+      const status = err?.statusCode;
+      if (status === 403) {
+        await auth.setAccessDenied(err?.message);
+        navigation.replace("LoginOtp");
+      } else if (status === 401) {
         auth.logout();
         navigation.replace("LoginOtp", { message: OTP_SESSION_EXPIRED_MSG });
       } else if ((status ?? 0) >= 500) {
         return;
       } else {
-        setError((_e as AuthError)?.message || "Something went wrong. Please try again.");
+        setError(err?.message || "Something went wrong. Please try again.");
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -219,7 +248,9 @@ export default function OTPVerificationScreen() {
             backgroundColor: theme.primary,
             paddingTop: insets.top + (isNarrow ? Spacing.md : Spacing.lg),
             paddingBottom: isNarrow ? Spacing.lg : Spacing.xl,
-            paddingHorizontal: isNarrow ? Spacing.md : Layout.horizontalScreenPadding,
+            paddingHorizontal: isNarrow
+              ? Spacing.md
+              : Layout.horizontalScreenPadding,
             minHeight: (isNarrow ? 76 : 88) + insets.top,
           },
         ]}
@@ -232,18 +263,25 @@ export default function OTPVerificationScreen() {
               inline
             />
           </View>
-          <View style={[styles.logoWrap, { backgroundColor: theme.backgroundTertiary }]}>
-            <LatestLogo
-              width={28}
-              height={28}
-              style={styles.logo}
-            />
+          <View
+            style={[
+              styles.logoWrap,
+              { backgroundColor: theme.backgroundTertiary },
+            ]}
+          >
+            <LatestLogo width={28} height={28} style={styles.logo} />
           </View>
           <View style={styles.headerTextWrap}>
-            <ThemedText style={[styles.headerTitle, { color: theme.onPrimary }]} numberOfLines={1}>
+            <ThemedText
+              style={[styles.headerTitle, { color: theme.onPrimary }]}
+              numberOfLines={1}
+            >
               Gate Entry / Exit
             </ThemedText>
-            <ThemedText style={[styles.headerSubtitle, { color: theme.onPrimary }]} numberOfLines={1}>
+            <ThemedText
+              style={[styles.headerSubtitle, { color: theme.onPrimary }]}
+              numberOfLines={1}
+            >
               Gate Management System
             </ThemedText>
           </View>
@@ -256,7 +294,9 @@ export default function OTPVerificationScreen() {
           {
             backgroundColor: theme.backgroundRoot,
             paddingBottom: insets.bottom + Spacing["2xl"],
-            paddingHorizontal: isNarrow ? Spacing.md : Layout.horizontalScreenPadding,
+            paddingHorizontal: isNarrow
+              ? Spacing.md
+              : Layout.horizontalScreenPadding,
           },
         ]}
       >
@@ -271,17 +311,29 @@ export default function OTPVerificationScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <ThemedText type="body" style={[styles.introText, { color: theme.textSecondary }]}>
+            <ThemedText
+              type="body"
+              style={[styles.introText, { color: theme.textSecondary }]}
+            >
               Enter the OTP we sent you
             </ThemedText>
-            <ThemedText type="small" style={[styles.autoVerifyHint, { color: theme.textSecondary }]}>
+            <ThemedText
+              type="small"
+              style={[styles.autoVerifyHint, { color: theme.textSecondary }]}
+            >
               Enter 6 digits — we&apos;ll verify automatically
             </ThemedText>
 
-            <ThemedText type="small" style={[styles.sentToLabel, { color: theme.textSecondary }]}>
+            <ThemedText
+              type="small"
+              style={[styles.sentToLabel, { color: theme.textSecondary }]}
+            >
               Code sent to
             </ThemedText>
-            <ThemedText type="body" style={[styles.maskedPhone, { color: theme.text }]}>
+            <ThemedText
+              type="body"
+              style={[styles.maskedPhone, { color: theme.text }]}
+            >
               {masked}
             </ThemedText>
 
@@ -328,8 +380,16 @@ export default function OTPVerificationScreen() {
 
             <View style={styles.errorSlot}>
               {error ? (
-                <View style={[styles.errorBanner, { backgroundColor: theme.backgroundTertiary }]}>
-                  <ThemedText type="small" style={[styles.errorText, { color: theme.error }]}>
+                <View
+                  style={[
+                    styles.errorBanner,
+                    { backgroundColor: theme.backgroundTertiary },
+                  ]}
+                >
+                  <ThemedText
+                    type="small"
+                    style={[styles.errorText, { color: theme.error }]}
+                  >
                     {error}
                   </ThemedText>
                 </View>
@@ -355,9 +415,17 @@ export default function OTPVerificationScreen() {
             </View>
 
             {loading ? (
-              <View style={[styles.verifyingRow, { backgroundColor: theme.backgroundSecondary }]}>
+              <View
+                style={[
+                  styles.verifyingRow,
+                  { backgroundColor: theme.backgroundSecondary },
+                ]}
+              >
                 <ActivityIndicator size="small" color={theme.primary} />
-                <ThemedText type="body" style={[styles.verifyingText, { color: theme.text }]}>
+                <ThemedText
+                  type="body"
+                  style={[styles.verifyingText, { color: theme.text }]}
+                >
                   Verifying…
                 </ThemedText>
               </View>

@@ -24,6 +24,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { BackArrow } from "@/components/BackArrow";
 import { Button } from "@/components/Button";
 import { SessionExpiredScreen } from "@/components/SessionExpiredScreen";
+import { AccessDeniedScreen } from "@/components/AccessDeniedScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { Layout, Spacing, BorderRadius } from "@/constants/theme";
 import LatestLogo from "../../assets/images/latestLogo.svg";
@@ -176,8 +177,12 @@ export default function LoginOtpScreen() {
           });
         }
       } catch (_e) {
-        const status = (_e as AuthError)?.statusCode;
-        if (status === 401 || status === 403) {
+        const err = _e as AuthError;
+        const status = err?.statusCode;
+        if (status === 403) {
+          await auth.setAccessDenied(err?.message);
+          setStep("phone");
+        } else if (status === 401) {
           auth.logout();
           setStep("phone");
           setError(SESSION_EXPIRED_MSG);
@@ -186,9 +191,7 @@ export default function LoginOtpScreen() {
         } else {
           setOtp("");
           verifyTriggeredRef.current = false;
-          setError(
-            (_e as AuthError)?.message || "Incorrect OTP, please try again.",
-          );
+          setError(err?.message || "Incorrect OTP, please try again.");
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       } finally {
@@ -218,17 +221,17 @@ export default function LoginOtpScreen() {
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (_e) {
-      const status = (_e as AuthError)?.statusCode;
-      if (status === 401 || status === 403) {
+      const err = _e as AuthError;
+      const status = err?.statusCode;
+      if (status === 403) {
+        await auth.setAccessDenied(err?.message);
+      } else if (status === 401) {
         auth.logout();
         setError(SESSION_EXPIRED_MSG);
       } else if ((status ?? 0) >= 500) {
         return;
       } else {
-        setError(
-          (_e as AuthError)?.message ||
-            "Something went wrong. Please try again.",
-        );
+        setError(err?.message || "Something went wrong. Please try again.");
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -247,17 +250,17 @@ export default function LoginOtpScreen() {
       setOtp("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (_e) {
-      const status = (_e as AuthError)?.statusCode;
-      if (status === 401 || status === 403) {
+      const err = _e as AuthError;
+      const status = err?.statusCode;
+      if (status === 403) {
+        await auth.setAccessDenied(err?.message);
+      } else if (status === 401) {
         auth.logout();
         setError(SESSION_EXPIRED_MSG);
       } else if ((status ?? 0) >= 500) {
         return;
       } else {
-        setError(
-          (_e as AuthError)?.message ||
-            "Something went wrong. Please try again.",
-        );
+        setError(err?.message || "Something went wrong. Please try again.");
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -283,6 +286,15 @@ export default function LoginOtpScreen() {
       >
         <ActivityIndicator size="large" color={theme.primary} />
       </View>
+    );
+  }
+
+  if (auth.accessDenied) {
+    return (
+      <AccessDeniedScreen
+        message={auth.accessDeniedMessage ?? undefined}
+        onBackToLogin={() => auth.clearAccessDeniedFlag()}
+      />
     );
   }
 

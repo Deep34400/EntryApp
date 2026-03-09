@@ -100,6 +100,12 @@ type AuthContextValue = {
   authError: string | null;
   sessionExpired: boolean;
   clearSessionExpiredFlag: () => void;
+  /** True when user got 403 (e.g. role has no access). Show Access Denied UI, not Session Expired. */
+  accessDenied: boolean;
+  accessDeniedMessage: string | null;
+  clearAccessDeniedFlag: () => void;
+  /** Clear tokens and set accessDenied so UI shows Access Denied screen instead of Session Expired. */
+  setAccessDenied: (message?: string) => Promise<void>;
   isAuthenticated: boolean;
   user: AuthUser | null;
   guestToken: string | null;
@@ -130,6 +136,10 @@ const defaultValue: AuthContextValue = {
   authError: null,
   sessionExpired: false,
   clearSessionExpiredFlag: () => {},
+  accessDenied: false,
+  accessDeniedMessage: null,
+  clearAccessDeniedFlag: () => {},
+  setAccessDenied: () => Promise.resolve(),
   isAuthenticated: false,
   user: null,
   guestToken: null,
@@ -153,6 +163,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isRestored, setIsRestored] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [accessDenied, setAccessDeniedState] = useState(false);
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
   const [stored, setStored] = useState<StoredAuth>(defaultStored);
   const [retryIdentityKey, setRetryIdentityKey] = useState(0);
   const identityStartedRef = useRef(false);
@@ -171,8 +183,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthError(null);
   }, []);
 
+  const clearAccessDeniedFlag = useCallback(() => {
+    setAccessDeniedState(false);
+    setAccessDeniedMessage(null);
+  }, []);
+
+  /** Clear session and show Access Denied (403) — do not set sessionExpired. */
+  const setAccessDenied = useCallback(
+    async (message?: string) => {
+      setHubId(null);
+      setAuthError(null);
+      setSessionExpired(false);
+      setAccessDeniedState(true);
+      setAccessDeniedMessage(message ?? "You do not have access to this application.");
+      setStatus("unauthenticated");
+      identityStartedRef.current = false;
+      await clearAuth(stored.identityId);
+      setStored({
+        ...defaultStored,
+        guestToken: "",
+        identityId: stored.identityId,
+      });
+    },
+    [stored.identityId],
+  );
+
   const logout = useCallback(async () => {
     setHubId(null);
+    setAccessDeniedState(false);
+    setAccessDeniedMessage(null);
     setAuthError("Your session expired. Please sign in again.");
     setSessionExpired(true);
     setStatus("unauthenticated");
@@ -191,6 +230,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setHubId(null);
     setAuthError(null);
     setSessionExpired(false);
+    setAccessDeniedState(false);
+    setAccessDeniedMessage(null);
     setStatus("unauthenticated");
     identityStartedRef.current = false;
     await clearAuth(stored.identityId);
@@ -439,6 +480,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authError,
     sessionExpired,
     clearSessionExpiredFlag,
+    accessDenied,
+    accessDeniedMessage,
+    clearAccessDeniedFlag,
+    setAccessDenied,
     isAuthenticated,
     user: stored.user,
     guestToken: stored.guestToken || null,
