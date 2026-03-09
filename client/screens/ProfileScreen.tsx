@@ -102,8 +102,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             clearUser();
-            await auth.logoutToLoginScreen();
-            // Clear ticket cache after logout so new user never sees previous user's tickets
+            // Clear ticket cache first so after login with another number we never show previous user's tickets
             queryClient.removeQueries({
               predicate: (query) => {
                 const key = query.queryKey[0];
@@ -114,6 +113,7 @@ export default function ProfileScreen() {
                 );
               },
             });
+            await auth.logoutToLoginScreen();
             navigation.dispatch(
               CommonActions.reset({ index: 0, routes: [{ name: "LoginOtp" }] }),
             );

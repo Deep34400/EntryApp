@@ -1170,13 +1170,16 @@ export default function TicketListScreen() {
     setShowCalModal(true);
   }, []);
 
+  // Include user id in query keys so cache is per-user; after logout + login with another number we never show previous user's tickets
+  const userId = auth.user?.id ?? "";
+
   const {
     data: counts = { open: 0, closed: 0, delayed: 0 },
     isLoading: loadingCounts,
     isRefetching: refetchingCounts,
     refetch: refetchCounts,
   } = useQuery({
-    queryKey: ["ticket-counts"],
+    queryKey: ["ticket-counts", userId],
     queryFn: () => getTicketCounts(auth.accessToken),
     staleTime: STALE_TIME_MS,
     refetchOnMount: false,
@@ -1185,7 +1188,7 @@ export default function TicketListScreen() {
   });
 
   const openQuery = useInfiniteQuery({
-    queryKey: ["ticket-list", "open"],
+    queryKey: ["ticket-list", "open", userId],
     queryFn: ({ pageParam }) =>
       getTicketList("open", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
@@ -1204,7 +1207,7 @@ export default function TicketListScreen() {
   });
 
   const delayedQuery = useInfiniteQuery({
-    queryKey: ["ticket-list", "delayed"],
+    queryKey: ["ticket-list", "delayed", userId],
     queryFn: ({ pageParam }) =>
       getTicketList("delayed", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
@@ -1222,7 +1225,7 @@ export default function TicketListScreen() {
   });
 
   const closedQuery = useInfiniteQuery({
-    queryKey: ["ticket-list", "closed"],
+    queryKey: ["ticket-list", "closed", userId],
     queryFn: ({ pageParam }) =>
       getTicketList("closed", auth.accessToken, pageParam, PAGE_SIZE),
     initialPageParam: 1,
@@ -1273,21 +1276,21 @@ export default function TicketListScreen() {
       setActiveTab(closedFromTab);
       const sourceKey =
         closedFromTab === "Open"
-          ? ["ticket-list", "open"]
-          : ["ticket-list", "delayed"];
+          ? ["ticket-list", "open", userId]
+          : ["ticket-list", "delayed", userId];
       queryClient.refetchQueries({ queryKey: sourceKey, exact: true });
       queryClient.refetchQueries({
-        queryKey: ["ticket-list", "closed"],
+        queryKey: ["ticket-list", "closed", userId],
         exact: true,
       });
     } else {
       const tab = activeTabRef.current;
       const key =
         tab === "Open"
-          ? ["ticket-list", "open"]
+          ? ["ticket-list", "open", userId]
           : tab === "Delayed"
-            ? ["ticket-list", "delayed"]
-            : ["ticket-list", "closed"];
+            ? ["ticket-list", "delayed", userId]
+            : ["ticket-list", "closed", userId];
       queryClient.refetchQueries({ queryKey: key, exact: true });
     }
 
@@ -1300,6 +1303,7 @@ export default function TicketListScreen() {
     closedFromTab,
     navigation,
     queryClient,
+    userId,
   ]);
 
   useFocusEffect(
