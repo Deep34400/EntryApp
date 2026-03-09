@@ -52,9 +52,12 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "edee1b42-358c-49bc-a3da-71f102a7598c"
+        "projectId": "565f19b9-2de9-4526-9672-5c5f2a640410"
+      },
+      "expo-navigation-bar": {
+        "enforceContrast": false
       }
     },
-    "owner": "deepak344000"
+    "owner": "deepak3440"
   }
 }
