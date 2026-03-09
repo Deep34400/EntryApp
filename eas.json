@@ -14,14 +14,14 @@
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-dev-v2.carrum.co.in/"
+        "EXPO_PUBLIC_API_URL": "https://api-v2.carrum.co.in"
       }
     },
     "production": {
       "channel": "production",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-v2.carrum.co.in/"
+        "EXPO_PUBLIC_API_URL": "https://api-v2.carrum.co.in"
       }
     }
   },
