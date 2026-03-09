@@ -1143,6 +1143,8 @@ export default function TicketListScreen() {
   const [filterType, setFilterType] = useState<FilterType>("phone");
   const [dateRange, setDateRange] = useState<DateRange>(makeTodayRange);
   const [showCalModal, setShowCalModal] = useState(false);
+  /** When true (Closed tab only), filter list to show only isAutoClosed tickets. */
+  const [showAutoClosedOnly, setShowAutoClosedOnly] = useState(false);
 
   // FIX #10: modalKey increments to fully reset DateTimeModal state on each open (intentional)
   const [modalKey, setModalKey] = useState(0);
@@ -1155,6 +1157,7 @@ export default function TicketListScreen() {
 
   const handleTabSwitch = (tab: TabId) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (tab !== "Closed") setShowAutoClosedOnly(false);
     setActiveTab(tab);
   };
 
@@ -1305,6 +1308,7 @@ export default function TicketListScreen() {
         setSearchQuery("");
         setFilterType("phone");
         setDateRange(makeTodayRange());
+        setShowAutoClosedOnly(false);
       };
     }, []),
   );
@@ -1325,10 +1329,13 @@ export default function TicketListScreen() {
       ],
     );
 
-  const filteredList = useMemo(
-    () => applySearch(currentList, searchQuery, filterType, dateRange),
-    [currentList, searchQuery, filterType, dateRange],
-  );
+  const filteredList = useMemo(() => {
+    let list = applySearch(currentList, searchQuery, filterType, dateRange);
+    if (activeTab === "Closed" && showAutoClosedOnly) {
+      list = list.filter((item) => item.isAutoClosed === true);
+    }
+    return list;
+  }, [currentList, searchQuery, filterType, dateRange, activeTab, showAutoClosedOnly]);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -1447,7 +1454,7 @@ export default function TicketListScreen() {
             <Text style={styles.calBtnIcon}>🗓️</Text>
           </TouchableOpacity>
 
-          {(dateRange.active || searchQuery.length > 0) && (
+          {(dateRange.active || searchQuery.length > 0 || showAutoClosedOnly) && (
             <View style={styles.resultBadge}>
               <Text style={styles.resultBadgeText}>
                 {filteredList.length}
@@ -1516,6 +1523,35 @@ export default function TicketListScreen() {
               </TouchableOpacity>
             );
           })}
+          {activeTab === "Closed" && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowAutoClosedOnly((prev) => !prev);
+              }}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor: showAutoClosedOnly ? chipActiveBg : chipInactiveBg,
+                  borderColor: showAutoClosedOnly
+                    ? chipActiveBorder
+                    : chipInactiveBorder,
+                },
+              ]}
+            >
+              <Text style={styles.chipIcon}>⏱</Text>
+              <Text
+                style={[
+                  styles.chipLabel,
+                  { color: showAutoClosedOnly ? "#FFFFFF" : isDark ? theme.text : DesignTokens.login.otpText },
+                ]}
+              >
+                Auto-closed
+              </Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
 
         <View style={styles.tabBar}>
@@ -1579,7 +1615,9 @@ export default function TicketListScreen() {
               >
                 {searchQuery.length > 0 || dateRange.active
                   ? "No tickets match your filters"
-                  : `No ${activeTab.toLowerCase()} tickets`}
+                  : showAutoClosedOnly
+                    ? "No auto-closed tickets"
+                    : `No ${activeTab.toLowerCase()} tickets`}
               </Text>
             </View>
           }
