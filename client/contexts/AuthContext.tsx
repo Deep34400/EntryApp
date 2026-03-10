@@ -164,7 +164,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [accessDenied, setAccessDeniedState] = useState(false);
-  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(
+    null,
+  );
   const [stored, setStored] = useState<StoredAuth>(defaultStored);
   const [retryIdentityKey, setRetryIdentityKey] = useState(0);
   const identityStartedRef = useRef(false);
@@ -195,7 +197,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuthError(null);
       setSessionExpired(false);
       setAccessDeniedState(true);
-      setAccessDeniedMessage(message ?? "You do not have access to this application.");
+      setAccessDeniedMessage(
+        message ?? "You do not have access to this application.",
+      );
       setStatus("unauthenticated");
       identityStartedRef.current = false;
       await clearAuth(stored.identityId);

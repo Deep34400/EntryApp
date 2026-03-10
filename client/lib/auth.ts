@@ -4,7 +4,9 @@
  * Never logout. Never touch storage.
  */
 
+import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Application from "expo-application";
 import { getApiUrl } from "@/lib/api-url";
 import {
   IDENTITY_PATH,
@@ -28,7 +30,26 @@ function isHtmlBody(text: string): boolean {
   return !!(t && (/^\s*<(!doctype|html)\s/i.test(t) || t.toLowerCase().startsWith("<html")));
 }
 
+/**
+ * Returns a stable device/installation identifier so the backend can track which device logged in.
+ * - Android: uses Application.getAndroidId() (device-specific, persists across app reinstalls).
+ * - iOS: uses Application.getIosIdForVendorAsync() (device-specific per app vendor).
+ * - Fallback: stored UUID in AsyncStorage (same app install = same id).
+ */
 async function getOrCreateDeviceId(): Promise<string> {
+  try {
+    if (Platform.OS === "android") {
+      const androidId = Application.getAndroidId();
+      if (androidId?.trim()) return androidId.trim();
+    }
+    if (Platform.OS === "ios") {
+      const iosId = await Application.getIosIdForVendorAsync();
+      if (iosId?.trim()) return iosId.trim();
+    }
+  } catch {
+    // expo-application not available or failed; use stored UUID fallback
+  }
+
   let id = await AsyncStorage.getItem(DEVICE_ID_KEY);
   if (id?.trim()) return id.trim();
   const uuid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
