@@ -1,5 +1,5 @@
 /**
- * Purpose config — shape from GET /api/v1/config/key/PURPOSE_CONFIG.
+ * Purpose config — shape from GET /api/v1/entry-app/category/config?key=PURPOSE_CONFIG.
  * No hardcoded data; all driven by API.
  */
 

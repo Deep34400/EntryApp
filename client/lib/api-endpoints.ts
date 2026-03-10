@@ -70,7 +70,7 @@ export const VISITOR_REASON: Record<string, string> = {
 
 // ----- Config API -----
 /** GET — Config by key. Response: { success, data: { key, value, ... } }. */
-export const CONFIG_KEY_PATH = "/api/v1/config/key/PURPOSE_CONFIG";
+export const CONFIG_KEY_PATH = "/api/v1/entry-app/category/config?key=PURPOSE_CONFIG";
 
 // ----- GET: Driver details by phone or reg number (one at a time; auto-fill form) -----
 // Path: GET /api/v1/drivers/driver-details?phoneNo=... OR ?regNumber=...
